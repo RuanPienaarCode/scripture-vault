@@ -1,5 +1,10 @@
 # Enrichment layout spec (frozen — issue I3)
 
+> **Note:** the generator scripts and datasets this spec describes are parked in
+> this repository — restore them from the `v1.1.0` tag when wanted (see the main
+> README's "Enrichment layer" section). The spec stays frozen either way: any
+> hand-written or restored enrichment must match these shapes.
+
 The enrichment system writes **only** to these folders. Translation folders
 (`Bible/KJV|ESV|NLT|AMP/`) are read-only to every generator (PRD TD-1).
 `tools/validate-enrichment.js` scans exactly this list — renaming a folder here

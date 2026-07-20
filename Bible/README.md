@@ -99,7 +99,9 @@ tag scheme, and the anchor rule.
 
 Source datasets they read from (openbible.info, openscriptures, CCEL) are vendored
 and licence-documented in [[sources/README|sources/README.md]]. The vault never fetches at
-read time.
+read time. *(In this repository the generators and their `sources/` datasets are
+parked to keep the clone light — the main README's "Enrichment layer" section says
+how to restore them.)*
 
 ## Rebuilding the search
 
