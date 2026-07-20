@@ -1,0 +1,952 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bible Search — Bible Study</title>
+<script>
+/* Resolve the theme before first paint — otherwise a light-mode reader gets a dark flash.
+   A saved choice wins; failing that, follow the OS. The Obsidian plugin can override this
+   later via setBibleSearchTheme(). localStorage throws in some sandboxes, hence the try. */
+(function(){
+  var t = null;
+  try { t = localStorage.getItem("bs-theme"); } catch (e) {}
+  if (t !== "light" && t !== "dark")
+    t = window.matchMedia && matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+  document.documentElement.setAttribute("data-theme", t);
+})();
+</script>
+<style>
+  /* ── Midnight Gold — gold ↔ periwinkle on navy-black; editorial, thin, hairline rules ──
+     The default theme, and the fallback if the theme script never runs. Light mode lives
+     in the [data-theme="light"] block below; every colour flows through these tokens. */
+  :root{
+    --bg:#0b0e18; --panel:#111629; --panel-2:#151b31; --line:#20263c;
+    --ink:#e8e6dc; --muted:#8b90a8; --muted-2:#565b74;
+    --accent:#d9b45a; --accent-2:#7d90ff;
+    --mk-bg:rgba(217,180,90,.20); --mk-ink:#f0d68f;
+    --bg-glow:#12172b; --bar-bg:rgba(11,14,24,.88); --code-bg:#0d1120;
+    --on-accent:#0b0e18; --accent-line:rgba(217,180,90,.5);
+    --backdrop:rgba(5,7,14,.76); --target-bg:rgba(217,180,90,.10);
+    --shadow-tab:0 1px 3px rgba(0,0,0,.4);
+    --shadow-pop:0 22px 55px rgba(0,0,0,.55);
+    --shadow-reader:0 24px 70px rgba(0,0,0,.6);
+    --sans:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+    --radius:12px;
+    --maxw:860px;
+  }
+  /* ── Ivory Gold — the same gold ↔ periwinkle, darkened to hold contrast on warm paper ── */
+  :root[data-theme="light"]{
+    --bg:#f7f4ec; --panel:#fffdf8; --panel-2:#f0ece1; --line:#ddd6c6;
+    --ink:#171a24; --muted:#575b6b; --muted-2:#686c7e;
+    --accent:#8a6a1c; --accent-2:#3f4fc4;
+    --mk-bg:rgba(217,180,90,.45); --mk-ink:#3d2f06;
+    --bg-glow:#fffdf7; --bar-bg:rgba(247,244,236,.9); --code-bg:#efeadd;
+    --on-accent:#fffdf8; --accent-line:rgba(138,106,28,.42);
+    --backdrop:rgba(60,54,38,.42); --target-bg:rgba(217,180,90,.30);
+    --shadow-tab:0 1px 3px rgba(60,50,20,.16);
+    --shadow-pop:0 18px 45px rgba(60,50,20,.16);
+    --shadow-reader:0 24px 70px rgba(60,50,20,.2);
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;color:var(--ink);font-family:var(--sans);line-height:1.7;font-size:16px;
+    font-weight:300;padding-bottom:4rem;
+    background:radial-gradient(120% 80% at 50% -10%,var(--bg-glow),var(--bg) 60%) fixed}
+  main{max-width:var(--maxw);margin:0 auto;padding:40px 24px 96px}
+  a{color:var(--accent-2)}
+  header.hero{padding:8px 0 10px}
+  .eyebrow{font-size:10.5px;letter-spacing:.42em;text-transform:uppercase;color:var(--accent);font-weight:400}
+  h1{font-size:46px;line-height:1.08;margin:14px 0 10px;letter-spacing:.01em;font-weight:200}
+  h1 .accent{color:var(--accent);font-style:italic;font-weight:200}
+  .lede{color:var(--muted);font-size:15px;font-weight:300;max-width:62ch;margin:0}
+
+  /* command bar — one row owns the whole region; filters are chips with popovers */
+  .searchbar{position:sticky;top:0;z-index:5;background:var(--bar-bg);
+    backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);padding:14px 0 14px;
+    border-bottom:1px solid var(--line);margin-bottom:6px}
+  .cmd{display:flex;align-items:center;gap:8px;border:1px solid var(--line);
+    border-radius:var(--radius);background:var(--panel);padding:6px 8px 6px 14px;position:relative;flex-wrap:wrap}
+  .cmd:focus-within{border-color:var(--accent)}
+  .cmd .glyph{color:var(--muted-2);font-size:15px}
+  /* source tabs — segmented control above the command bar, so the input owns its full row */
+  .srctabs{display:flex;width:fit-content;gap:2px;background:var(--panel-2);border:1px solid var(--line);
+    border-radius:9px;padding:2px;margin:0 0 9px}
+  .srctabs button{display:inline-flex;align-items:center;gap:6px;background:none;border:none;
+    color:var(--muted);font-family:var(--sans);font-size:13px;font-weight:300;cursor:pointer;
+    padding:6px 12px;border-radius:7px;white-space:nowrap}
+  .srctabs button:hover{color:var(--ink)}
+  .srctabs button[aria-selected="true"]{background:var(--panel);color:var(--accent);font-weight:400;
+    box-shadow:var(--shadow-tab)}
+  #q{flex:1;min-width:150px;font-size:18px;font-family:var(--sans);font-weight:200;letter-spacing:.01em;
+    color:var(--ink);background:transparent;border:none;outline:none;padding:12px 6px}
+  #q::placeholder{color:var(--muted-2);font-weight:300}
+  .chips{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+  button.chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;
+    padding:7px 13px;font-size:12px;font-weight:300;letter-spacing:.02em;color:var(--muted);
+    background:var(--panel-2);cursor:pointer;font-family:var(--sans);white-space:nowrap}
+  button.chip:hover{color:var(--ink);border-color:var(--accent)}
+  button.chip b{color:var(--accent);font-weight:500}
+  button.chip[aria-expanded="true"]{border-color:var(--accent);color:var(--ink)}
+  #chipTest b{color:var(--accent-2)}
+  .chev{color:var(--muted-2);font-size:10px}
+
+  /* popovers */
+  .pop{position:absolute;top:calc(100% + 9px);right:8px;background:var(--panel);border:1px solid var(--line);
+    border-radius:10px;padding:7px;box-shadow:var(--shadow-pop);z-index:20;min-width:190px}
+  .pop .ptitle{font-size:9.5px;letter-spacing:.24em;text-transform:uppercase;color:var(--muted-2);
+    padding:5px 10px 8px}
+  .pop button[role="menuitemradio"]{display:flex;justify-content:space-between;align-items:center;width:100%;
+    text-align:left;font-family:var(--sans);font-size:13px;font-weight:300;color:var(--muted);background:none;
+    border:none;border-radius:7px;padding:8px 10px;cursor:pointer;gap:14px}
+  .pop button[role="menuitemradio"]:hover{background:var(--panel-2);color:var(--ink)}
+  .pop button[aria-checked="true"]{color:var(--accent)}
+  .pop button[aria-checked="true"]::after{content:"✓";color:var(--accent)}
+  #popTest button[aria-checked="true"]{color:var(--accent-2)}
+  #popTest button[aria-checked="true"]::after{color:var(--accent-2)}
+  /* browse popover — the book/chapter/verse picker */
+  .pop.browsepop{min-width:280px}
+  .browsegrid{display:flex;flex-direction:column;gap:8px;padding:2px 3px 3px}
+  .browsegrid select{font-family:var(--sans);font-size:13px;font-weight:300;color:var(--ink);background:var(--panel-2);
+    border:1px solid var(--line);border-radius:8px;padding:9px 12px;cursor:pointer;width:100%}
+  .browsegrid select:focus{outline:2px solid var(--accent);outline-offset:2px;border-color:var(--accent)}
+  button.go{font-family:var(--sans);font-size:13px;font-weight:500;letter-spacing:.03em;color:var(--on-accent);
+    background:var(--accent);border:none;border-radius:8px;padding:10px 20px;cursor:pointer;width:100%}
+  button.go:hover{filter:brightness(1.08)}
+  /* help popover */
+  .pop.helppop{min-width:320px;max-width:88vw;color:var(--muted);font-size:13px;font-weight:300;padding:12px}
+  .helppop table{border-collapse:collapse}
+  .helppop td{padding:4px 10px 4px 0;vertical-align:top}
+  .helppop code{font-family:var(--mono);font-size:.85em;background:var(--code-bg);border:1px solid var(--line);
+    padding:1px 6px;border-radius:6px}
+  .helppop p{margin:8px 0 0}
+  a:focus-visible,button:focus-visible,summary:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  [hidden]{display:none!important}
+
+  /* results — hairline editorial rows, no boxes */
+  #status{color:var(--muted);font-size:13.5px;font-weight:300;margin:18px 0 4px;min-height:1.4em;
+    padding-bottom:14px;border-bottom:1px solid var(--line)}
+  #status strong{color:var(--accent);font-weight:400}
+  .card{background:none;border:none;border-bottom:1px solid var(--line);border-radius:0;padding:22px 0;margin:0}
+  .card h2{font-size:16px;font-weight:300;letter-spacing:.04em;margin:0 0 14px;
+    display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;border:none;padding:0}
+  .card h2 a.openlink{font-size:12.5px;font-weight:300;text-decoration:none;color:var(--accent-2)}
+  .card h2 a.openlink:hover{text-decoration:underline}
+  .tbadge{font-size:10px;font-weight:500;letter-spacing:.14em;color:var(--accent);background:transparent;
+    border:1px solid var(--accent-line);border-radius:4px;padding:2px 8px;text-transform:uppercase}
+  /* reference-view verses are clickable → open the reader (the reader itself uses .rv, not .verse) */
+  .verse{margin:11px 0;padding:4px 12px 4px calc(2.3em + 12px);margin-left:-12px;margin-right:-12px;text-indent:-2.3em;font-weight:300;line-height:1.85;letter-spacing:.01em;cursor:pointer;border-radius:8px;transition:background .12s}
+  .verse:hover{background:var(--panel-2)}
+  .verse a.vnum{font-family:var(--mono);font-size:12px;color:var(--accent);text-decoration:none;
+    font-weight:500;margin-right:10px}
+  .verse a.vnum:hover{text-decoration:underline}
+  mark{background:var(--mk-bg);color:var(--mk-ink);border-radius:2px;padding:0 3px}
+  .hit{border-bottom:1px solid var(--line);padding:18px 0}
+  /* verse hits open the reader on click anywhere in the card */
+  .hit-verse{cursor:pointer;margin:0 -12px;padding:18px 12px;border-radius:8px;transition:background .12s}
+  .hit-verse:hover{background:var(--panel-2)}
+  .hit-verse:hover p{color:var(--ink)}
+  .hit .ref{font-size:13px;margin-bottom:4px;letter-spacing:.02em}
+  .hit .ref a{font-weight:400;color:var(--accent-2);text-decoration:none}
+  .hit .ref a:hover{text-decoration:underline}
+  .hit p{margin:3px 0;color:var(--ink);font-weight:300;line-height:1.8}
+  /* article hits */
+  .hit.article .ref a{font-size:17px;letter-spacing:.01em}
+  .sbadge{font-size:9.5px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--accent-2);border:1px solid var(--line);border-radius:5px;padding:2px 6px;
+    margin-right:9px;white-space:nowrap;vertical-align:middle}
+  .hit.article .ameta{font-size:12px;color:var(--muted-2);font-weight:300;margin:5px 0 8px;letter-spacing:.03em}
+  .hit.article .ameta a{color:var(--muted-2);text-decoration:none}
+  .hit.article .ameta a:hover{color:var(--accent-2);text-decoration:underline}
+  .hit.article p{color:var(--muted);font-size:14.5px}
+  /* "open book" card shown when the query is a bare book name */
+  a.bookcard{display:block;background:var(--panel);border:1px solid var(--accent-line);border-radius:var(--radius);
+    padding:16px 20px;margin:18px 0 0;color:var(--ink);text-decoration:none;font-size:16px;font-weight:300}
+  a.bookcard:hover{background:var(--panel-2)}
+  a.bookcard strong{color:var(--accent);font-weight:400}
+  .hit.article .snip .lead{color:var(--ink)}
+  .morewrap{text-align:center;margin:22px 0}
+  button.more{font-family:var(--sans);font-size:13px;font-weight:300;letter-spacing:.02em;color:var(--muted);
+    background:none;border:1px solid var(--line);border-radius:999px;padding:9px 22px;cursor:pointer}
+  button.more:hover{color:var(--ink);border-color:var(--accent)}
+  .empty{color:var(--muted);text-align:center;padding:40px 0;font-weight:300}
+  .empty .big{font-size:40px;line-height:1;margin-bottom:10px}
+
+  /* in-page reader */
+  .reader{position:fixed;inset:0;z-index:50;background:var(--backdrop);
+    display:flex;justify-content:center;align-items:flex-start;padding:4vh 16px}
+  .reader-panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+    width:100%;max-width:720px;max-height:92vh;display:flex;flex-direction:column;
+    box-shadow:var(--shadow-reader)}
+  .reader-head{display:flex;align-items:center;gap:12px;padding:16px 20px;border-bottom:1px solid var(--line)}
+  .reader-head h2{margin:0;font-size:16px;font-weight:300;letter-spacing:.04em;border:none;padding:0;
+    display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .reader-head .spacer{flex:1}
+  .reader-head a.obs{font-size:12.5px;font-weight:300;text-decoration:none;white-space:nowrap;color:var(--accent-2)}
+  .reader-head a.obs:hover{text-decoration:underline}
+  .reader-close{background:none;border:1px solid var(--line);color:var(--muted);border-radius:999px;
+    width:31px;height:31px;font-size:15px;line-height:1;cursor:pointer;flex:none}
+  .reader-close:hover{border-color:var(--accent);color:var(--ink)}
+  .reader-body{padding:18px 22px 30px;overflow:auto;flex:1 1 auto;min-height:0}
+  .reader-foot{display:flex;justify-content:space-between;align-items:center;gap:10px;
+    padding:13px 20px;border-top:1px solid var(--line);flex:none}
+  .reader-foot > span{flex:1}
+  button.rnav{font-family:var(--sans);font-size:12.5px;font-weight:300;letter-spacing:.02em;color:var(--muted);
+    background:none;border:1px solid var(--line);border-radius:999px;padding:8px 15px;cursor:pointer;white-space:nowrap}
+  button.rnav:hover{border-color:var(--accent);color:var(--ink)}
+  .reader-body .rv{margin:10px 0;padding-left:2em;text-indent:-2em;font-weight:300;line-height:1.8}
+  .reader-body .rvn{font-family:var(--mono);font-size:11px;color:var(--muted-2);font-weight:500;margin-right:10px}
+  .reader-body .rv.target{background:var(--target-bg);border-left:2px solid var(--accent);
+    border-radius:0 6px 6px 0;padding:11px 14px 11px 2.3em;text-indent:-1.3em;margin:10px 0;scroll-margin-top:20px}
+  .reader-body .rv.target .rvn{color:var(--accent)}
+  .reader-body.article .rmeta{color:var(--muted-2);font-size:12.5px;font-weight:300;letter-spacing:.03em;margin:0 0 16px}
+  .reader-body.article p{margin:0 0 14px;line-height:1.8;font-weight:300}
+
+  details.help{margin:12px 0 0;color:var(--muted);font-size:14px;font-weight:300}
+  details.help summary{cursor:pointer;color:var(--muted-2);letter-spacing:.02em}
+  details.help code{font-family:var(--mono);font-size:.85em;background:var(--code-bg);border:1px solid var(--line);padding:1px 6px;border-radius:6px}
+  details.help td{padding:4px 10px 4px 0;vertical-align:top}
+  footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);color:var(--muted-2);font-size:13px;font-weight:300}
+
+  /* ── narrow screens (phones, and the Obsidian mobile pane) ──────────────────
+     The desktop layout assumes ~860px. Below ~640px three things break rather
+     than merely tighten, so they're corrected here, not just scaled down:
+       1. Popovers carry min-widths (280/320px) and hang off a position:sticky
+          bar. Once taller than the space below the bar their bottom is
+          unreachable — scrolling moves the page, not the pinned bar. The help
+          popover lost its last 4 rows on a 640px-tall screen. They become
+          full-width and internally scrollable instead.
+       2. The reader's chapter-nav buttons are white-space:nowrap; two long book
+          names ("1 Thessalonians 4" / "2 Thessalonians 1") need 307px inside a
+          248px panel, so the "next" button ran 24px off-screen at 320px.
+       3. The reader head is a single flex row, which squeezed the chapter title
+          into a 111px column (3 lines) and pushed the ✕ past the panel edge. */
+  @media (max-width:640px){
+    main{padding:24px 16px 72px}
+    h1{font-size:32px;margin:10px 0 8px}
+    .lede{font-size:14px}
+    header.hero{padding:4px 0 6px}
+
+    /* Popovers become bottom sheets — the only anchoring that always fits.
+       Hanging them off the bar can't work here: unscrolled, the bar sits ~340px
+       down and a 341px-tall popover runs off the bottom; scrolled, it pins to
+       the top and the same popover fits. Anchoring to the viewport removes the
+       dependence on scroll position entirely.
+       NOTE: this needs the blur gone. backdrop-filter on .searchbar makes it a
+       containing block for fixed-position descendants, so position:fixed would
+       resolve against the bar rather than the viewport and change nothing. The
+       bar therefore takes an opaque background here instead of the translucent
+       one, which is also cheaper to composite on a phone.
+       The min-width overrides need the specificity of the rules they beat. */
+    .searchbar{backdrop-filter:none;-webkit-backdrop-filter:none;background:var(--bg)}
+    /* Keep each example intact — the narrow first column otherwise breaks them
+       mid-token ("John 3:16–" / "18", '"born' / 'again"'), which reads as two
+       separate examples. */
+    .helppop td:first-child{white-space:nowrap}
+    .pop,.pop.browsepop,.pop.helppop{
+      position:fixed;top:auto;bottom:8px;left:8px;right:8px;
+      min-width:0;max-width:none;max-height:70vh;
+      overflow-y:auto;overscroll-behavior:contain}
+
+    /* Reader: more of the screen, and a head that wraps instead of squeezing. */
+    .reader{padding:2vh 8px}
+    .reader-panel{max-height:96vh}
+    .reader-head{flex-wrap:wrap;gap:8px 10px;padding:14px 16px}
+    .reader-head h2{flex:1 1 auto;min-width:0;font-size:15px}
+    .reader-head .spacer{display:none}
+    .reader-close{order:2;margin-left:auto}
+    .reader-head a.obs{order:3;flex:1 1 100%}   /* its own row, full width */
+    .reader-body{padding:16px 16px 24px}
+    .reader-foot{padding:11px 14px;gap:8px}
+    /* Let long book names wrap inside the button rather than overflow the panel. */
+    button.rnav{white-space:normal;min-width:0;flex:0 1 auto;padding:8px 12px;text-align:center}
+
+    .card h2{gap:8px 12px}
+    .searchbar{padding:10px 0}
+
+    /* Command bar as two clean rows: [🔍 input] then the chips. Left-aligned,
+       because the desktop justify-content:flex-end orphans the last chip on its
+       own right-aligned line once the row wraps (the touch-sized chips no longer
+       fit four-up), leaving a dead gap mid-box. */
+    .cmd{padding:6px 10px;gap:6px}
+    #q{flex:1 1 auto;min-width:0;font-size:17px;padding:10px 4px}
+    .chips{flex:1 1 100%;justify-content:flex-start;gap:6px}
+    /* Trimmed horizontal padding buys the ~28px that lets all five chips share
+       one row at 375px (they need 324px of the 321px available otherwise, and a
+       single wrapped chip reads as an orphan). Height is untouched — the 44px
+       touch target below comes from min-height, not padding. */
+    button.chip{padding:8px 11px}
+  }
+
+  /* Touch targets: the chips, tabs and result links are sized for a mouse
+     (21–30px tall). On a touch device give them the ~44px iOS/Android minimum
+     without changing how they look on desktop. Hit area grows via padding, and
+     for the inline result links via a transparent ::after overlay so the text
+     itself keeps its typographic size and baseline. */
+  @media (pointer:coarse){
+    /* min-height rather than padding alone — padding tuned to one font-size
+       drifts under another, and these all already center their content. */
+    .srctabs button,button.chip,button.more,button.rnav,
+    .pop button[role="menuitemradio"]{min-height:44px}
+    /* Chips deliberately keep their own horizontal padding (see the narrow-screen
+       block, which trims it to fit five chips on one row) — only the vertical
+       target grows, and that comes from min-height above. */
+    .srctabs button{padding:8px 14px}
+    .browsegrid select{min-height:44px;padding:10px 12px}
+    button.go{min-height:46px}
+    .pop button[role="menuitemradio"]{padding:10px}
+    .reader-close{width:44px;height:44px}
+    button.rnav{padding:8px 15px}
+    /* inline links — expand the hit box, not the type */
+    .card h2 a.openlink,.reader-head a.obs,.hit .ref a{position:relative}
+    .card h2 a.openlink::after,.reader-head a.obs::after,.hit .ref a::after{
+      content:"";position:absolute;left:0;right:0;top:50%;
+      height:44px;transform:translateY(-50%)}
+    /* the verse number sits inside an already-tappable row — just widen it a little */
+    .verse a.vnum{padding:2px 4px;margin:-2px 6px -2px -4px}
+  }
+</style>
+</head>
+<body>
+<main>
+  <header class="hero">
+    <div class="eyebrow">Bible Study Tool</div>
+    <h1>Bible <span class="accent">Search</span></h1>
+    <p class="lede">Search __TRANS_LIST__ — or the teaching
+      article library. Every result links straight into Obsidian.</p>
+  </header>
+
+  <div class="searchbar">
+    <div class="srctabs" role="tablist" aria-label="Search in">
+      <button role="tab" data-s="bible" aria-selected="true">📖 Bible</button>
+      <button role="tab" data-s="articles" aria-selected="false">📄 Articles</button>
+    </div>
+    <div class="cmd">
+      <span class="glyph" aria-hidden="true">🔍</span>
+      <input id="q" type="search" autocomplete="off" spellcheck="false" autofocus
+        placeholder="John 3:16-18 · Psalm 23 · born again · shepherd…" aria-label="Search">
+      <div class="chips">
+        <button class="chip" id="chipTrans" aria-haspopup="true" aria-expanded="false"__TRANS_HIDDEN__><b>__DEFAULT_TRANS_LABEL__</b> <span class="chev" aria-hidden="true">▾</span></button>
+        <button class="chip" id="chipTest" aria-haspopup="true" aria-expanded="false"><b>All 66</b> <span class="chev" aria-hidden="true">▾</span></button>
+        <button class="chip" id="chipBrowse" aria-haspopup="true" aria-expanded="false">Browse <span class="chev" aria-hidden="true">▾</span></button>
+        <button class="chip" id="chipHelp" aria-haspopup="true" aria-expanded="false" aria-label="How to search">?</button>
+        <button class="chip" id="chipTheme" aria-label="Switch theme"></button>
+      </div>
+
+      <div class="pop" id="popTrans" role="menu" aria-label="Translation" hidden>
+        <div class="ptitle">Translation</div>
+__TRANS_MENU__
+      </div>
+      <div class="pop" id="popTest" role="menu" aria-label="Testament" hidden>
+        <div class="ptitle">Testament</div>
+        <button role="menuitemradio" data-ot="all" aria-checked="true">All 66 books</button>
+        <button role="menuitemradio" data-ot="ot" aria-checked="false">Old Testament</button>
+        <button role="menuitemradio" data-ot="nt" aria-checked="false">New Testament</button>
+      </div>
+      <div class="pop browsepop" id="popBrowse" aria-label="Jump to a passage" hidden>
+        <div class="ptitle">Jump to a passage</div>
+        <div class="browsegrid">
+          <select id="selBook" aria-label="Book"></select>
+          <select id="selCh" aria-label="Chapter"></select>
+          <select id="selV" aria-label="Verse"></select>
+          <button class="go" id="goBtn">Read →</button>
+        </div>
+      </div>
+      <div class="pop helppop" id="popHelp" aria-label="How to search" hidden>
+        <div class="ptitle">How to search</div>
+        <div id="help-bible">
+          <table>
+            <tr><td><code>John 3:16</code></td><td>one verse (book names can be short — <code>gen 1:1</code>, <code>1 cor 13</code>, <code>ps 23</code>)</td></tr>
+            <tr><td><code>John 3:16-18</code></td><td>a range of verses</td></tr>
+            <tr><td><code>Psalm 23</code></td><td>a whole chapter</td></tr>
+            <tr><td><code>Genesis</code></td><td>book name → open the book</td></tr>
+            <tr><td><code>living water</code></td><td>verses containing <em>all</em> the words</td></tr>
+            <tr><td><code>"born again"</code></td><td>exact phrase</td></tr>
+          </table>
+          <p>Click a verse number or reference to read the chapter right here.</p>
+        </div>
+        <div id="help-articles" hidden>
+          <table>
+            <tr><td><code>baptism</code></td><td>articles whose title, topic or text mention the word</td></tr>
+            <tr><td><code>prayer fasting</code></td><td>articles containing <em>all</em> the words</td></tr>
+            <tr><td><code>"spiritual gifts"</code></td><td>exact phrase</td></tr>
+          </table>
+          <p>Best matches first (title &amp; topic hits rank highest). Click a title to read it right here.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <p id="status" role="status" aria-live="polite"></p>
+  <section id="results" aria-label="Search results"></section>
+
+  <footer>
+    <p>Generated __GENERATED__ from the vault — Bible full text (__TRANS_DOT__) and __ARTCOUNT__ teaching articles.
+      Self-contained — works offline, no network. Personal study use only; the NLT, ESV, AMP and article text is
+      copyrighted — don't share this file.</p>
+  </footer>
+</main>
+
+<div class="reader" id="reader" role="dialog" aria-modal="true" aria-label="Reader" hidden></div>
+
+__DATA_SCRIPTS__
+
+<script>
+const VAULT = "Bible Study";
+const BOOKS = __BOOKS__;
+
+/* ── payload access ───────────────────────────────────────────────
+   The verse and article text lives in the <script type="application/json"> tags
+   above — inert to the JS engine, so none of it is parsed at boot. D(t) parses
+   one translation the first time it's needed and caches it; A() does the same for
+   articles. Never touch the DOM nodes directly — always go through D()/A(). */
+const _dcache = {};
+function D(t){ /* trans -> [ [bookIdx, chapter, verse, text], ... ] canonical order */
+  let d = _dcache[t];
+  if (!d) d = _dcache[t] = JSON.parse(document.getElementById("bd-" + t).textContent);
+  return d;
+}
+let _acache = null;
+function A(){ /* [ title, author, date, topics, excerpt, path, url, body, source ] */
+  if (!_acache) _acache = JSON.parse(document.getElementById("ad").textContent);
+  return _acache;
+}
+const artUrl = a => "obsidian://open?vault=" + encodeURIComponent(VAULT) + "&file=" + encodeURIComponent(a[5]);
+
+// Emitted by build-bible-search.js from the folders that actually exist under Bible/.
+const TRANS = __TRANS__;
+const ALIAS = { "ps":"Psalms","psalm":"Psalms","song of solomon":"Song of Songs","sos":"Song of Songs",
+  "jn":"John","mt":"Matthew","mk":"Mark","lk":"Luke","dt":"Deuteronomy","ex":"Exodus" };
+const lcCache = {};
+
+const $q = document.getElementById("q");
+const $res = document.getElementById("results");
+const $status = document.getElementById("status");
+let scope = __DEFAULT_TRANS__;
+let source = "bible";
+let pending = null;
+let lastTerms = [];
+
+/* ── theme ───────────────────────────────────────────────────── */
+// Precedence: an explicit in-page choice > the host (Obsidian) > the OS.
+// The <head> script already applied the first paint; this only keeps it in sync.
+const THEME_KEY = "bs-theme";
+const $theme = document.getElementById("chipTheme");
+let hostTheme = null;
+
+const readPref = () => { try { return localStorage.getItem(THEME_KEY); } catch (e) { return null; } };
+const osTheme = () => (window.matchMedia && matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");
+
+function applyTheme(){
+  const pref = readPref();
+  const t = (pref === "light" || pref === "dark") ? pref : (hostTheme || osTheme());
+  document.documentElement.setAttribute("data-theme", t);
+  $theme.textContent = t === "light" ? "☾" : "☀";
+  $theme.setAttribute("aria-label", t === "light" ? "Switch to dark theme" : "Switch to light theme");
+  $theme.title = t === "light" ? "Dark theme" : "Light theme";
+}
+$theme.addEventListener("click", () => {
+  const next = document.documentElement.getAttribute("data-theme") === "light" ? "dark" : "light";
+  try { localStorage.setItem(THEME_KEY, next); } catch (e) { hostTheme = next; }
+  applyTheme();
+});
+if (window.matchMedia){
+  const mq = matchMedia("(prefers-color-scheme: light)");
+  // MediaQueryList.addEventListener is iOS 14+/Safari 14+; older Safari only has addListener.
+  // Never let this throw — it runs at top level and would kill all the wiring below.
+  try { mq.addEventListener("change", applyTheme); }
+  catch (e) { if (mq.addListener) mq.addListener(applyTheme); }
+}
+// The Obsidian plugin calls this to match the app's theme; an explicit choice here still wins.
+window.setBibleSearchTheme = t => { hostTheme = t; applyTheme(); };
+applyTheme();
+
+/* ── helpers ─────────────────────────────────────────────────── */
+// Escapes for BOTH text and attribute contexts — quotes included, so a value
+// interpolated inside href="…"/title="…" can't break out of the attribute.
+const esc = s => String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+// Only http(s) may become a live href. Anything else (javascript:, data:, …) is
+// dropped to "" so the link renders inert — the page runs in the Obsidian origin,
+// so a javascript: URL here would be code execution in the vault.
+const safeUrl = u => (/^https?:\/\//i.test(u || "") ? u : "");
+const norm = s => s.toLowerCase().replace(/\./g,"").replace(/\s+/g," ").trim();
+
+function noteName(t, book, ch){ return t === "KJV" ? book + " " + ch : book + " " + ch + " (" + t + ")"; }
+function obsUrl(t, book, ch, v){
+  let file = "Bible/" + t + "/" + book + "/" + noteName(t, book, ch);
+  if (v != null) file += "#^" + v;
+  return "obsidian://open?vault=" + encodeURIComponent(VAULT) + "&file=" + encodeURIComponent(file);
+}
+function lc(t){
+  if (!lcCache[t]) lcCache[t] = D(t).map(r => r[3].toLowerCase());
+  return lcCache[t];
+}
+function chosen(){ return scope === "ALL" ? TRANS : [scope]; }
+
+/* ── reference parsing ───────────────────────────────────────── */
+// resolve a name fragment ("gen", "1 jn", "psalm") to a canonical book name, or null
+function matchBook(name){
+  const raw = norm(name).replace(/^([1-3])(?=[a-z])/, "$1 ");
+  let book = ALIAS[raw] || BOOKS.find(b => norm(b) === raw) || BOOKS.find(b => norm(b).startsWith(raw));
+  if (!book){                                    // numbered-book alias: "1 jn" -> "1 John"
+    const nm = raw.match(/^([1-3]) (.+)$/);
+    if (nm && ALIAS[nm[2]]) book = BOOKS.find(b => norm(b) === nm[1] + " " + norm(ALIAS[nm[2]]));
+  }
+  return book || null;
+}
+function parseRef(input){
+  const m = input.trim().match(/^([1-3]?\s*[A-Za-z][A-Za-z .]*?)\s*(\d+)(?:\s*[:.]\s*(\d+)(?:\s*[-–—]\s*(\d+))?)?$/);
+  if (!m) return null;
+  const book = matchBook(m[1]);
+  if (!book) return null;
+  let v1 = m[3] ? +m[3] : null, v2 = m[4] ? +m[4] : (m[3] ? +m[3] : null);
+  if (v1 != null && v2 < v1) { const t = v1; v1 = v2; v2 = t; }
+  return { book, bi: BOOKS.indexOf(book), ch: +m[2], v1, v2 };
+}
+// input is JUST a book name (no chapter)? → its index, else null. "Genesis", "1 John", "Song of Songs".
+function bareBook(input){
+  const s = input.trim();
+  if (!/^([1-3]\s*)?[A-Za-z][A-Za-z .]*$/.test(s)) return null;
+  const book = matchBook(s);
+  return book ? BOOKS.indexOf(book) : null;
+}
+
+/* ── rendering ───────────────────────────────────────────────── */
+function vAttrs(t, r){ return ' data-open="verse" data-t="' + t + '" data-bi="' + r[0] + '" data-ch="' + r[1] + '" data-v="' + r[2] + '"'; }
+function verseLine(t, book, ch, r, marks){
+  let text = esc(r[3]);
+  if (marks) text = highlight(text, marks);
+  // data-open on the whole line, so tapping the verse text (not only the number)
+  // opens the reader at this verse.
+  return '<p class="verse"' + vAttrs(t, r) + '><a class="vnum" href="' + obsUrl(t, book, ch, r[2]) + '"' + vAttrs(t, r) +
+    ' title="Open chapter">' + r[2] + '</a>' + text + '</p>';
+}
+
+function renderRef(ref){
+  lastTerms = [];
+  let html = "", found = 0;
+  for (const t of chosen()){
+    const rows = D(t).filter(r => r[0] === ref.bi && r[1] === ref.ch &&
+      (ref.v1 == null || (r[2] >= ref.v1 && r[2] <= ref.v2)));
+    const label = ref.book + " " + ref.ch + (ref.v1 != null ? ":" + ref.v1 + (ref.v2 > ref.v1 ? "–" + ref.v2 : "") : "");
+    if (!rows.length){
+      html += '<div class="card"><h2><span class="tbadge ' + t + '">' + t + '</span> ' + esc(label) +
+        ' <span class="muted" style="font-size:13px;color:var(--muted-2)">not in this translation</span></h2></div>';
+      continue;
+    }
+    found += rows.length;
+    html += '<div class="card"><h2><span class="tbadge ' + t + '">' + t + '</span> ' + esc(label) +
+      ' <a class="openlink" href="' + obsUrl(t, ref.book, ref.ch, ref.v1) + '"' +
+      ' data-open="verse" data-t="' + t + '" data-bi="' + ref.bi + '" data-ch="' + ref.ch +
+      '" data-v="' + (ref.v1 != null ? ref.v1 : "") + '">Read ↗</a>' +
+      ' <a class="openlink" href="' + obsUrl(t, ref.book, ref.ch, ref.v1) + '">Open in Obsidian ↗</a></h2>' +
+      rows.map(r => verseLine(t, ref.book, ref.ch, r)).join("") + '</div>';
+  }
+  $status.innerHTML = found
+    ? '<strong>' + ref.book + " " + ref.ch + '</strong> — ' + found + ' verse' + (found === 1 ? '' : 's') + ' shown'
+    : 'Reference not found — check the chapter number.';
+  $res.innerHTML = html;
+}
+
+/* ── keyword search ──────────────────────────────────────────── */
+function parseTerms(input){
+  const phrase = input.match(/^"(.+)"$/);
+  if (phrase) return [phrase[1].toLowerCase().trim()];
+  return input.toLowerCase().split(/\s+/).filter(w => w.length > 1 || input.trim().length === 1);
+}
+const escRe = s => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+/* word-start matching: "born" hits "born" but not "stubborn"; "shepherd" still hits "shepherds" */
+const termRe = (w, flags) => new RegExp("\\b" + escRe(w), flags);
+function highlight(escaped, terms){
+  for (const w of terms){
+    escaped = escaped.replace(new RegExp("\\b(" + escRe(w) + ")", "gi"), "<mark>$1</mark>");
+  }
+  return escaped;
+}
+/* Relevance = tightest character span that contains every term (smaller = better).
+   "born again" as a phrase → span ~6; "Again … borne" far apart → span in the hundreds. */
+function proximity(text, terms){
+  if (terms.length < 2) return 0;
+  const pos = [];
+  for (let ti = 0; ti < terms.length; ti++){
+    const re = new RegExp("\\b" + escRe(terms[ti]), "gi");
+    let m, found = false;
+    while ((m = re.exec(text)) !== null){
+      pos.push([m.index, ti]); found = true;
+      if (m.index === re.lastIndex) re.lastIndex++;
+    }
+    if (!found) return Infinity;
+  }
+  pos.sort((a, b) => a[0] - b[0]);
+  const need = terms.length, seen = {};
+  let have = 0, best = Infinity, l = 0;
+  for (let r = 0; r < pos.length; r++){
+    if ((seen[pos[r][1]] = (seen[pos[r][1]] || 0) + 1) === 1) have++;
+    while (have === need){
+      if (pos[r][0] - pos[l][0] < best) best = pos[r][0] - pos[l][0];
+      if (--seen[pos[l][1]] === 0) have--;
+      l++;
+    }
+  }
+  return best;
+}
+
+const PAGE = 150;
+function renderSearch(input){
+  const terms = parseTerms(input);
+  if (!terms.length){ $status.textContent = ""; $res.innerHTML = ""; return; }
+  lastTerms = terms;
+  let hits = [];
+  const res = terms.map(w => termRe(w));
+  for (const t of chosen()){
+    const arr = D(t), low = lc(t);
+    for (let i = 0; i < arr.length; i++){
+      if (!inTestament(arr[i][0])) continue;
+      let ok = true;
+      for (const re of res){ if (!re.test(low[i])){ ok = false; break; } }
+      if (ok) hits.push([t, i, 0]);
+    }
+  }
+  if (terms.length > 1){
+    for (const h of hits) h[2] = proximity(lc(h[0])[h[1]], terms);
+    // best proximity first; ties keep canonical Bible order (original push order)
+    hits = hits.map((h, k) => [h, k]).sort((a, b) => a[0][2] - b[0][2] || a[1] - b[1]).map(p => p[0]);
+  }
+  // if the whole query is a book name, offer to open the book (verse text never contains book names)
+  const bIdx = bareBook(input);
+  let bookCard = "";
+  if (bIdx != null){
+    const at = scope === "ALL" ? TRANS[0] : scope;
+    bookCard = '<a class="bookcard" href="' + obsUrl(at, BOOKS[bIdx], 1, null) + '"' +
+      ' data-open="verse" data-t="' + at + '" data-bi="' + bIdx + '" data-ch="1" data-v="">' +
+      '📖 Open <strong>' + esc(BOOKS[bIdx]) + '</strong> · ' + STRUCT[bIdx].maxCh + ' chapters →</a>';
+  }
+  const label = terms.map(w => '“' + esc(w) + '”').join(" + ");
+  const tName = testament === "ot" ? " · Old Testament" : testament === "nt" ? " · New Testament" : "";
+  $status.innerHTML = hits.length
+    ? '<strong>' + hits.length.toLocaleString() + '</strong> verse' + (hits.length === 1 ? '' : 's') + ' matching ' + label +
+      (scope === "ALL" ? ' across all four translations' : ' in ' + scope) + tName
+    : (bIdx != null
+        ? 'No verses contain the word ' + label + ' — open the book below to read it.'
+        : 'No verses matching ' + label + (scope === "ALL" ? '' : ' in ' + scope) + tName + ' — try another word or widen the filters.');
+  $res.innerHTML = bookCard;
+  if (!hits.length){
+    if (bIdx == null) $res.innerHTML = '<div class="empty"><div class="big">🕊️</div>Nothing found. Try a shorter word, or switch translation.</div>';
+    return;
+  }
+  let shown = 0;
+  const showMore = () => {
+    const frag = [];
+    const end = Math.min(shown + PAGE, hits.length);
+    for (; shown < end; shown++){
+      const [t, i] = hits[shown];
+      const r = D(t)[i];
+      const book = BOOKS[r[0]];
+      // data-open on the whole card, so clicking the verse text (not just the
+      // reference link) opens the reader scrolled to and highlighting this verse.
+      frag.push('<div class="hit hit-verse"' + vAttrs(t, r) + '><div class="ref"><span class="tbadge ' + t + '">' + t + '</span> ' +
+        '<a href="' + obsUrl(t, book, r[1], r[2]) + '"' + vAttrs(t, r) + ' title="Open chapter">' +
+        book + " " + r[1] + ":" + r[2] + ' ↗</a></div><p>' + highlight(esc(r[3]), terms) + '</p></div>');
+    }
+    const wrap = document.getElementById("morewrap");
+    if (wrap) wrap.remove();
+    $res.insertAdjacentHTML("beforeend", frag.join(""));
+    if (shown < hits.length){
+      $res.insertAdjacentHTML("beforeend",
+        '<div class="morewrap" id="morewrap"><button class="more">Show ' +
+        Math.min(PAGE, hits.length - shown) + ' more (' + (hits.length - shown).toLocaleString() + ' left)</button></div>');
+      document.querySelector("#morewrap .more").addEventListener("click", showMore);
+    }
+  };
+  showMore();
+}
+
+/* ── article search ──────────────────────────────────────────── */
+let artLC = null;
+function artIndex(){
+  const ART = A();
+  if (!artLC) artLC = ART.map(a => ({
+    title:   a[0].toLowerCase(),
+    meta:    (a[1] + " " + a[3] + " " + a[8]).toLowerCase(),   // author + topics + source
+    excerpt: a[4].toLowerCase(),
+    body:    a[7].toLowerCase(),
+    blob:    (a[0] + " " + a[1] + " " + a[3] + " " + a[4] + " " + a[7]).toLowerCase()
+  }));
+  return artLC;
+}
+function artSnippet(a, terms){
+  const body = a[7], low = body.toLowerCase();
+  let pos = -1;
+  for (const w of terms){
+    const m = new RegExp("\\b" + escRe(w), "i").exec(low);
+    if (m && (pos === -1 || m.index < pos)) pos = m.index;
+  }
+  if (pos === -1) return highlight(esc(a[4]), terms);   // no body hit → show excerpt
+  const start = Math.max(0, pos - 90), end = Math.min(body.length, pos + 180);
+  const snip = highlight(esc(body.slice(start, end).replace(/\n/g, " ").trim()), terms);
+  return (start > 0 ? "… " : "") + snip + (end < body.length ? " …" : "");
+}
+// count whole-word occurrences of a term in a field
+function countIn(text, w){
+  const re = new RegExp("\\b" + escRe(w), "gi");
+  let n = 0; while (re.exec(text) !== null) n++;
+  return n;
+}
+function renderArticles(input){
+  const ART = A();
+  const terms = parseTerms(input);
+  if (!terms.length){ $status.textContent = ""; $res.innerHTML = ""; return; }
+  lastTerms = terms;
+  const idx = artIndex(), scored = [];
+  for (let i = 0; i < ART.length; i++){
+    const x = idx[i];
+    let score = 0, ok = true;
+    for (const w of terms){
+      // weighted frequency: title ≫ topic/author ≫ excerpt ≫ body, counting every mention
+      const tC = countIn(x.title, w), mC = countIn(x.meta, w),
+            eC = countIn(x.excerpt, w), bC = countIn(x.body, w);
+      if (tC + mC + eC + bC === 0){ ok = false; break; }   // every term must appear somewhere
+      score += 12 * tC + 6 * mC + 3 * eC + bC;
+    }
+    if (ok) scored.push([i, score, terms.length > 1 ? proximity(x.blob, terms) : 0]);
+  }
+  const label = terms.map(w => '“' + esc(w) + '”').join(" + ");
+  $status.innerHTML = scored.length
+    ? '<strong>' + scored.length + '</strong> article' + (scored.length === 1 ? '' : 's') + ' matching ' + label
+    : 'No articles matching ' + label + ' — try a different or shorter word.';
+  if (!scored.length){
+    $res.innerHTML = '<div class="empty"><div class="big">📄</div>No matching articles.</div>';
+    return;
+  }
+  // rank: field score desc, then proximity asc, then newest first
+  scored.sort((a, b) => b[1] - a[1] || a[2] - b[2] || (ART[a[0]][2] < ART[b[0]][2] ? 1 : -1));
+  $res.innerHTML = scored.map(s => {
+    const a = ART[s[0]];
+    // author / date / topics are all optional outside Four12 — drop the blanks, don't strand separators
+    const meta = [a[1], a[2], a[3]].filter(Boolean).map(esc);
+    if (safeUrl(a[6])) meta.push('<a href="' + esc(safeUrl(a[6])) + '" target="_blank" rel="noopener">web ↗</a>');
+    return '<div class="hit article"><div class="ref"><span class="sbadge">' + esc(a[8]) + '</span>' +
+      '<a href="' + artUrl(a) + '" data-open="article" data-i="' + s[0] + '" title="Open article">' +
+      esc(a[0]) + ' ↗</a></div>' +
+      (meta.length ? '<div class="ameta">' + meta.join(' · ') + '</div>' : '') +
+      '<p class="snip">' + artSnippet(a, terms) + '</p></div>';
+  }).join("");
+}
+
+/* ── in-page reader ──────────────────────────────────────────── */
+const $reader = document.getElementById("reader");
+let curNav = null;   // { t, prev:[bi,ch]|null, next:[bi,ch]|null } while a chapter is open
+function closeReader(){ $reader.hidden = true; $reader.innerHTML = ""; document.body.style.overflow = ""; curNav = null; }
+function openReader(headHtml, bodyHtml, bodyClass, footHtml){
+  $reader.innerHTML =
+    '<div class="reader-panel"><div class="reader-head">' + headHtml +
+    '<button class="reader-close" aria-label="Close" title="Close (Esc)">✕</button></div>' +
+    '<div class="reader-body ' + (bodyClass || "") + '">' + bodyHtml + '</div>' + (footHtml || "") + '</div>';
+  $reader.hidden = false;
+  document.body.style.overflow = "hidden";
+  $reader.querySelector(".reader-close").addEventListener("click", closeReader);
+  $reader.querySelector(".reader-close").focus();
+}
+// neighbouring chapter across book boundaries: -1 = previous, +1 = next; null at the ends of the canon
+function chapterNav(bi, ch, delta){
+  if (delta < 0){
+    if (ch > 1) return [bi, ch - 1];
+    for (let b = bi - 1; b >= 0; b--) if (STRUCT[b].maxCh > 0) return [b, STRUCT[b].maxCh];
+  } else {
+    if (ch < STRUCT[bi].maxCh) return [bi, ch + 1];
+    for (let b = bi + 1; b < BOOKS.length; b++) if (STRUCT[b].maxCh > 0) return [b, 1];
+  }
+  return null;
+}
+function openVerse(t, bi, ch, v){
+  const book = BOOKS[bi];
+  const rows = D(t).filter(r => r[0] === bi && r[1] === ch);
+  const head = '<h2><span class="tbadge ' + t + '">' + t + '</span> ' + esc(book + " " + ch) + '</h2>' +
+    '<span class="spacer"></span>' +
+    '<a class="obs" href="' + obsUrl(t, book, ch, v) + '">Open in Obsidian ↗</a>';
+  const body = rows.map(r => {
+    const isT = r[2] === v;
+    let text = esc(r[3]);
+    if (lastTerms.length) text = highlight(text, lastTerms);
+    return '<p class="rv' + (isT ? " target" : "") + '"' + (isT ? ' id="rv-target"' : "") +
+      '><span class="rvn">' + r[2] + '</span>' + text + '</p>';
+  }).join("");
+  const prev = chapterNav(bi, ch, -1), next = chapterNav(bi, ch, 1);
+  const navBtn = (n, side) => n
+    ? '<button class="rnav" data-bi="' + n[0] + '" data-ch="' + n[1] + '">' +
+        (side === "prev" ? "‹ " + esc(BOOKS[n[0]] + " " + n[1]) : esc(BOOKS[n[0]] + " " + n[1]) + " ›") + '</button>'
+    : '<span></span>';
+  const foot = '<div class="reader-foot">' + navBtn(prev, "prev") + navBtn(next, "next") + '</div>';
+  openReader(head, body || '<p class="muted">Chapter text not found.</p>', "", foot);
+  curNav = { t, prev, next };
+  $reader.querySelectorAll(".rnav").forEach(b =>
+    b.addEventListener("click", () => openVerse(t, +b.dataset.bi, +b.dataset.ch, null)));
+  const tgt = document.getElementById("rv-target");
+  if (tgt) tgt.scrollIntoView({ block: "center" });
+  else $reader.querySelector(".reader-body").scrollTop = 0;
+}
+function openArticle(i){
+  curNav = null;
+  const a = A()[i];
+  const head = '<h2>' + esc(a[0]) + '</h2><span class="spacer"></span>' +
+    '<a class="obs" href="' + artUrl(a) + '">Open in Obsidian ↗</a>';
+  const parts = [a[8], a[1], a[2], a[3]].filter(Boolean).map(esc);
+  if (safeUrl(a[6])){
+    const host = (a[6].match(/^https?:\/\/(?:www\.)?([^/]+)/) || [, "the web"])[1];
+    parts.push('<a href="' + esc(safeUrl(a[6])) + '" target="_blank" rel="noopener">Read on ' + esc(host) + ' ↗</a>');
+  }
+  const meta = '<p class="rmeta">' + parts.join(' · ') + '</p>';
+  const paras = a[7].split("\n").filter(Boolean).map(p => {
+    let text = esc(p);
+    if (lastTerms.length) text = highlight(text, lastTerms);
+    return '<p>' + text + '</p>';
+  }).join("");
+  openReader(head, meta + paras, "article");
+  $reader.querySelector(".reader-body").scrollTop = 0;
+}
+
+/* ── book / chapter / verse selector ─────────────────────────── */
+// STRUCT[bookIdx] = { maxCh, ch:{ chapter: maxVerse } } — max across all four
+// translations, precomputed by build-bible-search.js. Deriving it here meant
+// scanning all 124k rows at boot, which forced every translation to parse.
+const STRUCT = __STRUCT__;
+const $book = document.getElementById("selBook"),
+      $chap = document.getElementById("selCh"),
+      $verse = document.getElementById("selV"),
+      $go = document.getElementById("goBtn");
+const OT_LAST = 38;   // Malachi is BOOKS[38]; Matthew (NT) starts at 39
+let testament = "all";
+function inTestament(bi){ return testament === "all" || (testament === "ot" ? bi <= OT_LAST : bi > OT_LAST); }
+function fillSelect(sel, opts){ sel.innerHTML = opts.map(o => '<option value="' + o.v + '">' + o.t + '</option>').join(""); }
+function fillBooks(){
+  fillSelect($book, BOOKS.map((b, i) => ({ v: i, t: b })).filter(o => inTestament(o.v)));
+  fillChapters();
+}
+function fillChapters(){
+  const bi = +$book.value, opts = [];
+  for (let c = 1; c <= STRUCT[bi].maxCh; c++) opts.push({ v: c, t: "Ch " + c });
+  fillSelect($chap, opts);
+  fillVerses();
+}
+function fillVerses(){
+  const bi = +$book.value, ch = +$chap.value, n = STRUCT[bi].ch[ch] || 0, opts = [{ v: 0, t: "Whole chapter" }];
+  for (let v = 1; v <= n; v++) opts.push({ v: v, t: "v " + v });
+  fillSelect($verse, opts);
+}
+fillBooks();
+$book.addEventListener("change", fillChapters);
+$chap.addEventListener("change", fillVerses);
+$go.addEventListener("click", () => {
+  closePops();
+  openVerse(scope === "ALL" ? TRANS[0] : scope, +$book.value, +$chap.value, +$verse.value || null);
+});
+
+/* ── wiring ──────────────────────────────────────────────────── */
+function run(){
+  const input = $q.value.trim();
+  if (!input){ $status.textContent = ""; $res.innerHTML = ""; return; }
+  if (source === "articles"){ renderArticles(input); return; }
+  const ref = parseRef(input);
+  if (ref) renderRef(ref); else renderSearch(input);
+}
+$q.addEventListener("input", () => { clearTimeout(pending); pending = setTimeout(run, 180); });
+$q.addEventListener("keydown", e => { if (e.key === "Enter"){ clearTimeout(pending); run(); } });
+
+/* ── command-bar chips + popovers ────────────────────────────── */
+const CHIP_POP = { chipTrans: "popTrans", chipTest: "popTest", chipBrowse: "popBrowse", chipHelp: "popHelp" };
+function closePops(){
+  Object.values(CHIP_POP).forEach(id => { document.getElementById(id).hidden = true; });
+  Object.keys(CHIP_POP).forEach(id => { document.getElementById(id).setAttribute("aria-expanded", "false"); });
+}
+function anyPopOpen(){ return Object.values(CHIP_POP).some(id => !document.getElementById(id).hidden); }
+Object.entries(CHIP_POP).forEach(([chipId, popId]) => {
+  const chip = document.getElementById(chipId), pop = document.getElementById(popId);
+  chip.addEventListener("click", e => {
+    e.stopPropagation();
+    const wasOpen = !pop.hidden;
+    closePops();
+    if (!wasOpen){ pop.hidden = false; chip.setAttribute("aria-expanded", "true"); }
+  });
+});
+document.addEventListener("click", e => {
+  if (!e.target.closest(".pop") && !e.target.closest("[aria-haspopup]")) closePops();
+});
+
+// radio-set helper: mark the clicked option, unmark siblings
+function checkRadio(pop, btn){
+  pop.querySelectorAll('[role="menuitemradio"]').forEach(b => b.setAttribute("aria-checked", "false"));
+  btn.setAttribute("aria-checked", "true");
+}
+
+// translation popover → scope + chip label
+document.querySelectorAll("#popTrans [data-t]").forEach(btn => btn.addEventListener("click", () => {
+  checkRadio(document.getElementById("popTrans"), btn);
+  scope = btn.dataset.t;
+  document.getElementById("chipTrans").innerHTML =
+    "<b>" + (scope === "ALL" ? "All four" : scope) + '</b> <span class="chev" aria-hidden="true">▾</span>';
+  closePops(); run();
+}));
+
+// testament popover → filter + chip label + book dropdown
+const TEST_LABEL = { all: "All 66", ot: "Old T.", nt: "New T." };
+document.querySelectorAll("#popTest [data-ot]").forEach(btn => btn.addEventListener("click", () => {
+  checkRadio(document.getElementById("popTest"), btn);
+  testament = btn.dataset.ot;
+  document.getElementById("chipTest").innerHTML =
+    "<b>" + TEST_LABEL[testament] + '</b> <span class="chev" aria-hidden="true">▾</span>';
+  fillBooks();
+  closePops(); run();
+}));
+
+// source tabs → mode + chip visibility + help swap
+const $tabs = Array.from(document.querySelectorAll(".srctabs [data-s]"));
+function selectSource(s, focusInput){
+  source = s;
+  const bible = source === "bible";
+  $tabs.forEach(b => b.setAttribute("aria-selected", b.dataset.s === s ? "true" : "false"));
+  document.getElementById("chipTrans").hidden = !bible;
+  document.getElementById("chipTest").hidden = !bible;
+  document.getElementById("chipBrowse").hidden = !bible;
+  document.getElementById("help-bible").hidden = !bible;
+  document.getElementById("help-articles").hidden = bible;
+  $q.placeholder = bible
+    ? "John 3:16-18 · Psalm 23 · born again · shepherd…"
+    : "baptism · prayer · discipleship · \"spiritual gifts\"…";
+  closePops();
+  if (focusInput) $q.focus();
+  run();
+}
+$tabs.forEach(btn => btn.addEventListener("click", () => selectSource(btn.dataset.s, true)));
+// ← / → cycle tabs while the tablist has focus, per the WAI-ARIA tabs pattern
+document.querySelector(".srctabs").addEventListener("keydown", e => {
+  if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+  e.preventDefault();
+  const i = $tabs.findIndex(b => b.dataset.s === source);
+  const next = $tabs[(i + (e.key === "ArrowRight" ? 1 : $tabs.length - 1)) % $tabs.length];
+  selectSource(next.dataset.s, false);
+  next.focus();
+});
+
+// result clicks → open the in-page reader (links keep their href for right-click / fallback)
+$res.addEventListener("click", e => {
+  const el = e.target.closest("[data-open]");
+  if (!el) return;                       // e.g. the "web ↗" link → normal navigation
+  e.preventDefault();
+  if (el.dataset.open === "verse") openVerse(el.dataset.t, +el.dataset.bi, +el.dataset.ch, el.dataset.v === "" ? null : +el.dataset.v);
+  else openArticle(+el.dataset.i);
+});
+// close reader on backdrop click or Esc
+$reader.addEventListener("click", e => { if (e.target === $reader) closeReader(); });
+document.addEventListener("keydown", e => {
+  if ($reader.hidden){
+    if (e.key === "Escape" && anyPopOpen()) closePops();
+    return;
+  }
+  if (e.key === "Escape") closeReader();
+  else if (e.key === "ArrowLeft" && curNav && curNav.prev) openVerse(curNav.t, curNav.prev[0], curNav.prev[1], null);
+  else if (e.key === "ArrowRight" && curNav && curNav.next) openVerse(curNav.t, curNav.next[0], curNav.next[1], null);
+});
+</script>
+</body>
+</html>

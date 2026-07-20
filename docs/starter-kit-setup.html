@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bible Study Vault — Starter Kit Setup</title>
+<style>
+  :root{
+    --bg:#0f1115; --panel:#171a21; --panel-2:#1d212b; --line:#2a2f3a;
+    --ink:#e7eaf0; --muted:#9aa3b2; --muted-2:#6f81a3;
+    --accent:#5b9dff; --accent-2:#7c5cff;
+    --crit:#f06464; --warn:#f5a524; --ok:#3ecf8e; --info:#5bb8ff;
+    --sans:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+    --radius:12px; --maxw:1000px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:linear-gradient(180deg,#0c0e12,var(--bg) 240px);color:var(--ink);
+    font-family:var(--sans);line-height:1.65;font-size:16px;padding-bottom:4rem}
+  main{max-width:var(--maxw);margin:0 auto;padding:48px 24px 96px}
+  a{color:var(--accent)}
+  header.hero{padding:8px 0 26px;border-bottom:1px solid var(--line);margin-bottom:32px}
+  .eyebrow{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);font-weight:700}
+  h1{font-size:34px;line-height:1.15;margin:10px 0 8px;letter-spacing:-.02em}
+  h1 .accent{color:var(--accent-2)}
+  .lede{color:var(--muted);font-size:17px;max-width:74ch;margin:0}
+  h2{font-size:23px;margin:44px 0 12px;letter-spacing:-.01em;border-left:3px solid var(--accent);padding-left:.6rem}
+  h3{font-size:16.5px;margin:24px 0 8px;color:var(--muted)}
+  p{margin:10px 0} ul,ol{margin:10px 0;padding-left:22px} li{margin:6px 0}
+  code{font-family:var(--mono);font-size:.86em;background:#10131a;border:1px solid var(--line);padding:1px 6px;border-radius:6px}
+  pre{background:#10131a;border:1px solid var(--line);border-radius:var(--radius);padding:15px 17px;overflow:auto;margin:12px 0;font-size:13px;line-height:1.6}
+  pre code{background:none;border:none;padding:0}
+  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:14px}
+  th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--muted-2);font-weight:600;font-size:12px;letter-spacing:.04em;text-transform:uppercase}
+  a:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .muted{color:var(--muted)}
+  footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--line);color:var(--muted-2);font-size:13px}
+  .toc{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 0;list-style:none;padding:0}
+  .toc a{font-size:13px;color:var(--muted);text-decoration:none;border:1px solid var(--line);padding:5px 11px;border-radius:999px}
+  .toc a:hover{color:var(--ink);border-color:var(--accent)}
+  .callout{border-left:3px solid var(--accent);background:var(--panel-2);border-radius:0 var(--radius) var(--radius) 0;padding:13px 17px;margin:16px 0}
+  .callout.crit{border-left-color:var(--crit)} .callout.warn{border-left-color:var(--warn)} .callout.ok{border-left-color:var(--ok)}
+  .callout .t{font-weight:700;margin-bottom:3px}
+  .badge{display:inline-block;font-size:.66rem;font-weight:700;padding:.1rem .5rem;border-radius:999px;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap}
+  .b-yes{background:rgba(62,207,142,.13);color:var(--ok);border:1px solid rgba(62,207,142,.4)}
+  .b-no{background:rgba(240,100,100,.14);color:var(--crit);border:1px solid rgba(240,100,100,.4)}
+  .step{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px;margin:12px 0}
+  .step h3{margin:0 0 6px;color:var(--ink);font-size:1.02rem}
+  .step .n{font-size:.7rem;color:var(--accent);font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+</style>
+</head>
+<body>
+<main>
+  <header class="hero">
+    <div class="eyebrow">Bible Study Vault · Starter kit</div>
+    <h1>Set this up on <span class="accent">another vault</span></h1>
+    <p class="lede">Everything here — search, study hubs, 344k cross-references, Hebrew word studies,
+      the church fathers, Matthew Henry — runs on any Obsidian vault. What can't travel is the
+      copyrighted Bible text. This is how to hand someone the whole system, legally, in about
+      fifteen minutes.</p>
+    <nav aria-label="Contents">
+      <ul class="toc">
+        <li><a href="#legal">What may travel</a></li>
+        <li><a href="#steps">Setup</a></li>
+        <li><a href="#enrichment">Add the enrichment</a></li>
+        <li><a href="#verify">Verify</a></li>
+        <li><a href="#notes">How it adapts</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <section id="legal">
+    <h2>1 · What may travel — read this first</h2>
+    <div class="callout crit">
+      <div class="t">Don't copy the vault, and don't send Bible&nbsp;Search.html</div>
+      <p style="margin:0" class="muted">That file embeds the full <strong>ESV, NLT and AMP</strong> text
+        and the article bodies. All copyrighted. Sending it — or those folders — is redistribution.
+        The tooling is yours to share; the text is not yours to give.</p>
+    </div>
+    <table>
+      <thead><tr><th style="width:34%">Item</th><th style="width:14%">Share?</th><th>Why</th></tr></thead>
+      <tbody>
+        <tr><td><code>.obsidian/plugins/bible-search/</code></td><td><span class="badge b-yes">yes</span></td><td>Your code</td></tr>
+        <tr><td><code>Bible/build-bible-search.js</code><br><code>Bible/bible-search-template.html</code></td><td><span class="badge b-yes">yes</span></td><td>Your code</td></tr>
+        <tr><td><code>tools/</code> — every generator, the validator, the drill</td><td><span class="badge b-yes">yes</span></td><td>Your code</td></tr>
+        <tr><td><code>docs/</code>, the READMEs</td><td><span class="badge b-yes">yes</span></td><td>Your writing</td></tr>
+        <tr><td><code>Bible/KJV/</code></td><td><span class="badge b-yes">yes</span></td><td>Public domain</td></tr>
+        <tr><td>Enrichment: <code>Cross Reference/</code> <code>Word Studies/</code> <code>Places/</code> <code>Catena/</code> <code>Commentary/</code> <code>Book Intros/</code> <code>Reference/</code></td><td><span class="badge b-yes">yes</span></td><td>Generated from PD / CC-BY sources, and all of it anchors to the KJV</td></tr>
+        <tr><td><code>sources/</code></td><td><span class="badge b-yes">yes</span></td><td>PD / CC-BY datasets (or just re-download — it's one command)</td></tr>
+        <tr><td><code>Bible/ESV/</code> <code>Bible/NLT/</code> <code>Bible/AMP/</code></td><td><span class="badge b-no">no</span></td><td>Copyrighted</td></tr>
+        <tr><td><code>Teaching/</code></td><td><span class="badge b-no">no</span></td><td>Someone else's articles</td></tr>
+        <tr><td><code>Bible Search.html</code></td><td><span class="badge b-no">no</span></td><td>Embeds all of the above. <strong>They rebuild their own</strong> — it only ever contains what their vault has</td></tr>
+      </tbody>
+    </table>
+    <div class="callout ok">
+      <div class="t">They don't have to settle for KJV-only</div>
+      <p style="margin:0" class="muted">The <strong>Berean Standard Bible</strong> went public domain
+        (CC0) in April 2023 — modern, readable, and free to redistribute. <strong>WEB</strong> is another.
+        So a friend can have a readable modern Bible <em>and</em> a legal one. ESV/NLT would need their
+        own API key, and those terms licence single passages, not whole-Bible copies — that's what the
+        Passage Fetcher is for.</p>
+    </div>
+  </section>
+
+  <section id="steps">
+    <h2>2 · Setup</h2>
+    <p class="muted">Needs Node (any recent version) and Obsidian. Roughly fifteen minutes, most of it
+      waiting on the import.</p>
+
+    <div class="step">
+      <div class="n">Step 1</div>
+      <h3>Copy the tooling into their vault</h3>
+      <p class="muted" style="margin:.3rem 0 0">From the "yes" rows above. The shape that matters:</p>
+<pre><code>their-vault/
+├─ .obsidian/plugins/bible-search/   ← manifest.json, main.js, styles.css
+├─ Bible/
+│  ├─ build-bible-search.js
+│  └─ bible-search-template.html
+├─ tools/                            ← the whole folder, including lib/ and data/
+└─ docs/                             ← optional but worth having</code></pre>
+      <p class="muted" style="margin:.5rem 0 0">Then enable it: Obsidian → Settings → Community plugins →
+        turn off Restricted mode → <strong>Bible Search</strong> → toggle on.</p>
+    </div>
+
+    <div class="step">
+      <div class="n">Step 2</div>
+      <h3>Import the Bible text</h3>
+      <p class="muted" style="margin:.3rem 0 .5rem">KJV is the <strong>anchor</strong> — it owns the bare
+        <code>Ruth 1</code> stem that every cross-reference and word study links to, and Strong's numbers
+        key to it natively. Import it with <code>--anchor</code>. BSB is the readable one to actually
+        read.</p>
+<pre><code># try one book first — proves the shape before committing to 31k verses
+node tools/import-bible.js . KJV --api eng_kjv --anchor --book Ruth
+node tools/import-bible.js . BSB --book Ruth
+
+# happy? do the whole Bible (a few minutes each)
+node tools/import-bible.js . KJV --api eng_kjv --anchor
+node tools/import-bible.js . BSB</code></pre>
+      <p class="muted" style="margin:.5rem 0 0">Other options: <code>--api ENGWEBP</code> for the World
+        English Bible. <code>curl -s https://bible.helloao.org/api/available_translations.json</code>
+        lists all 1,200+ — but only import what they may legally store.</p>
+    </div>
+
+    <div class="step">
+      <div class="n">Step 3</div>
+      <h3>Build the search</h3>
+<pre><code>node "Bible/build-bible-search.js" . "Bible/bible-search-template.html" "Bible Search.html"</code></pre>
+      <p class="muted" style="margin:.5rem 0 0">Open it with the book icon in the left ribbon, or
+        <kbd>Cmd/Ctrl+P</kbd> → "Open Bible Search". The page adapts to whatever they imported: with
+        BSB + KJV they get two chips, "All 2", and BSB as the default — no dead ESV/NLT/AMP buttons.</p>
+    </div>
+  </section>
+
+  <section id="enrichment">
+    <h2>3 · Add the enrichment</h2>
+    <p>Two routes. Both work; the first is faster.</p>
+    <h3>Copy yours across</h3>
+    <p class="muted">All of it is generated from public-domain / CC-BY sources and anchors to the KJV, so
+      it drops straight into their vault and works — as long as their KJV is the anchor. Copy the
+      enrichment folders listed in the "yes" table.</p>
+    <h3>Or regenerate from scratch</h3>
+<pre><code># the datasets (~33 MB, one-time)
+mkdir -p sources/openbible sources/openscriptures
+curl -sL -o sources/openbible/cross-references.zip https://a.openbible.info/data/cross-references.zip
+unzip -o -d sources/openbible sources/openbible/cross-references.zip
+
+# then, per book
+node tools/gen-crossrefs.js . "Ruth" 10        # cross-references, top 10/verse
+node tools/gen-book-intros.js .                # all 66 introductions
+node tools/gen-hubs.js . "Ruth"                # hubs last — they link whatever exists</code></pre>
+    <p class="muted"><code>sources/README.md</code> lists every dataset and the attribution each one
+      requires. <code>tools/README.md</code> has the full generator inventory and run order.</p>
+  </section>
+
+  <section id="verify">
+    <h2>4 · Verify</h2>
+<pre><code>node tools/validate-enrichment.js .        # every link + block anchor resolves
+node --test tools/validate-enrichment.test.js</code></pre>
+    <p class="muted">Clean output means every wikilink and every <code>#^n</code> verse anchor in the
+      enrichment points at something real. Run it after any generation wave. If they put the vault under
+      git first (worth doing), each wave is also a reviewable diff and a one-command rollback.</p>
+    <div class="callout warn">
+      <div class="t">If the search view opens blank</div>
+      <p style="margin:0" class="muted">Check the plugin's <em>Search interface file</em> setting matches
+        where the HTML actually is, and that the build ran without errors. The build prints a
+        <code>problems:</code> list when a chapter note is off-shape —
+        <code>Bible/README.md</code> documents the verse-line contract the parser needs.</p>
+    </div>
+  </section>
+
+  <section id="notes">
+    <h2>5 · How it adapts (and what it assumes)</h2>
+    <table>
+      <thead><tr><th style="width:30%">Thing</th><th>Behaviour</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Translation set</strong></td><td>Detected from the folders under <code>Bible/</code> — nothing is hardcoded. Add a folder, rebuild, it appears. Display order and the default come from <code>PREFERRED</code> in <code>tools/lib/translations.js</code>.</td></tr>
+        <tr><td><strong>The anchor</strong></td><td>Whichever translation uses unsuffixed chapter files (<code>Ruth 1.md</code>). Exactly one may. Everything generated links to it. Keep it KJV unless you're prepared to regenerate every cross-reference.</td></tr>
+        <tr><td><strong>Hubs</strong></td><td>Link only the translations that exist, and only the layers that exist. Hand-curated hubs are never overwritten; <code>--force</code> rewrites only generator-written ones (marked <code>generated: true</code>).</td></tr>
+        <tr><td><strong>Articles</strong></td><td>Any folder under <code>Teaching/</code> becomes a source, folder name as the badge. Empty <code>Teaching/</code> just means a Bible-only search.</td></tr>
+        <tr><td><strong>The search page</strong></td><td>One self-contained file — <strong>keep it that way</strong>. ~20 MB, but only ~50 KB is parsed when it opens; a translation is parsed on first search and cached.</td></tr>
+      </tbody>
+    </table>
+    <div class="callout">
+      <div class="t">The one-line version for your friend</div>
+      <p style="margin:0" class="muted">"Copy these folders, run two import commands, hit rebuild. The
+        Bible text you get is BSB and KJV — both free. Everything clever (cross-references, word studies,
+        the Fathers) comes with it. Don't ask me for my ESV — that one I can't give you."</p>
+    </div>
+  </section>
+
+  <footer>
+    <p>Starter-kit setup · Bible Study vault · self-contained, no network at runtime.
+      Companion docs: <code>tools/README.md</code> (generators), <code>Bible/README.md</code> (note
+      contracts), <code>sources/README.md</code> (datasets &amp; licences).</p>
+  </footer>
+</main>
+</body>
+</html>
