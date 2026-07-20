@@ -21,6 +21,10 @@ const DEFAULT_SETTINGS = {
 	htmlPath: "Bible Search.html",
 	openNotesInNewTab: true,
 	onboarded: false,
+	// Resume ticket: the wizard's download picks, persisted while a setup run is
+	// unfinished. Non-null means "downloads and/or the build didn't complete" —
+	// the plugin auto-resumes on the next launch and clears it only on success.
+	setupDownloads: null,
 };
 
 const REBUILD_CMD =
@@ -149,13 +153,20 @@ const TEMPLATE_PATH = "Bible/bible-search-template.html";
 const TEMPLATE_URL =
 	"https://raw.githubusercontent.com/RuanPienaarCode/scripture-vault/v1.1.0/Bible/bible-search-template.html";
 
-// Transient 429/5xx happens over ~1,200 chapter fetches — retry briefly
-// before surfacing, so a flaky connection doesn't abort a whole download.
+// Transient 429/5xx happens over ~1,200 chapter fetches — retry with enough
+// backoff (1s/2s/4s/8s) to ride out a short outage burst instead of aborting
+// a whole download. Permanent 4xx (bad URL, missing book) fails fast.
 async function fetchJson(url) {
 	let lastErr;
-	for (let attempt = 0; attempt < 3; attempt++) {
-		if (attempt) await new Promise((r) => setTimeout(r, 500 * 2 ** attempt));
-		try { return (await requestUrl({ url })).json; } catch (e) { lastErr = e; }
+	for (let attempt = 0; attempt < 5; attempt++) {
+		if (attempt) await new Promise((r) => setTimeout(r, 1000 * 2 ** (attempt - 1)));
+		try {
+			const res = await requestUrl({ url, throw: false });
+			const status = res.status ?? 200;
+			if (status >= 200 && status < 300) return res.json;
+			lastErr = new Error(`Request failed, status ${status}`);
+			if (status >= 400 && status < 500 && status !== 429) break;
+		} catch (e) { lastErr = e; }
 	}
 	throw lastErr;
 }
@@ -198,7 +209,11 @@ async function importTranslation(app, spec, onProgress) {
 	const suffix = anchor ? "" : ` (${trans})`;
 	const bookSuffix = ` (${trans})`;
 	let wrote = 0, skipped = 0, verses = 0, done = 0;
-	const missing = [];
+	const missing = [], failed = [];
+	// One bad book (transient burst outlasting fetchJson's retries) is recorded
+	// and skipped, not fatal — the gap fills in on the next resume. Several books
+	// failing back-to-back means the connection or API is down: stop cleanly.
+	let consecutiveFailures = 0;
 
 	for (let bi = 0; bi < BOOK_ORDER.length; bi++) {
 		const book = BOOK_ORDER[bi];
@@ -206,69 +221,128 @@ async function importTranslation(app, spec, onProgress) {
 			meta.find((b) => b.commonName === book || b.name === book);
 		if (!info) { missing.push(book); continue; }
 		onProgress?.(`${trans}: ${book} — book ${done + 1} of ${BOOK_ORDER.length}…`);
-
-		// A few chapters in flight keeps this quick without hammering the API.
-		const total = info.numberOfChapters;
-		let next = 1;
-		const worker = async () => {
-			while (next <= total) {
-				const ch = next++;
-				const chPath = `Bible/${trans}/${book}/${book} ${ch}${suffix}.md`;
-				if (app.vault.getAbstractFileByPath(normalizePath(chPath))) { skipped++; continue; }
-				const d = await fetchJson(`${HELLOAO_API}/${api}/${info.id}/${ch}.json`);
-				const lines = [
-					"---",
-					`tags: [bible, bible/${trans.toLowerCase()}, bible/chapter]`,
-					`aliases: ["${book} ${ch}${suffix}"]`,
-					`translation: ${trans}`,
-					`book: "${book}"`,
-					`chapter: ${ch}`,
-					"---",
-					"",
-					`# ${book} ${ch}`,
-					"",
-					`Part of [[${book}${bookSuffix}|${book}]] · [[${trans}]] · [[Bible]]`,
-					"",
-				];
-				for (const item of d.chapter.content) {
-					if (item.type !== "verse") continue;
-					const text = apiVerseText(item.content);
-					if (!text) continue;
-					lines.push(`**${item.number}** ${text} ^${item.number}`, "");
-					verses++;
+		try {
+			// A few chapters in flight keeps this quick without hammering the API.
+			const total = info.numberOfChapters;
+			let next = 1;
+			const worker = async () => {
+				while (next <= total) {
+					const ch = next++;
+					const chPath = `Bible/${trans}/${book}/${book} ${ch}${suffix}.md`;
+					if (app.vault.getAbstractFileByPath(normalizePath(chPath))) { skipped++; continue; }
+					const d = await fetchJson(`${HELLOAO_API}/${api}/${info.id}/${ch}.json`);
+					const lines = [
+						"---",
+						`tags: [bible, bible/${trans.toLowerCase()}, bible/chapter]`,
+						`aliases: ["${book} ${ch}${suffix}"]`,
+						`translation: ${trans}`,
+						`book: "${book}"`,
+						`chapter: ${ch}`,
+						"---",
+						"",
+						`# ${book} ${ch}`,
+						"",
+						`Part of [[${book}${bookSuffix}|${book}]] · [[${trans}]] · [[Bible]]`,
+						"",
+					];
+					for (const item of d.chapter.content) {
+						if (item.type !== "verse") continue;
+						const text = apiVerseText(item.content);
+						if (!text) continue;
+						lines.push(`**${item.number}** ${text} ^${item.number}`, "");
+						verses++;
+					}
+					if (await writeIfAbsent(app, chPath, lines.join("\n"))) wrote++;
 				}
-				if (await writeIfAbsent(app, chPath, lines.join("\n"))) wrote++;
-			}
-		};
-		// allSettled so a failing worker doesn't leave siblings as unhandled
-		// rejections; the first failure still aborts the download.
-		const settled = await Promise.allSettled([worker(), worker(), worker(), worker()]);
-		const failed = settled.find((s) => s.status === "rejected");
-		if (failed) throw failed.reason;
+			};
+			// allSettled so a failing worker doesn't leave siblings as unhandled
+			// rejections; the first failure still fails the book.
+			const settled = await Promise.allSettled([worker(), worker(), worker(), worker()]);
+			const bad = settled.find((s) => s.status === "rejected");
+			if (bad) throw bad.reason;
 
-		// Book-level note — the parser ignores it (no chapter number), links use it.
-		const chapterLinks = Array.from({ length: total }, (_, i) =>
-			`[[${book} ${i + 1}${suffix}|${i + 1}]]`).join(" · ");
-		await writeIfAbsent(app, `Bible/${trans}/${book}/${book}${bookSuffix}.md`, [
-			"---",
-			`tags: [bible, bible/${trans.toLowerCase()}, bible/book]`,
-			`aliases: ["${book}${bookSuffix}"]`,
-			`translation: ${trans}`,
-			`book: "${book}"`,
-			"---",
-			"",
-			`# ${book}${bookSuffix}`,
-			"",
-			`Part of [[${trans}]] · [[Bible]]`,
-			"",
-			"## Chapters",
-			"",
-			chapterLinks,
-			"",
-		].join("\n"));
-		done++;
+			// Book-level note — the parser ignores it (no chapter number), links use
+			// it. Written only after every chapter landed, so its presence doubles as
+			// the per-book completion marker isTranslationComplete keys off.
+			const chapterLinks = Array.from({ length: total }, (_, i) =>
+				`[[${book} ${i + 1}${suffix}|${i + 1}]]`).join(" · ");
+			await writeIfAbsent(app, `Bible/${trans}/${book}/${book}${bookSuffix}.md`, [
+				"---",
+				`tags: [bible, bible/${trans.toLowerCase()}, bible/book]`,
+				`aliases: ["${book}${bookSuffix}"]`,
+				`translation: ${trans}`,
+				`book: "${book}"`,
+				"---",
+				"",
+				`# ${book}${bookSuffix}`,
+				"",
+				`Part of [[${trans}]] · [[Bible]]`,
+				"",
+				"## Chapters",
+				"",
+				chapterLinks,
+				"",
+			].join("\n"));
+			done++;
+			consecutiveFailures = 0;
+		} catch (e) {
+			failed.push(book);
+			if (++consecutiveFailures >= 3) {
+				const err = new Error(
+					`${trans}: stopping after repeated failures (${failed.join(", ")}) — ` +
+					(e && e.message ? e.message : e));
+				err.failedBooks = failed;
+				throw err;
+			}
+		}
 	}
-	return { trans, books: done, wrote, skipped, verses, missing };
+	return { trans, books: done, wrote, skipped, verses, missing, failed };
+}
+
+/* ── setup pipeline ─────────────────────────────────────────────────────
+ * The wizard's download-and-build phase, shared with the launch-time
+ * auto-resume: fetch pending translations (tolerating per-book failures),
+ * make sure the template exists, build the search page. Always builds —
+ * a partial Bible still yields a working search, and the gaps fill in on
+ * the next resume. Returns the build result plus human-readable problems;
+ * an empty problems list means setup is finished and the ticket can go.
+ */
+async function runSetupPipeline(app, htmlPath, pending, onProgress) {
+	const problems = [];
+	for (const spec of pending) {
+		try {
+			const r = await importTranslation(app, spec, onProgress);
+			if (r.failed.length) problems.push(`${spec.trans}: ${r.failed.join(", ")} incomplete`);
+			else onProgress?.(`${spec.trans}: done — ${r.verses.toLocaleString()} verses.`);
+		} catch (e) {
+			problems.push(e && e.message ? e.message : String(e));
+		}
+	}
+	if (!(app.vault.getAbstractFileByPath(normalizePath(TEMPLATE_PATH)) instanceof TFile)) {
+		onProgress?.("Fetching the search template…");
+		const res = await requestUrl({ url: TEMPLATE_URL });
+		await writeIfAbsent(app, TEMPLATE_PATH, res.text);
+	}
+	onProgress?.("Building the search page…");
+	const built = await buildSearchIndex(app, htmlPath, onProgress);
+	return { built, problems };
+}
+
+// Rebuild download specs from a persisted picks map — used by the wizard and
+// by the launch-time auto-resume. Complete translations drop out; a partial
+// one stays pending, and if it already owns the bare stems it keeps them.
+function computePending(app, downloads) {
+	const { anchor } = surveyTranslations(app);
+	const picks = DOWNLOADABLE.filter((d) =>
+		downloads && downloads[d.trans] && !isTranslationComplete(app, d.trans));
+	// Exactly one translation may own the bare chapter stems. If the vault has
+	// no anchor yet, the first pick (KJV when selected) becomes it.
+	let anchorAssigned = !!anchor;
+	return picks.map((d) => {
+		const spec = { ...d, anchor: anchor === d.trans || !anchorAssigned };
+		anchorAssigned = true;
+		return spec;
+	});
 }
 
 /* ── in-app search build ────────────────────────────────────────────────
@@ -307,6 +381,16 @@ function surveyTranslations(app) {
 		}
 	}
 	return { translations, anchor };
+}
+
+/* A translation counts as fully downloaded only when every canonical book has
+ * its book-level note — importTranslation writes that note after all of a
+ * book's chapters landed, so it doubles as a per-book completion marker. An
+ * aborted download leaves books without notes, which keeps the translation
+ * eligible for resume instead of being mistaken for "already in this vault". */
+function isTranslationComplete(app, trans) {
+	return BOOK_ORDER.every((book) =>
+		app.vault.getAbstractFileByPath(normalizePath(`Bible/${trans}/${book}/${book} (${trans}).md`)));
 }
 
 // Frontmatter + article helpers, ported verbatim from build-bible-search.js.
@@ -643,13 +727,15 @@ class OnboardingWizard extends Modal {
 				"other tools needed. Existing files are never overwritten.",
 		});
 		for (const d of DOWNLOADABLE) {
-			const present = s.translations.includes(d.trans);
+			const complete = isTranslationComplete(this.app, d.trans);
+			const partial = !complete && s.translations.includes(d.trans);
+			if (partial) this.data.downloads[d.trans] = true;
 			new Setting(c)
-				.setName(d.label + (present ? " — already in this vault" : ""))
+				.setName(d.label + (complete ? " — already in this vault" : partial ? " — partially downloaded, will resume" : ""))
 				.setDesc(d.desc)
 				.addToggle((t) => t
-					.setValue(present ? false : this.data.downloads[d.trans])
-					.setDisabled(present)
+					.setValue(complete ? false : this.data.downloads[d.trans])
+					.setDisabled(complete)
 					.onChange((v) => { this.data.downloads[d.trans] = v; }));
 		}
 		c.createEl("p", {
@@ -665,18 +751,10 @@ class OnboardingWizard extends Modal {
 		});
 	}
 
-	// Which downloads are actually actionable: picked, and not already in the vault.
-	pendingDownloads(survey) {
-		const s = survey || this.surveyVault();
-		const picks = DOWNLOADABLE.filter((d) => this.data.downloads[d.trans] && !s.translations.includes(d.trans));
-		// Exactly one translation may own the bare chapter stems. If the vault has
-		// no anchor yet, the first pick (KJV when selected) becomes it.
-		let anchorAssigned = !!s.anchor;
-		return picks.map((d) => {
-			const spec = { ...d, anchor: !anchorAssigned };
-			anchorAssigned = true;
-			return spec;
-		});
+	// Which downloads are actually actionable: picked, and not fully downloaded.
+	// A partial translation (aborted download) stays pending so a re-run resumes it.
+	pendingDownloads() {
+		return computePending(this.app, this.data.downloads);
 	}
 
 	render_prefs(c) {
@@ -799,11 +877,16 @@ class OnboardingWizard extends Modal {
 				return;
 			}
 
+			const survey = this.surveyVault();
 			const pending = this.pendingDownloads();
 			if (this.data.writeSetupNote) {
 				await this.writeIfAbsent(SETUP_NOTE_PATH, this.setupNoteContent());
 			}
-			if (!pending.length) {
+			// Only bail to the manual checklist when there is nothing to download
+			// AND no Bible text to build from. With text in the vault (even from an
+			// earlier aborted run), fall through so the template fetch + build always
+			// happen — otherwise the wizard ends with no search page.
+			if (!pending.length && !survey.translations.length) {
 				this.finished = true;
 				this.close();
 				new Notice("Setup saved" + (this.data.writeSetupNote ? ` — follow "${SETUP_NOTE_PATH}" to build the search.` : "."), 6000);
@@ -813,7 +896,11 @@ class OnboardingWizard extends Modal {
 
 			// Download + build. `finished` is set now so closing the modal mid-way
 			// doesn't fire the "setup skipped" notice — the work carries on and
-			// announces itself when done.
+			// announces itself when done. The resume ticket is written first, so if
+			// this run is interrupted (quit, sleep, network), the plugin resumes it
+			// automatically on the next launch.
+			p.settings.setupDownloads = { ...this.data.downloads };
+			await p.saveSettings();
 			this.finished = true;
 			await this.runDownloads(pending);
 		} catch (e) {
@@ -835,31 +922,30 @@ class OnboardingWizard extends Modal {
 		const setStatus = (t) => { status.setText(t); };
 
 		try {
-			for (const spec of pending) {
-				const r = await importTranslation(this.app, spec, setStatus);
-				setStatus(`${spec.trans}: done — ${r.verses.toLocaleString()} verses.`);
-			}
-
-			// A fresh vault won't have the template — fetch it from the plugin's repo.
-			if (!(this.app.vault.getAbstractFileByPath(normalizePath(TEMPLATE_PATH)) instanceof TFile)) {
-				setStatus("Fetching the search template…");
-				const res = await requestUrl({ url: TEMPLATE_URL });
-				await writeIfAbsent(this.app, TEMPLATE_PATH, res.text);
-			}
-
-			setStatus("Building the search page…");
-			const r = await buildSearchIndex(this.app, this.plugin.settings.htmlPath, setStatus);
+			const { built, problems } = await runSetupPipeline(this.app, this.plugin.settings.htmlPath, pending, setStatus);
 			this.close();
-			new Notice(
-				`Bible Search ready — ${r.verses.toLocaleString()} verses across ${r.translations.join(", ")}.`,
-				8000
-			);
+			if (problems.length) {
+				// Built, but with gaps — keep the ticket so the next launch resumes.
+				new Notice(
+					`Bible Search built, but some downloads didn't finish (${problems.join("; ")}). ` +
+					"It will resume automatically on the next launch — finished files are kept.",
+					12000
+				);
+			} else {
+				this.plugin.settings.setupDownloads = null;
+				await this.plugin.saveSettings();
+				new Notice(
+					`Bible Search ready — ${built.verses.toLocaleString()} verses across ${built.translations.join(", ")}.`,
+					8000
+				);
+			}
 			this.plugin.refreshViews();
 			await this.plugin.activateView();
 		} catch (e) {
+			// Ticket stays set: the next launch picks this up automatically.
 			const msg = e && e.message ? e.message : String(e);
 			setStatus("Failed: " + msg);
-			new Notice("Bible download failed: " + msg + " — re-run the wizard to resume; finished files are kept.", 10000);
+			new Notice("Bible setup didn't finish: " + msg + " — it resumes automatically on the next launch; finished files are kept.", 10000);
 		}
 	}
 }
@@ -1182,20 +1268,24 @@ class BibleSearchPlugin extends Plugin {
 
 		this.addSettingTab(new BibleSearchSettingTab(this.app, this));
 
-		// First-run wizard, after layout-ready so the vault is indexed before we
-		// probe. Silent adoption is the load-bearing safety: if the flag is unset
-		// but the search HTML already exists (existing user, new device, restored
-		// sync), adopt without opening anything. Only truly-empty installs see it.
-		if (!this.settings.onboarded) {
-			this.app.workspace.onLayoutReady(async () => {
-				if (this.hasData()) {
-					this.settings.onboarded = true;
-					await this.saveSettings();
-					return;
-				}
-				new OnboardingWizard(this.app, this).open();
-			});
-		}
+		// First-run wizard / interrupted-setup resume, after layout-ready so the
+		// vault is indexed before we probe. A live resume ticket outranks
+		// everything: it means a wizard run didn't finish (quit, sleep, network),
+		// so pick it up silently — no one should have to notice it failed.
+		// Otherwise, silent adoption is the load-bearing safety: if the flag is
+		// unset but the search HTML already exists (existing user, new device,
+		// restored sync), adopt without opening anything. Only truly-empty
+		// installs see the wizard.
+		this.app.workspace.onLayoutReady(async () => {
+			if (this.settings.setupDownloads) { await this.resumeSetup(); return; }
+			if (this.settings.onboarded) return;
+			if (this.hasData()) {
+				this.settings.onboarded = true;
+				await this.saveSettings();
+				return;
+			}
+			new OnboardingWizard(this.app, this).open();
+		});
 
 		// The tools/ pipeline rewrites the HTML on regeneration — reload open views.
 		this.registerEvent(
@@ -1214,6 +1304,45 @@ class BibleSearchPlugin extends Plugin {
 		);
 	}
 
+	// Finish an interrupted wizard run. The ticket in settings.setupDownloads
+	// survives quits, crashes and network drops; this re-derives what's still
+	// missing (finished translations drop out via the book-note markers) and
+	// runs the same pipeline the wizard uses. The ticket is cleared only when
+	// every pick is complete AND the search page is built.
+	async resumeSetup() {
+		if (this._setupRunning) return;
+		this._setupRunning = true;
+		try {
+			const pending = computePending(this.app, this.settings.setupDownloads);
+			if (!pending.length && this.hasData()) {
+				// Finished after all (completed elsewhere, or synced in) — retire it.
+				this.settings.setupDownloads = null;
+				await this.saveSettings();
+				return;
+			}
+			const notice = new Notice("Bible Search: resuming interrupted setup…", 0);
+			try {
+				const { built, problems } = await runSetupPipeline(
+					this.app, this.settings.htmlPath, pending,
+					(t) => notice.setMessage("Bible Search: " + t));
+				notice.hide();
+				if (problems.length) {
+					new Notice(`Bible Search: still incomplete (${problems.join("; ")}) — will try again on the next launch.`, 10000);
+				} else {
+					this.settings.setupDownloads = null;
+					await this.saveSettings();
+					new Notice(`Bible Search setup finished — ${built.verses.toLocaleString()} verses across ${built.translations.join(", ")}.`, 8000);
+				}
+				this.refreshViews();
+			} catch (e) {
+				notice.hide();
+				new Notice("Bible Search: resume failed (" + (e && e.message ? e.message : e) + ") — will try again on the next launch.", 10000);
+			}
+		} finally {
+			this._setupRunning = false;
+		}
+	}
+
 	// Same anchor predicate as the wizard's detectExisting — keep the two in sync.
 	hasData() {
 		return this.app.vault.getAbstractFileByPath(normalizePath(this.settings.htmlPath)) instanceof TFile;
@@ -1227,6 +1356,13 @@ class BibleSearchPlugin extends Plugin {
 		this._rebuilding = true;
 		const notice = new Notice("Rebuilding Bible Search…", 0);
 		try {
+			// A fresh vault (or an aborted wizard run) may not have the template yet —
+			// fetch it from the pinned release rather than failing with a dead end.
+			if (!(this.app.vault.getAbstractFileByPath(normalizePath(TEMPLATE_PATH)) instanceof TFile)) {
+				notice.setMessage("Fetching the search template…");
+				const res = await requestUrl({ url: TEMPLATE_URL });
+				await writeIfAbsent(this.app, TEMPLATE_PATH, res.text);
+			}
 			const r = await buildSearchIndex(this.app, this.settings.htmlPath, (t) => notice.setMessage(t));
 			notice.hide();
 			new Notice(`Rebuilt "${this.settings.htmlPath}" — ${r.verses.toLocaleString()} verses, ${r.articles} articles.`, 6000);
@@ -1278,4 +1414,5 @@ module.exports.__testables = {
 	BOOK_ORDER, BOOK_IDS, DOWNLOADABLE, HELLOAO_API, TEMPLATE_PATH,
 	apiVerseText, toParagraphs, fmValue, fmList, isHub, firstHeading, firstUrl, safeUrl,
 	surveyTranslations, buildSearchIndex, importTranslation, writeIfAbsent,
+	isTranslationComplete, fetchJson, runSetupPipeline, computePending,
 };
