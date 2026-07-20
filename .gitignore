@@ -1,0 +1,10 @@
+# Obsidian workspace churn
+.obsidian/workspace.json
+.obsidian/workspace-mobile.json
+.obsidian/cache
+.obsidian/plugins/bible-search/data.json
+.trash/
+# macOS
+.DS_Store
+# Generated search page — each vault builds its own
+Bible Search.html
