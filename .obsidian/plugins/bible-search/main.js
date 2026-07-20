@@ -60,6 +60,36 @@ const DOCS = [
 ];
 
 // Inline crib notes, so the two contracts that bite most are readable without leaving settings.
+/* Shown in both the settings Quick reference and the wizard's download step.
+ * The search build detects translations from the vault (any Bible/{TRANS}/
+ * folder in the right shape) — so a licensed text someone is entitled to
+ * store needs no plugin change, only the layout described here. */
+const LICENSED_REF = {
+	title: "Adding a licensed translation — ESV, NIV, CSB, NLT, AMP…",
+	body:
+		"These can't be downloaded here: their licences cover quoting passages,\n" +
+		"not storing whole-Bible copies. If you have text you're licensed to keep\n" +
+		"a full copy of (check your licence — some publishers sell or grant\n" +
+		"full-text use), lay it out in the vault and the search picks it up\n" +
+		"automatically on the next rebuild:\n\n" +
+		"1. One folder per book:  Bible/NIV/Genesis/ … using exact canonical\n" +
+		"   names (Psalms, Song of Songs, 1 Corinthians).\n" +
+		"2. One note per chapter, suffixed with the code: 'Genesis 1 (NIV).md'.\n" +
+		"   Only the anchor translation (normally KJV) uses bare names\n" +
+		"   ('Genesis 1.md').\n" +
+		"3. One verse per line:  **1** In the beginning… ^1\n" +
+		"   Bold verse number at the start, ^n block anchor at the end.\n" +
+		"4. Frontmatter — copy any KJV chapter note and adjust: translation,\n" +
+		"   book, chapter, the bible/niv tag, and the 'Genesis 1 (NIV)' alias.\n" +
+		"5. Settings → Bible Search → Rebuild now. The translation appears in\n" +
+		"   the search menu and the reader.\n\n" +
+		"Any legally-obtained export works (Bible-software module export,\n" +
+		"publisher API you're licensed for, an e-text you own) — converting it\n" +
+		"to this shape is all that's needed. The same steps fit HCSB/CSB, NKJV,\n" +
+		"NASB, or any other translation. See Bible/README.md for the full\n" +
+		"format contract.",
+};
+
 const QUICK_REF = [
 	{
 		title: "The verse line — Bible/{TRANS}/{Book}/{Book} {n}.md",
@@ -79,6 +109,7 @@ const QUICK_REF = [
 			"excerpt to the first paragraph; source to the first external link.\n\n" +
 			"Skipped: README.md, hub notes (type: *hub or a hub tag), and notes with no prose.",
 	},
+	LICENSED_REF,
 ];
 
 /* ── onboarding ─────────────────────────────────────────────────────────
@@ -738,13 +769,11 @@ class OnboardingWizard extends Modal {
 					.setDisabled(complete)
 					.onChange((v) => { this.data.downloads[d.trans] = v; }));
 		}
-		c.createEl("p", {
-			cls: "setting-item-description",
-			text:
-				"Why no ESV, NLT or AMP? Those translations are copyrighted — their licences " +
-				"allow quoting passages, not storing whole-Bible copies. See Bible/README.md " +
-				"for adding a translation you have rights to store.",
+		const lic = c.createEl("details", { cls: "bible-search-ref" });
+		lic.createEl("summary", {
+			text: "Why no ESV, NIV, CSB, NLT or AMP? (And how to add one you're licensed to store.)",
 		});
+		lic.createEl("pre", { text: LICENSED_REF.body });
 		c.createEl("p", {
 			cls: "setting-item-description",
 			text: "Each translation is ~1,200 small notes and takes a few minutes on a normal connection.",
