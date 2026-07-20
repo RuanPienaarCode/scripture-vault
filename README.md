@@ -45,25 +45,28 @@ have it.
 | `Bible/bible-search-template.html` | The search/reader UI template (self-contained, works on desktop and mobile) |
 | `Bible/build-bible-search.js` | Node builder — same output as the in-app rebuild, for terminal/CI use |
 | `Bible/README.md` | The content contract: folder layout, verse-line format, anchor translation rules |
-| `tools/import-bible.js` | Node importer for any translation on bible.helloao.org |
-| `tools/gen-*.js` | Enrichment generators: cross-references, study hubs, commentary, book intros (Node) |
-| `sources/` | Vendored open datasets the generators read — see `sources/README.md` for licences and attribution |
+| `tools/import-bible.js` | Node importer for any translation on bible.helloao.org (the wizard does this in-app) |
 | `Teaching/` | Drop article folders here and they join the search index — see its README |
 | `docs/` | Setup guide and the enrichment layout spec |
 
-## The enrichment layer (optional, needs Node.js)
+## The enrichment layer (parked for now)
 
-With Node installed, run from the vault root:
+An optional Node-powered enrichment layer exists — generators for per-chapter
+cross-references (openbible.info data), study hubs, public-domain commentary
+excerpts (CCEL), and book intros, plus a link validator and its test suite. It is
+**not in the current tree**: the generators and their ~50 MB of vendored datasets
+are parked to keep this repo focused on the plugin-and-search core, which needs
+no Node.js at all.
+
+Everything is preserved at the `v1.1.0` tag. To bring it back:
 
 ```sh
-node tools/gen-crossrefs.js .      # cross-reference notes per chapter (openbible.info data)
-node tools/gen-hubs.js .           # study hub per chapter
-node tools/gen-commentary.js .     # public-domain commentary excerpts (CCEL)
-node tools/gen-book-intros.js .    # one intro note per book
-node "Bible/build-bible-search.js" . "Bible/bible-search-template.html" "Bible Search.html"
+git checkout v1.1.0 -- sources tools docs
 ```
 
-`tools/README.md` documents each generator, the order, and the validation drill.
+then follow `tools/README.md` (as restored) for the generator order and the
+validation drill. The note shapes the generators write are frozen in
+`docs/enrichment-layout.md`, which stays in the tree.
 
 ## Licensing
 
@@ -78,10 +81,11 @@ format (`Bible/README.md`) shows exactly the shape to feed it in.
 translations or articles** — the page embeds the full text. Each person builds their
 own from their own vault; the wizard makes that painless.
 
-**Datasets.** `sources/` vendors open data — cross-references from
-[openbible.info](https://www.openbible.info/labs/cross-references/) (CC-BY),
-[openscriptures](https://github.com/openscriptures) data, and public-domain commentary
-from [CCEL](https://www.ccel.org/). Attribution details are in `sources/README.md`.
+**Datasets.** The parked enrichment kit vendors open data under `sources/` —
+cross-references from [openbible.info](https://www.openbible.info/labs/cross-references/)
+(CC-BY), [openscriptures](https://github.com/openscriptures) data, and public-domain
+commentary from [CCEL](https://www.ccel.org/). Attribution details are in
+`sources/README.md` at the `v1.1.0` tag.
 
 **Code.** MIT — see [LICENSE](LICENSE).
 
