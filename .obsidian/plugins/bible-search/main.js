@@ -40,8 +40,8 @@ const DOCS = [
 	},
 	{
 		path: "tools/README.md",
-		name: "Cross references, hubs, commentary",
-		desc: "What each generator writes, the order to run them in, validating links, and the regeneration drill.",
+		name: "Terminal tools",
+		desc: "Importing translations from a terminal, the Node search build, and the enrichment generators (when present).",
 	},
 	{
 		path: "docs/enrichment-layout.md",
@@ -1083,46 +1083,57 @@ class BibleSearchSettingTab extends PluginSettingTab {
 					.onClick(() => this.plugin.rebuildIndex())
 			);
 
-		const rebuild = new Setting(containerEl)
-			.setName("Rebuild from the terminal instead")
-			.setDesc(
-				"The Node pipeline produces the same page, and is the way to run the enrichment generators (cross-references, hubs, commentary). Run from the vault root."
+		// The terminal path is only advertised when the Node builder actually ships
+		// in this vault — a slim clone (enrichment kit parked) skips it entirely.
+		const has = (p) => !!this.app.vault.getAbstractFileByPath(p);
+		if (has("Bible/build-bible-search.js")) {
+			const rebuild = new Setting(containerEl)
+				.setName("Rebuild from the terminal instead")
+				.setDesc(
+					"The Node builder produces the same page." +
+						(has("tools/gen-hubs.js")
+							? " It pairs with the enrichment generators (cross-references, hubs, commentary)."
+							: "") +
+						" Run from the vault root."
+				);
+			rebuild.addButton((btn) =>
+				btn
+					.setButtonText("Copy command")
+					.onClick(async () => {
+						// navigator.clipboard can be missing/blocked in WKWebView (Obsidian iOS).
+						try {
+							await navigator.clipboard.writeText(REBUILD_CMD);
+							new Notice("Rebuild command copied");
+						} catch (e) {
+							new Notice("Couldn't access the clipboard — select the command below and copy it.");
+						}
+					})
 			);
-		rebuild.addButton((btn) =>
-			btn
-				.setButtonText("Copy command")
-				.onClick(async () => {
-					// navigator.clipboard can be missing/blocked in WKWebView (Obsidian iOS).
-					try {
-						await navigator.clipboard.writeText(REBUILD_CMD);
-						new Notice("Rebuild command copied");
-					} catch (e) {
-						new Notice("Couldn't access the clipboard — select the command below and copy it.");
-					}
-				})
-		);
-		containerEl.createEl("pre", { cls: "bible-search-cmd", text: REBUILD_CMD });
+			containerEl.createEl("pre", { cls: "bible-search-cmd", text: REBUILD_CMD });
+		}
 
 		/* ── documentation ─────────────────────────────────────── */
-		new Setting(containerEl).setName("Documentation").setHeading();
-		containerEl.createEl("p", {
-			cls: "setting-item-description bible-search-doclead",
-			text:
-				"Each folder documents the shape its content must take. Get the shape right and the " +
-				"content is picked up on the next rebuild — no configuration here.",
-		});
+		// Only the docs this vault actually has — nothing advertised as "(missing)".
+		const docs = DOCS.filter((doc) => has(doc.path));
+		if (docs.length) {
+			new Setting(containerEl).setName("Documentation").setHeading();
+			containerEl.createEl("p", {
+				cls: "setting-item-description bible-search-doclead",
+				text:
+					"Each folder documents the shape its content must take. Get the shape right and the " +
+					"content is picked up on the next rebuild — no configuration here.",
+			});
 
-		for (const doc of DOCS) {
-			const exists = !!this.app.vault.getAbstractFileByPath(doc.path);
-			new Setting(containerEl)
-				.setName(doc.name)
-				.setDesc(`${doc.desc}${exists ? "" : "  (missing)"}`)
-				.addButton((btn) =>
-					btn
-						.setButtonText(doc.path)
-						.setDisabled(!exists)
-						.onClick(() => this.openDoc(doc.path))
-				);
+			for (const doc of docs) {
+				new Setting(containerEl)
+					.setName(doc.name)
+					.setDesc(doc.desc)
+					.addButton((btn) =>
+						btn
+							.setButtonText(doc.path)
+							.onClick(() => this.openDoc(doc.path))
+					);
+			}
 		}
 
 		/* ── quick reference ───────────────────────────────────── */
