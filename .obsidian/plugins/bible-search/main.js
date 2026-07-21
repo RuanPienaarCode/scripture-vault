@@ -1333,6 +1333,13 @@ class BibleSearchPlugin extends Plugin {
 		);
 	}
 
+	onunload() {
+		// registerView/registerEvent clean themselves up; the refresh debounce is a
+		// raw setTimeout, so it's ours to cancel — otherwise a pending tick can fire
+		// against views that are already gone.
+		clearTimeout(this._refreshTimer);
+	}
+
 	// Finish an interrupted wizard run. The ticket in settings.setupDownloads
 	// survives quits, crashes and network drops; this re-derives what's still
 	// missing (finished translations drop out via the book-note markers) and
