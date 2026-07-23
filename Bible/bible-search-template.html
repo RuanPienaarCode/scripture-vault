@@ -71,11 +71,15 @@
   .cmd:focus-within{border-color:var(--accent)}
   .cmd .glyph{color:var(--muted-2);font-size:15px}
   /* source tabs — segmented control above the command bar, so the input owns its full row */
-  .srctabs{display:flex;width:fit-content;gap:2px;background:var(--panel-2);border:1px solid var(--line);
+  .srctabs{display:flex;flex-wrap:wrap;max-width:100%;width:fit-content;gap:2px;background:var(--panel-2);border:1px solid var(--line);
     border-radius:9px;padding:2px;margin:0 0 9px}
   .srctabs button{display:inline-flex;align-items:center;gap:6px;background:none;border:none;
     color:var(--muted);font-family:var(--sans);font-size:13px;font-weight:300;cursor:pointer;
     padding:6px 12px;border-radius:7px;white-space:nowrap}
+  /* A layer whose payload wasn't emitted (empty or disabled) hides its tab; a
+     Bible-only page hides the whole strip. These beat the display rules above. */
+  .srctabs[hidden]{display:none}
+  .srctabs button[hidden]{display:none}
   .srctabs button:hover{color:var(--ink)}
   .srctabs button[aria-selected="true"]{background:var(--panel);color:var(--accent);font-weight:400;
     box-shadow:var(--shadow-tab)}
@@ -172,6 +176,51 @@
   button.more:hover{color:var(--ink);border-color:var(--accent)}
   .empty{color:var(--muted);text-align:center;padding:40px 0;font-weight:300}
   .empty .big{font-size:40px;line-height:1;margin-bottom:10px}
+
+  /* timeline tab — a visual vertical timeline of Bible & church history */
+  .tl-open{display:inline-flex;align-items:center;gap:6px;margin:4px 0 6px;font-size:13px;
+    color:var(--accent);text-decoration:none;font-family:var(--sans);font-weight:300}
+  .tl-open:hover{text-decoration:underline}
+  .tl-era{margin:28px 0 4px;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+  .tl-era:first-of-type{margin-top:10px}
+  .tl-era h3{font-family:var(--sans);font-size:15px;font-weight:400;color:var(--accent);margin:0}
+  .tl-approx{font-size:11px;font-weight:300;color:var(--muted-2);letter-spacing:.02em}
+  .tl-track{position:relative;margin:0 0 4px 6px;padding-left:22px;border-left:1px solid var(--line)}
+  .tl-event{position:relative;padding:9px 0}
+  .tl-event::before{content:"";position:absolute;left:-27px;top:14px;width:9px;height:9px;border-radius:50%;
+    background:var(--panel);border:2px solid var(--accent)}
+  .tl-when{font-family:var(--sans);font-size:12px;font-weight:400;color:var(--muted);letter-spacing:.02em}
+  .tl-title{font-family:var(--sans);font-size:15px;font-weight:400;color:var(--ink);margin:1px 0 2px}
+  .tl-note{font-size:14px;font-weight:300;color:var(--muted);line-height:1.55;margin:0}
+
+  /* On This Day — church-history calendar panel */
+  .otd-card{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--panel);margin-top:6px}
+  .otd-head{display:flex;align-items:center;gap:10px;padding:13px 16px;border-bottom:1px solid var(--line);background:var(--panel-2)}
+  .otd-eyebrow{font-size:9.5px;letter-spacing:.3em;text-transform:uppercase;color:var(--accent);font-weight:400}
+  .otd-date{margin:2px 0 0;font-family:var(--sans);font-size:20px;font-weight:200;color:var(--ink)}
+  .otd-nav{margin-left:auto;display:flex;gap:4px}
+  .otd-nav button{background:none;border:1px solid var(--line);color:var(--muted);width:30px;height:30px;
+    border-radius:8px;cursor:pointer;font-size:15px;font-family:var(--sans)}
+  .otd-nav button:hover{color:var(--accent);border-color:var(--accent)}
+  .otd-sec{font-size:10px;letter-spacing:.2em;text-transform:uppercase;font-weight:400;padding:13px 16px 5px;
+    display:flex;align-items:center;gap:8px}
+  .otd-sec .otd-rule{flex:1;height:1px;background:var(--line)}
+  .otd-sec.feat{color:var(--accent)} .otd-sec.prot{color:#5fae76} .otd-sec.evang{color:#c08a1f}
+  .otd-sec.miss{color:#5b86d6} .otd-sec.early{color:#a06fc4} .otd-sec.orth{color:#c96f6f}
+  .otd-sec.other{color:var(--muted)} .otd-sec.rc{color:var(--muted-2)}
+  .otd-entry{display:block;padding:9px 16px;border-bottom:1px solid var(--line);text-decoration:none;color:inherit}
+  .otd-entry:hover{background:var(--panel-2)}
+  .otd-row{display:flex;gap:10px;align-items:baseline}
+  .otd-yr{font-variant-numeric:tabular-nums;color:var(--accent);font-weight:400;min-width:44px;font-size:14px;font-family:var(--sans)}
+  .otd-kind{font-size:10px;color:var(--muted-2);text-transform:uppercase;letter-spacing:.1em;min-width:26px;font-family:var(--sans)}
+  .otd-nm{font-family:var(--sans);font-weight:400;color:var(--ink)}
+  .otd-blurb{color:var(--muted);font-size:13px;font-weight:300;margin:3px 0 0 54px;line-height:1.5}
+  .otd-ref{color:var(--accent);font-weight:400;white-space:nowrap}
+  .otd-feat{background:linear-gradient(90deg,rgba(180,140,60,.11),transparent 72%)}
+  .otd-feat .otd-nm{color:var(--accent)}
+  .otd-foot{padding:11px 16px;color:var(--muted-2);font-size:11px;border-top:1px solid var(--line);background:var(--panel-2);font-weight:300}
+  .otd-daylabel{font-family:var(--sans);font-size:12px;font-weight:400;color:var(--accent);letter-spacing:.02em;padding:12px 16px 2px}
+  .otd-empty{padding:16px;color:var(--muted);font-weight:300}
 
   /* in-page reader */
   .reader{position:fixed;inset:0;z-index:50;background:var(--backdrop);
@@ -313,13 +362,17 @@
   <header class="hero">
     <div class="eyebrow">Bible Study Tool</div>
     <h1>Bible <span class="accent">Search</span></h1>
-    <p class="lede">Search __TRANS_LIST__ — or the teaching
-      article library. Every result links straight into Obsidian.</p>
+    <p class="lede">Search __TRANS_LIST____LEDE_LAYERS__ Every result links straight into Obsidian.</p>
   </header>
 
   <div class="searchbar">
     <div class="srctabs" role="tablist" aria-label="Search in">
       <button role="tab" data-s="bible" aria-selected="true">📖 Bible</button>
+      <button role="tab" data-s="faq" aria-selected="false">❓ FAQ</button>
+      <button role="tab" data-s="history" aria-selected="false">📜 History</button>
+      <button role="tab" data-s="timeline" aria-selected="false">🕰️ Timeline</button>
+      <button role="tab" data-s="onthisday" aria-selected="false">📅 On This Day</button>
+      <button role="tab" data-s="topics" aria-selected="false">🏷️ Topics</button>
       <button role="tab" data-s="articles" aria-selected="false">📄 Articles</button>
     </div>
     <div class="cmd">
@@ -374,6 +427,43 @@ __TRANS_MENU__
           </table>
           <p>Best matches first (title &amp; topic hits rank highest). Click a title to read it right here.</p>
         </div>
+        <div id="help-topics" hidden>
+          <table>
+            <tr><td><code>faith</code></td><td>topic notes whose title or text mention the word</td></tr>
+            <tr><td><code>prayer fasting</code></td><td>topics containing <em>all</em> the words</td></tr>
+          </table>
+          <p>Each topic gathers the key verses and articles for a theme. Click a topic to open it.</p>
+        </div>
+        <div id="help-faq" hidden>
+          <table>
+            <tr><td><code>baptism</code></td><td>questions &amp; answers mentioning the word</td></tr>
+            <tr><td><code>who wrote hebrews</code></td><td>all the words, ranked by best match</td></tr>
+          </table>
+          <p>Common Bible questions, answered briefly. Click a question to read the full answer.</p>
+        </div>
+        <div id="help-history" hidden>
+          <table>
+            <tr><td><code>canon</code></td><td>history notes — people, sources, events, concepts</td></tr>
+            <tr><td><code>dead sea scrolls</code></td><td>all the words, ranked by best match</td></tr>
+          </table>
+          <p>Notes on how the Bible came together. Click a note to read it right here.</p>
+        </div>
+        <div id="help-timeline" hidden>
+          <table>
+            <tr><td><code>(nothing)</code></td><td>leave the box empty to see the whole timeline</td></tr>
+            <tr><td><code>vulgate</code></td><td>filter to moments mentioning the word</td></tr>
+            <tr><td><code>nicaea</code></td><td>jump to a council, person or translation</td></tr>
+          </table>
+          <p>A visual sweep from the patriarchs through the church fathers to today. Early dates are traditional and debated.</p>
+        </div>
+        <div id="help-otd" hidden>
+          <table>
+            <tr><td><code>(nothing)</code></td><td>leave the box empty to see today's date</td></tr>
+            <tr><td><code>‹ ›</code></td><td>step to the previous / next day on file</td></tr>
+            <tr><td><code>Luther</code></td><td>search every day for a person or event</td></tr>
+          </table>
+          <p>Births, deaths and turning points across the whole church — Reformation &amp; evangelical first, curated entries lead. Fully offline.</p>
+        </div>
       </div>
     </div>
   </div>
@@ -382,7 +472,7 @@ __TRANS_MENU__
   <section id="results" aria-label="Search results"></section>
 
   <footer>
-    <p>Generated __GENERATED__ from the vault — Bible full text (__TRANS_DOT__) and __ARTCOUNT__ teaching articles.
+    <p>Generated __GENERATED__ from the vault — Bible full text (__TRANS_DOT__)__CONTENT_SUMMARY__.
       Self-contained — works offline, no network. Personal study use only; the NLT, ESV, AMP and article text is
       copyrighted — don't share this file.</p>
   </footer>
@@ -399,20 +489,28 @@ const BOOKS = __BOOKS__;
 /* ── payload access ───────────────────────────────────────────────
    The verse and article text lives in the <script type="application/json"> tags
    above — inert to the JS engine, so none of it is parsed at boot. D(t) parses
-   one translation the first time it's needed and caches it; A() does the same for
-   articles. Never touch the DOM nodes directly — always go through D()/A(). */
+   one translation the first time it's needed and caches it; notes() does the same for
+   each note collection. Never touch the DOM nodes directly — always go through D()/notes(). */
 const _dcache = {};
 function D(t){ /* trans -> [ [bookIdx, chapter, verse, text], ... ] canonical order */
   let d = _dcache[t];
   if (!d) d = _dcache[t] = JSON.parse(document.getElementById("bd-" + t).textContent);
   return d;
 }
-let _acache = null;
-function A(){ /* [ title, author, date, topics, excerpt, path, url, body, source ] */
-  if (!_acache) _acache = JSON.parse(document.getElementById("ad").textContent);
-  return _acache;
+/* Note collections — Articles, Topics, FAQ and History all share the record shape
+   [ title, author, date, topics, excerpt, path, url, body, source ], so one loader,
+   index, search and reader path serves every non-Bible tab. Each payload is parsed
+   from its <script type="application/json"> on first use, exactly like a translation. */
+const NOTE_ID   = { articles: "ad", topics: "td", faq: "fd", history: "hd" };
+const NOTE_NOUN = { articles: "article", topics: "topic", faq: "answer", history: "note" };
+const NOTE_ICON = { articles: "📄", topics: "🏷️", faq: "❓", history: "📜" };
+const _noteCache = {}, _noteLC = {};
+function notes(coll){ /* [ title, author, date, topics, excerpt, path, url, body, source ] */
+  const id = NOTE_ID[coll];
+  if (!_noteCache[id]) _noteCache[id] = JSON.parse(document.getElementById(id).textContent);
+  return _noteCache[id];
 }
-const artUrl = a => "obsidian://open?vault=" + encodeURIComponent(VAULT) + "&file=" + encodeURIComponent(a[5]);
+const noteUrl = a => "obsidian://open?vault=" + encodeURIComponent(VAULT) + "&file=" + encodeURIComponent(a[5]);
 
 // Emitted by build-bible-search.js from the folders that actually exist under Bible/.
 const TRANS = __TRANS__;
@@ -662,20 +760,18 @@ function renderSearch(input){
   showMore();
 }
 
-/* ── article search ──────────────────────────────────────────── */
-let artLC = null;
-function artIndex(){
-  const ART = A();
-  if (!artLC) artLC = ART.map(a => ({
+/* ── note search (articles · topics · faq · history) ─────────────── */
+function noteIndex(coll){
+  if (!_noteLC[coll]) _noteLC[coll] = notes(coll).map(a => ({
     title:   a[0].toLowerCase(),
     meta:    (a[1] + " " + a[3] + " " + a[8]).toLowerCase(),   // author + topics + source
     excerpt: a[4].toLowerCase(),
     body:    a[7].toLowerCase(),
     blob:    (a[0] + " " + a[1] + " " + a[3] + " " + a[4] + " " + a[7]).toLowerCase()
   }));
-  return artLC;
+  return _noteLC[coll];
 }
-function artSnippet(a, terms){
+function noteSnippet(a, terms){
   const body = a[7], low = body.toLowerCase();
   let pos = -1;
   for (const w of terms){
@@ -693,12 +789,12 @@ function countIn(text, w){
   let n = 0; while (re.exec(text) !== null) n++;
   return n;
 }
-function renderArticles(input){
-  const ART = A();
+function renderNotes(coll, input){
+  const ART = notes(coll);
   const terms = parseTerms(input);
   if (!terms.length){ $status.textContent = ""; $res.innerHTML = ""; return; }
   lastTerms = terms;
-  const idx = artIndex(), scored = [];
+  const idx = noteIndex(coll), scored = [];
   for (let i = 0; i < ART.length; i++){
     const x = idx[i];
     let score = 0, ok = true;
@@ -711,26 +807,26 @@ function renderArticles(input){
     }
     if (ok) scored.push([i, score, terms.length > 1 ? proximity(x.blob, terms) : 0]);
   }
-  const label = terms.map(w => '“' + esc(w) + '”').join(" + ");
+  const noun = NOTE_NOUN[coll], label = terms.map(w => '“' + esc(w) + '”').join(" + ");
   $status.innerHTML = scored.length
-    ? '<strong>' + scored.length + '</strong> article' + (scored.length === 1 ? '' : 's') + ' matching ' + label
-    : 'No articles matching ' + label + ' — try a different or shorter word.';
+    ? '<strong>' + scored.length + '</strong> ' + noun + (scored.length === 1 ? '' : 's') + ' matching ' + label
+    : 'No ' + noun + 's matching ' + label + ' — try a different or shorter word.';
   if (!scored.length){
-    $res.innerHTML = '<div class="empty"><div class="big">📄</div>No matching articles.</div>';
+    $res.innerHTML = '<div class="empty"><div class="big">' + NOTE_ICON[coll] + '</div>No matching ' + noun + 's.</div>';
     return;
   }
   // rank: field score desc, then proximity asc, then newest first
   scored.sort((a, b) => b[1] - a[1] || a[2] - b[2] || (ART[a[0]][2] < ART[b[0]][2] ? 1 : -1));
   $res.innerHTML = scored.map(s => {
     const a = ART[s[0]];
-    // author / date / topics are all optional outside Four12 — drop the blanks, don't strand separators
+    // author / date / topics are all optional — drop the blanks, don't strand separators
     const meta = [a[1], a[2], a[3]].filter(Boolean).map(esc);
     if (safeUrl(a[6])) meta.push('<a href="' + esc(safeUrl(a[6])) + '" target="_blank" rel="noopener">web ↗</a>');
     return '<div class="hit article"><div class="ref"><span class="sbadge">' + esc(a[8]) + '</span>' +
-      '<a href="' + artUrl(a) + '" data-open="article" data-i="' + s[0] + '" title="Open article">' +
+      '<a href="' + noteUrl(a) + '" data-open="note" data-coll="' + coll + '" data-i="' + s[0] + '" title="Open">' +
       esc(a[0]) + ' ↗</a></div>' +
       (meta.length ? '<div class="ameta">' + meta.join(' · ') + '</div>' : '') +
-      '<p class="snip">' + artSnippet(a, terms) + '</p></div>';
+      '<p class="snip">' + noteSnippet(a, terms) + '</p></div>';
   }).join("");
 }
 
@@ -786,11 +882,11 @@ function openVerse(t, bi, ch, v){
   if (tgt) tgt.scrollIntoView({ block: "center" });
   else $reader.querySelector(".reader-body").scrollTop = 0;
 }
-function openArticle(i){
+function openNote(coll, i){
   curNav = null;
-  const a = A()[i];
+  const a = notes(coll)[i];
   const head = '<h2>' + esc(a[0]) + '</h2><span class="spacer"></span>' +
-    '<a class="obs" href="' + artUrl(a) + '">Open in Obsidian ↗</a>';
+    '<a class="obs" href="' + noteUrl(a) + '">Open in Obsidian ↗</a>';
   const parts = [a[8], a[1], a[2], a[3]].filter(Boolean).map(esc);
   if (safeUrl(a[6])){
     const host = (a[6].match(/^https?:\/\/(?:www\.)?([^/]+)/) || [, "the web"])[1];
@@ -842,11 +938,189 @@ $go.addEventListener("click", () => {
   openVerse(scope === "ALL" ? TRANS[0] : scope, +$book.value, +$chap.value, +$verse.value || null);
 });
 
+/* ── timeline ────────────────────────────────────────────────────
+   A curated visual sweep from the patriarchs through the church fathers
+   to today. Not a note collection — it's rendered straight into the results
+   area and the search box filters it. Pre-exilic dates are traditional and
+   debated (the vault's "Bible History Timeline" note carries the same caveat). */
+const TIMELINE = [
+  { era: "Patriarchs & Exodus", approx: true, events: [
+    { when: "c. 2000 BC", title: "Abraham", note: "God calls Abraham and makes a covenant — the family that becomes Israel begins." },
+    { when: "c. 1500–1250 BC", title: "The Exodus & Moses", note: "Israel is led out of Egypt and given the Law at Sinai. Scholars debate the date by centuries." },
+    { when: "c. 1000 BC", title: "King David", note: "David reigns from Jerusalem; many of the Psalms come from this era." },
+    { when: "c. 960 BC", title: "Solomon's Temple", note: "The First Temple is built in Jerusalem." },
+  ]},
+  { era: "Prophets & Exile", events: [
+    { when: "722 BC", title: "Fall of the North", note: "Assyria destroys the northern kingdom of Israel." },
+    { when: "586 BC", title: "Fall of Jerusalem", note: "Babylon destroys the city and Temple; the exile begins." },
+    { when: "538 BC", title: "The Return", note: "Persia lets the exiles return; the Second Temple is rebuilt by 516 BC." },
+  ]},
+  { era: "Between the Testaments", events: [
+    { when: "c. 250–100 BC", title: "The Septuagint", note: "The Hebrew Scriptures are translated into Greek (the LXX) for the wider Jewish world." },
+    { when: "167–160 BC", title: "Maccabean revolt", note: "Judea revolts against Greek rule (remembered at Hanukkah); the Dead Sea Scrolls community forms." },
+    { when: "63 BC", title: "Rome takes Judea", note: "Roman control begins over the land of the Gospels." },
+  ]},
+  { era: "Jesus & the Apostles", events: [
+    { when: "c. 4 BC", title: "Birth of Jesus", note: "Jesus is born in Bethlehem (our calendar is a few years off)." },
+    { when: "c. AD 30–33", title: "Death & resurrection", note: "Jesus' public ministry, crucifixion under Pilate, and resurrection — the centre of the Christian faith." },
+    { when: "c. AD 34", title: "Conversion of Paul", note: "A fierce opponent becomes the movement's greatest missionary." },
+    { when: "c. AD 48–65", title: "Paul's letters", note: "Paul writes to young churches — the earliest New Testament books to be written." },
+    { when: "c. AD 65–95", title: "The Gospels & Revelation", note: "Matthew, Mark, Luke, John, and the rest of the New Testament are written." },
+    { when: "AD 70", title: "The Temple destroyed", note: "Rome razes the Second Temple; Judaism and the church are reshaped." },
+  ]},
+  { era: "The Early Church & Fathers", events: [
+    { when: "c. AD 95–110", title: "Apostolic Fathers", note: "Clement of Rome, Ignatius of Antioch, and Polycarp — the first generation after the apostles." },
+    { when: "c. AD 150", title: "Justin Martyr", note: "An early apologist defends the faith; the Gospels are read in worship." },
+    { when: "c. AD 180", title: "Irenaeus of Lyons", note: "Defends the fourfold Gospel and the church's core teaching against heresies." },
+    { when: "AD 313", title: "Edict of Milan", note: "Constantine ends the persecution of Christians across the Roman Empire." },
+    { when: "AD 325", title: "Council of Nicaea", note: "The full deity of Christ is affirmed — the root of the Nicene Creed." },
+    { when: "AD 367", title: "Athanasius' list", note: "Athanasius names the exact 27 New Testament books we use today." },
+    { when: "AD 382–405", title: "Jerome's Vulgate", note: "Jerome translates the Bible into Latin — the West's Bible for a thousand years." },
+    { when: "AD 397", title: "Council of Carthage", note: "A church council confirms the New Testament canon." },
+    { when: "AD 451", title: "Council of Chalcedon", note: "Affirms that Christ is fully God and fully man in one person." },
+  ]},
+  { era: "Middle Ages to Reformation", events: [
+    { when: "1382", title: "Wycliffe's Bible", note: "The first complete English Bible, translated from the Latin by hand." },
+    { when: "1456", title: "Gutenberg's press", note: "The printing press makes the Bible widely reproducible for the first time." },
+    { when: "1517", title: "Luther's 95 Theses", note: "The Reformation begins, recovering salvation by grace through faith and the Bible in the language of the people." },
+    { when: "1526", title: "Tyndale's New Testament", note: "The first English New Testament translated from the Greek; it shapes English for centuries." },
+    { when: "1611", title: "The King James Version", note: "The KJV is published and becomes the most widely read English Bible for generations." },
+  ]},
+  { era: "The Modern Era", events: [
+    { when: "1947", title: "Dead Sea Scrolls", note: "Ancient manuscripts push our earliest Hebrew copies back a thousand years and confirm careful transmission." },
+    { when: "19th–21st c.", title: "Critical texts & new translations", note: "Careful study of the Greek and Hebrew yields modern translations — ESV, NIV, NLT, and many more." },
+    { when: "Today", title: "The Bible for the world", note: "The whole Bible is available in well over 700 languages, and portions in thousands more — and it links straight into this vault." },
+  ]},
+];
+const TIMELINE_NOTE = "Bible History/Bible History Timeline";
+function renderTimeline(filter){
+  lastTerms = [];
+  const terms = filter ? parseTerms(filter) : [];
+  // keep an event if every term appears somewhere in its era + date + title + note
+  const keep = ev => terms.every(w => termRe(w, "i").test(ev.blob));
+  const eras = TIMELINE.map(g => {
+    const events = g.events
+      .map(e => ({ ...e, blob: (g.era + " " + e.when + " " + e.title + " " + e.note).toLowerCase() }))
+      .filter(e => !terms.length || keep(e));
+    return { era: g.era, approx: g.approx, events };
+  }).filter(g => g.events.length);
+  const total = eras.reduce((n, g) => n + g.events.length, 0);
+  const open = '<a class="tl-open" href="obsidian://open?vault=' + encodeURIComponent(VAULT) +
+    "&file=" + encodeURIComponent(TIMELINE_NOTE) + '">📄 Open the full timeline note in Obsidian ↗</a>';
+  if (!total){
+    $status.innerHTML = 'No timeline moments matching “' + esc(filter) + '”.';
+    $res.innerHTML = open + '<div class="empty"><div class="big">🕰️</div>Nothing on the timeline matches — clear the box to see all of it.</div>';
+    return;
+  }
+  $status.innerHTML = terms.length
+    ? '<strong>' + total + '</strong> timeline moment' + (total === 1 ? '' : 's') + ' matching “' + esc(filter) + '”'
+    : 'A visual sweep of Bible &amp; church history — <strong>' + total + '</strong> moments, from the patriarchs to today';
+  const body = eras.map(g =>
+    '<div class="tl-era"><h3>' + esc(g.era) + '</h3>' +
+      (g.approx ? '<span class="tl-approx">traditional / approximate dates</span>' : '') + '</div>' +
+    '<div class="tl-track">' + g.events.map(e =>
+      '<div class="tl-event"><div class="tl-when">' + esc(e.when) + '</div>' +
+      '<div class="tl-title">' + highlight(esc(e.title), terms) + '</div>' +
+      '<p class="tl-note">' + highlight(esc(e.note), terms) + '</p></div>'
+    ).join("") + '</div>'
+  ).join("");
+  $res.innerHTML = open + '<div class="tl">' + body + '</div>';
+}
+
+/* ── On This Day (church-history calendar) ────────────────────────
+   Renders the calendar panel: today's Christian-history entries with ‹ › day
+   navigation, or — when the box has text — a keyword search across every day.
+   The `od` payload (curated featured + cached Wikidata people) is parsed on first
+   use. The balance logic mirrors tools/gen-history-calendar.js: Protestant /
+   evangelical first, Roman Catholic capped, curated entries always lead. */
+let _otd = null;
+function otd(){ if (!_otd) _otd = JSON.parse(document.getElementById("od").textContent); return _otd; }
+// Fixed-date events grouped by strand. Colours reuse the existing section classes.
+const OTD_CATS = [["Scripture","feat"],["Christian calendar","miss"],["Church history","prot"]];
+function otdEntry(e, terms){
+  terms = terms || [];
+  const href = safeUrl(e.link) ? ' href="' + esc(safeUrl(e.link)) + '" target="_blank" rel="noopener"' : "";
+  const yr = e.year ? esc(String(e.year)) : "";
+  const ref = e.ref ? '<span class="otd-ref">' + highlight(esc(e.ref), terms) + '</span>' : "";
+  const blurb = e.blurb ? highlight(esc(e.blurb), terms) : "";
+  const foot = (blurb || ref) ? '<div class="otd-blurb">' + blurb + (blurb && ref ? ' ' : '') + ref + '</div>' : '';
+  return '<a class="otd-entry"' + href + '>' +
+    '<div class="otd-row"><span class="otd-yr">' + yr + '</span>' +
+    '<span class="otd-nm">' + highlight(esc(e.title), terms) + '</span></div>' + foot + '</a>';
+}
+function otdSec(label, cls){ return '<div class="otd-sec ' + cls + '">' + esc(label) + '<span class="otd-rule"></span></div>'; }
+function otdTodayKey(){ const n = new Date(); return String(n.getMonth() + 1).padStart(2, "0") + "-" + String(n.getDate()).padStart(2, "0"); }
+let otdKeys = null, otdIdx = 0;
+function otdInit(){
+  if (otdKeys) return;
+  otdKeys = Object.keys(otd()).sort();
+  const today = otdTodayKey();
+  let i = otdKeys.indexOf(today);
+  if (i < 0){ i = otdKeys.findIndex(k => k >= today); if (i < 0) i = 0; }   // nearest upcoming day, else first
+  otdIdx = i;
+}
+function renderOnThisDay(filter){
+  lastTerms = [];
+  otdInit();
+  if (!otdKeys.length){
+    $status.textContent = "The On This Day calendar is empty.";
+    $res.innerHTML = '<div class="empty"><div class="big">📅</div>No calendar data yet.</div>';
+    return;
+  }
+  const terms = filter ? parseTerms(filter) : [];
+  if (terms.length){ renderOtdSearch(terms, filter); return; }
+  const k = otdKeys[otdIdx], day = otd()[k], isToday = k === otdTodayKey();
+  $status.innerHTML = isToday ? 'Today in the Christian year' : 'Browsing the Christian-year calendar';
+  let inner = "";
+  const known = new Set(OTD_CATS.map(c => c[0]));
+  for (const [cat, cls] of OTD_CATS){
+    const list = day.entries.filter(e => e.category === cat);
+    if (!list.length) continue;
+    inner += otdSec(cat, cls); for (const e of list) inner += otdEntry(e);
+  }
+  const other = day.entries.filter(e => !known.has(e.category));
+  if (other.length){ inner += otdSec("Other", "other"); for (const e of other) inner += otdEntry(e); }
+  if (!inner) inner = '<div class="otd-empty">No entries recorded for this day yet.</div>';
+  $res.innerHTML = '<div class="otd-card"><div class="otd-head">' +
+    '<div><div class="otd-eyebrow">On This Day' + (isToday ? ' · Today' : '') + '</div>' +
+    '<h2 class="otd-date">' + esc(day.label) + '</h2></div>' +
+    '<div class="otd-nav"><button data-otd="-1" aria-label="Previous day">‹</button>' +
+    '<button data-otd="1" aria-label="Next day">›</button></div></div>' +
+    '<div class="otd-body">' + inner + '</div>' +
+    '<div class="otd-foot">A hand-compiled calendar of fixed-date events in Christian history — original summaries, no copyrighted almanac.</div></div>';
+  $res.querySelectorAll(".otd-nav button").forEach(b => b.addEventListener("click", () => {
+    otdIdx = (otdIdx + Number(b.dataset.otd) + otdKeys.length) % otdKeys.length;
+    renderOnThisDay("");
+  }));
+}
+function renderOtdSearch(terms, filter){
+  const hits = [];
+  for (const k of otdKeys){
+    const day = otd()[k];
+    for (const e of day.entries){
+      const blob = (day.label + " " + (e.year || "") + " " + e.title + " " + (e.blurb || "") + " " + (e.ref || "") + " " + e.category).toLowerCase();
+      if (terms.every(w => termRe(w, "i").test(blob))) hits.push({ e, k, label: day.label });
+    }
+  }
+  $status.innerHTML = hits.length
+    ? '<strong>' + hits.length + '</strong> calendar moment' + (hits.length === 1 ? '' : 's') + ' matching “' + esc(filter) + '”'
+    : 'No calendar entries matching “' + esc(filter) + '” — clear the box to see today.';
+  if (!hits.length){ $res.innerHTML = '<div class="empty"><div class="big">📅</div>Nothing on the calendar matches.</div>'; return; }
+  let last = "";
+  $res.innerHTML = '<div class="otd-card"><div class="otd-body">' + hits.map(h => {
+    const lab = h.k !== last ? '<div class="otd-daylabel">' + esc(h.label) + '</div>' : "";
+    last = h.k;
+    return lab + otdEntry(h.e, terms);
+  }).join("") + '</div></div>';
+}
+
 /* ── wiring ──────────────────────────────────────────────────── */
 function run(){
   const input = $q.value.trim();
+  if (source === "timeline"){ renderTimeline(input); return; }   // renders even with an empty box
+  if (source === "onthisday"){ renderOnThisDay(input); return; } // ditto — empty box shows today
   if (!input){ $status.textContent = ""; $res.innerHTML = ""; return; }
-  if (source === "articles"){ renderArticles(input); return; }
+  if (source !== "bible"){ renderNotes(source, input); return; }
   const ref = parseRef(input);
   if (ref) renderRef(ref); else renderSearch(input);
 }
@@ -901,6 +1175,24 @@ document.querySelectorAll("#popTest [data-ot]").forEach(btn => btn.addEventListe
 
 // source tabs → mode + chip visibility + help swap
 const $tabs = Array.from(document.querySelectorAll(".srctabs [data-s]"));
+// A layer is present only if the builder emitted its payload <script>. Hide any
+// tab whose payload is absent (empty or disabled layer); Timeline renders from
+// the History payload, so it shares "hd". Bible is always present. With nothing
+// but Bible left, the one-tab strip is noise — drop it entirely.
+const TAB_PAYLOAD = { faq: "fd", history: "hd", timeline: "hd", onthisday: "od", topics: "td", articles: "ad" };
+$tabs.forEach(b => { const id = TAB_PAYLOAD[b.dataset.s]; if (id && !document.getElementById(id)) b.hidden = true; });
+const $visTabs = $tabs.filter(b => !b.hidden);
+if ($visTabs.length <= 1) document.querySelector(".srctabs").hidden = true;
+const HELP_ID = { bible: "help-bible", articles: "help-articles", topics: "help-topics", faq: "help-faq", history: "help-history", timeline: "help-timeline", onthisday: "help-otd" };
+const PLACEHOLDER = {
+  bible:     "John 3:16-18 · Psalm 23 · born again · shepherd…",
+  articles:  "baptism · prayer · discipleship · \"spiritual gifts\"…",
+  topics:    "faith · suffering · gospel · marriage…",
+  faq:       "Who wrote Hebrews? · Is Jesus God? · What is grace?…",
+  history:   "canon · Josephus · Dead Sea Scrolls · Vulgate…",
+  timeline:  "Filter the timeline… Nicaea · Vulgate · exile…",
+  onthisday: "Search the calendar… Luther · Amazing Grace · martyr…"
+};
 function selectSource(s, focusInput){
   source = s;
   const bible = source === "bible";
@@ -908,11 +1200,9 @@ function selectSource(s, focusInput){
   document.getElementById("chipTrans").hidden = !bible;
   document.getElementById("chipTest").hidden = !bible;
   document.getElementById("chipBrowse").hidden = !bible;
-  document.getElementById("help-bible").hidden = !bible;
-  document.getElementById("help-articles").hidden = bible;
-  $q.placeholder = bible
-    ? "John 3:16-18 · Psalm 23 · born again · shepherd…"
-    : "baptism · prayer · discipleship · \"spiritual gifts\"…";
+  // one help panel per tab — show the matching one, hide the rest
+  Object.entries(HELP_ID).forEach(([k, id]) => { document.getElementById(id).hidden = k !== s; });
+  $q.placeholder = PLACEHOLDER[s] || PLACEHOLDER.articles;
   closePops();
   if (focusInput) $q.focus();
   run();
@@ -922,8 +1212,8 @@ $tabs.forEach(btn => btn.addEventListener("click", () => selectSource(btn.datase
 document.querySelector(".srctabs").addEventListener("keydown", e => {
   if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
   e.preventDefault();
-  const i = $tabs.findIndex(b => b.dataset.s === source);
-  const next = $tabs[(i + (e.key === "ArrowRight" ? 1 : $tabs.length - 1)) % $tabs.length];
+  const i = $visTabs.findIndex(b => b.dataset.s === source);
+  const next = $visTabs[(i + (e.key === "ArrowRight" ? 1 : $visTabs.length - 1)) % $visTabs.length];
   selectSource(next.dataset.s, false);
   next.focus();
 });
@@ -934,7 +1224,7 @@ $res.addEventListener("click", e => {
   if (!el) return;                       // e.g. the "web ↗" link → normal navigation
   e.preventDefault();
   if (el.dataset.open === "verse") openVerse(el.dataset.t, +el.dataset.bi, +el.dataset.ch, el.dataset.v === "" ? null : +el.dataset.v);
-  else openArticle(+el.dataset.i);
+  else openNote(el.dataset.coll, +el.dataset.i);
 });
 // close reader on backdrop click or Esc
 $reader.addEventListener("click", e => { if (e.target === $reader) closeReader(); });

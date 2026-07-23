@@ -17,10 +17,29 @@
 const { Plugin, ItemView, Modal, PluginSettingTab, Setting, Notice, TFile, TFolder, normalizePath, requestUrl } = require("obsidian");
 
 const VIEW_TYPE = "bible-search-view";
+// The optional content layers, in tab order. Each note layer names its source
+// folder; On This Day is assembled specially (no single folder). One registry
+// drives the settings toggles, the default settings, and the build's gating.
+// The Bible itself is not a layer — it's always present.
+const CONTENT_LAYERS = [
+	{ key: "articles",  label: "Articles",      folder: "Teaching" },
+	{ key: "topics",    label: "Topics",        folder: "Topics" },
+	{ key: "faq",       label: "FAQ",           folder: "FAQ" },
+	{ key: "history",   label: "Bible history", folder: "Bible History" },
+	{ key: "onthisday", label: "On This Day",   folder: null },
+];
+// A layer is included unless explicitly disabled — a missing/partial `layers`
+// object (older saved settings) therefore means "include everything present".
+const layerEnabled = (layers, key) => !layers || layers[key] !== false;
+
 const DEFAULT_SETTINGS = {
 	htmlPath: "Bible Search.html",
 	openNotesInNewTab: true,
 	onboarded: false,
+	// Which optional content layers to build. Bible is always included; each of
+	// these is included when enabled AND its content exists (an enabled-but-empty
+	// layer emits nothing and its tab stays hidden — see the builder + template).
+	layers: Object.fromEntries(CONTENT_LAYERS.map((l) => [l.key, true])),
 	// Resume ticket: the wizard's download picks, persisted while a setup run is
 	// unfinished. Non-null means "downloads and/or the build didn't complete" —
 	// the plugin auto-resumes on the next launch and clears it only on success.
@@ -182,7 +201,17 @@ const DOWNLOADABLE = [
 // one this release was audited with.
 const TEMPLATE_PATH = "Bible/bible-search-template.html";
 const TEMPLATE_URL =
-	"https://raw.githubusercontent.com/RuanPienaarCode/scripture-vault/v1.1.0/Bible/bible-search-template.html";
+	"https://raw.githubusercontent.com/RuanPienaarCode/scripture-vault/v1.2.0/Bible/bible-search-template.html";
+
+// The On This Day calendar is the one optional layer that CAN be shared as data —
+// its entries are original summaries of fixed-date Christian-year events, no
+// copyrighted text. A vault that doesn't carry the on-this-day.js source can
+// download this pre-assembled pack (the { "MM-DD": { label, entries } } map that
+// buildOnThisDay() emits) and drop it in. Served as a raw file at a pinned tag,
+// exactly like the template. (Published in the release step; until then it 404s.)
+const ONTHISDAY_PACK_PATH = "Bible/on-this-day.json";
+const ONTHISDAY_PACK_URL =
+	"https://raw.githubusercontent.com/RuanPienaarCode/scripture-vault/v1.2.0/data/on-this-day.json";
 
 // Transient 429/5xx happens over ~1,200 chapter fetches — retry with enough
 // backoff (1s/2s/4s/8s) to ride out a short outage burst instead of aborting
@@ -338,7 +367,7 @@ async function importTranslation(app, spec, onProgress) {
  * the next resume. Returns the build result plus human-readable problems;
  * an empty problems list means setup is finished and the ticket can go.
  */
-async function runSetupPipeline(app, htmlPath, pending, onProgress) {
+async function runSetupPipeline(app, htmlPath, pending, onProgress, layers) {
 	const problems = [];
 	for (const spec of pending) {
 		try {
@@ -355,7 +384,7 @@ async function runSetupPipeline(app, htmlPath, pending, onProgress) {
 		await writeIfAbsent(app, TEMPLATE_PATH, res.text);
 	}
 	onProgress?.("Building the search page…");
-	const built = await buildSearchIndex(app, htmlPath, onProgress);
+	const built = await buildSearchIndex(app, htmlPath, onProgress, layers);
 	return { built, problems };
 }
 
@@ -461,12 +490,140 @@ function toParagraphs(body) {
 	flush();
 	return paras;
 }
-const isHub = (fm) => /^type:\s*\S*hub\b/mi.test(fm) || fmList(fm, "tags").some((t) => t === "hub" || t.endsWith("/hub"));
+const isHub = (fm) =>
+	/^type:\s*\S*(hub|moc)\b/mi.test(fm) ||
+	fmList(fm, "tags").some((t) => t === "hub" || t === "moc" || t.endsWith("/hub") || t.endsWith("/moc"));
 const firstHeading = (body) => (body.match(/^#\s+(.+)$/m) || [, ""])[1].trim();
 const firstUrl = (body) => (body.match(/\((https?:\/\/[^)\s]+)\)/) || [, ""])[1];
 const safeUrl = (u) => (/^https?:\/\//i.test(u || "") ? u : "");
 
-async function buildSearchIndex(app, htmlPath, onProgress) {
+/* Vault-API twin of the Node builder's collectNotes(). Indexes every .md under a
+ * folder into the shared record shape — the Articles, Topics, FAQ and History
+ * tabs are all just different folders run through this one function. sourceOf(rel)
+ * picks each result's badge label. README + hub/MOC notes are skipped. Kept in
+ * lock-step with build-bible-search.js so a page built here matches the Node one. */
+async function collectNotesFromVault(app, prefix, sourceOf) {
+	const out = [];
+	const root = app.vault.getAbstractFileByPath(normalizePath(prefix));
+	if (!(root instanceof TFolder)) return out; // absent folder → empty layer, not an error
+	const under = prefix + "/";
+	const files = app.vault.getMarkdownFiles()
+		.filter((f) => f.path.startsWith(under) && !/^readme$/i.test(f.basename))
+		.sort((a, b) => a.path.localeCompare(b.path));
+	for (const f of files) {
+		const rel = f.path;
+		const source = sourceOf(rel);
+		const raw = await app.vault.cachedRead(f);
+		const fmMatch = raw.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/);
+		const fm = fmMatch ? fmMatch[1] : "";
+		const bodyRaw = fmMatch ? fmMatch[2] : raw;
+		if (isHub(fm)) continue;
+		const paras = toParagraphs(bodyRaw);
+		if (!paras.length) continue;
+		const tagTopics = fmList(fm, "tags")
+			.map((t) => (t.startsWith("topic/") ? t.slice(6).replace(/-/g, " ") : t))
+			.filter((t) => !t.includes("/") && !/^(article|hub|devotional|teaching)$/i.test(t));
+		const topics = (fmList(fm, "topics").length ? fmList(fm, "topics") : tagTopics).slice(0, 6).join(", ");
+		out.push([
+			fmValue(fm, "title") || firstHeading(bodyRaw) || f.basename,
+			fmValue(fm, "author"),
+			fmValue(fm, "date"),
+			topics,
+			fmValue(fm, "excerpt") || paras[0].slice(0, 240),
+			rel.replace(/\.md$/, ""),
+			safeUrl(fmValue(fm, "source") || firstUrl(bodyRaw)),
+			paras.join("\n"),
+			source,
+		]);
+	}
+	return out;
+}
+
+/* Vault-API twin of the Node builder's buildOnThisDay(). Assembles the On This Day
+ * payload from the hand-curated featured entries (tools/data/church-history-curated.js)
+ * plus the cached Wikidata people (sources/church-history/MM-DD.json). Both live in
+ * NON-markdown files, so they're read through vault.adapter rather than the note API.
+ * Every source is optional and every read is non-fatal — a vault without the data
+ * just yields {}, which the page renders as an empty (soon hidden) tab. No network. */
+const OTD_MONTHS = ["January", "February", "March", "April", "May", "June", "July",
+	"August", "September", "October", "November", "December"];
+async function buildOnThisDayFromVault(app) {
+	const adapter = app.vault.adapter;
+	if (!adapter || typeof adapter.read !== "function") return {}; // no raw-file access → no On This Day
+
+	// Pre-assembled pack wins. A vault that downloaded the On This Day pack has the
+	// finished { "MM-DD": { label, entries } } map already — use it directly rather
+	// than re-assembling from a source it doesn't have. (Ruan's own vault has the
+	// on-this-day.js source and no pack, so it falls through to the assembly below.)
+	try {
+		const packPath = normalizePath(ONTHISDAY_PACK_PATH);
+		if (await adapter.exists(packPath)) {
+			const pack = JSON.parse(await adapter.read(packPath));
+			if (pack && typeof pack === "object") return pack;
+		}
+	} catch (e) {
+		console.warn("Bible Search: On This Day pack unreadable, falling back to source —", e.message);
+	}
+
+	// Source: tools/data/on-this-day.js — a `module.exports = { … }` data module
+	// (pure literal, no code). Strip everything up to the assignment and evaluate the
+	// object literal client-side; it's the vault owner's own offline file, so a scoped
+	// Function eval is safe here. Same shape the Node builder reads.
+	let byDay = {};
+	try {
+		const srcPath = normalizePath("tools/data/on-this-day.js");
+		if (await adapter.exists(srcPath)) {
+			const src = await adapter.read(srcPath);
+			const literal = src.replace(/^[\s\S]*?module\.exports\s*=/, "").replace(/;?\s*$/, "");
+			byDay = new Function("return (" + literal + ")")() || {};
+		}
+	} catch (e) {
+		console.warn("Bible Search: could not read On This Day source —", e.message);
+	}
+
+	// Blurbs may carry [[wikilinks]] meant for the day-notes; the calendar shows them
+	// as plain text, so reduce [[Target|Alias]] → Alias, [[Target]] → Target.
+	const deWiki = (s) => (s || "").replace(/\[\[([^\]|]*\|)?([^\]]*)\]\]/g, "$2");
+	const entry = (e) => ({
+		category: e.category || "Church history",
+		title: e.title,
+		year: e.year ?? null,
+		ref: e.ref || "",
+		blurb: deWiki(e.blurb),
+		link: safeUrl(e.link),
+	});
+	const out = {};
+	for (const mmdd of Object.keys(byDay).sort()) {
+		const mo = Number(mmdd.slice(0, 2)), d = Number(mmdd.slice(3, 5));
+		if (!(mo >= 1 && mo <= 12 && d >= 1 && d <= 31)) continue;
+		const entries = (byDay[mmdd] || []).filter((e) => e && e.title).map(entry);
+		if (entries.length) out[mmdd] = { label: `${OTD_MONTHS[mo - 1]} ${d}`, entries };
+	}
+	return out;
+}
+
+/* Fetch the shareable On This Day pack and drop it in the vault. The wizard's
+ * Extras step offers this when a vault has no church-history data of its own.
+ * Validates the shape before writing so a stray 404 HTML body can't land as data;
+ * returns the number of calendar days written. */
+async function downloadOnThisDayPack(app) {
+	const res = await requestUrl({ url: ONTHISDAY_PACK_URL, throw: false });
+	const status = res.status ?? 200;
+	if (status >= 400) throw new Error(`On This Day pack not available (HTTP ${status}).`);
+	let pack;
+	try { pack = res.json ?? JSON.parse(res.text); }
+	catch { throw new Error("On This Day pack was not valid JSON."); }
+	const days = pack && typeof pack === "object" ? Object.keys(pack) : [];
+	if (!days.length || !/^\d{2}-\d{2}$/.test(days[0])) {
+		throw new Error("On This Day pack has an unexpected shape — nothing written.");
+	}
+	const packPath = normalizePath(ONTHISDAY_PACK_PATH);
+	await ensureFolder(app, packPath.split("/").slice(0, -1).join("/"));
+	await app.vault.adapter.write(packPath, JSON.stringify(pack));
+	return days.length;
+}
+
+async function buildSearchIndex(app, htmlPath, onProgress, layers) {
 	const vault = app.vault;
 	const { translations } = surveyTranslations(app);
 	if (!translations.length) {
@@ -508,42 +665,43 @@ async function buildSearchIndex(app, htmlPath, onProgress) {
 		data[t] = rows;
 	}
 
-	// Articles: every .md under Teaching/ except READMEs and hub notes.
-	const ARTICLES = [];
+	// Content layers — each folder run through the shared collector, same as the Node
+	// builder. Teaching/ → Articles (badge = the ministry folder under Teaching/);
+	// Topics/, FAQ/ → one constant badge each; Bible History/ → sub-folder badge. A
+	// layer the user has disabled is skipped entirely (never read), yielding an empty
+	// payload → hidden tab, exactly like an absent folder.
+	const on = (k) => layerEnabled(layers, k);
 	onProgress?.("Indexing articles…");
-	for (const f of vault.getMarkdownFiles().sort((a, b) => a.path.localeCompare(b.path))) {
-		if (!f.path.startsWith("Teaching/") || /^readme$/i.test(f.basename)) continue;
-		const raw = await vault.cachedRead(f);
-		const fmMatch = raw.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/);
-		const fm = fmMatch ? fmMatch[1] : "";
-		const bodyRaw = fmMatch ? fmMatch[2] : raw;
-		if (isHub(fm)) continue;
-		const paras = toParagraphs(bodyRaw);
-		if (!paras.length) continue;
-		const source = f.path.split("/")[1] && f.path.split("/").length > 2 ? f.path.split("/")[1] : "Teaching";
-		const tagTopics = fmList(fm, "tags")
-			.map((t) => (t.startsWith("topic/") ? t.slice(6).replace(/-/g, " ") : t))
-			.filter((t) => !t.includes("/") && !/^(article|hub|devotional|teaching)$/i.test(t));
-		const topics = (fmList(fm, "topics").length ? fmList(fm, "topics") : tagTopics).slice(0, 6).join(", ");
-		ARTICLES.push([
-			fmValue(fm, "title") || firstHeading(bodyRaw) || f.basename,
-			fmValue(fm, "author"),
-			fmValue(fm, "date"),
-			topics,
-			fmValue(fm, "excerpt") || paras[0].slice(0, 240),
-			f.path.replace(/\.md$/, ""),
-			safeUrl(fmValue(fm, "source") || firstUrl(bodyRaw)),
-			paras.join("\n"),
-			source,
-		]);
-	}
+	const ARTICLES = on("articles") ? await collectNotesFromVault(app, "Teaching", (rel) => rel.split("/")[1] || "Teaching") : [];
+	onProgress?.("Indexing topics, FAQ & history…");
+	const TOPICS = on("topics") ? await collectNotesFromVault(app, "Topics", () => "Topic") : [];
+	const FAQ = on("faq") ? await collectNotesFromVault(app, "FAQ", () => "FAQ") : [];
+	const HISTORY = on("history") ? await collectNotesFromVault(app, "Bible History",
+		(rel) => { const p = rel.split("/"); return p.length > 2 ? p[1] : "History"; }) : [];
+	const ONTHISDAY = on("onthisday") ? await buildOnThisDayFromVault(app) : {};
+	const OTD_DAYS = Object.keys(ONTHISDAY).length;
 
 	// Payload emission — identical to the Node builder (see its comments for why).
+	// A content layer is emitted ONLY when it has content; an absent <script> is the
+	// signal the page uses to hide that layer's tab. The footer/lede prose is built
+	// from the same present set, so the page never advertises a layer it didn't ship.
 	onProgress?.("Building the page…");
 	const enc = (s) => s.replace(/</g, "\\u003c");
+	const LAYERS = [
+		{ id: "ad", data: ARTICLES,  n: ARTICLES.length, foot: (n) => `${n} teaching articles`,             noun: "teaching articles" },
+		{ id: "td", data: TOPICS,    n: TOPICS.length,   foot: (n) => `${n} topics`,                         noun: "topics" },
+		{ id: "fd", data: FAQ,       n: FAQ.length,      foot: (n) => `${n} FAQ answers`,                    noun: "FAQ answers" },
+		{ id: "hd", data: HISTORY,   n: HISTORY.length,  foot: (n) => `${n} Bible-history notes`,            noun: "Bible history" },
+		{ id: "od", data: ONTHISDAY, n: OTD_DAYS,        foot: (n) => `an On This Day calendar (${n} days)`, noun: "an On This Day calendar" },
+	];
+	const presentLayers = LAYERS.filter((l) => l.n > 0);
+	const andJoin = (arr) => arr.length <= 1 ? (arr[0] || "")
+		: arr.slice(0, -1).join(", ") + " and " + arr[arr.length - 1];
+	const contentSummary = presentLayers.length ? ", plus " + andJoin(presentLayers.map((l) => l.foot(l.n))) : "";
+	const ledeLayers = presentLayers.length ? " — plus " + andJoin(presentLayers.map((l) => l.noun)) + "." : ".";
 	const dataScripts = [
 		...translations.map((t) => `<script type="application/json" id="bd-${t}">${enc(JSON.stringify(data[t]))}<\/script>`),
-		`<script type="application/json" id="ad">${enc(JSON.stringify(ARTICLES))}<\/script>`,
+		...presentLayers.map((l) => `<script type="application/json" id="${l.id}">${enc(JSON.stringify(l.data))}<\/script>`),
 	].join("\n");
 
 	const STRUCT = BOOK_ORDER.map(() => ({ maxCh: 0, ch: {} }));
@@ -577,7 +735,8 @@ async function buildSearchIndex(app, htmlPath, onProgress) {
 		.replace(/__TRANS_DOT__/g, () => translations.join(" · "))
 		.replace("__TRANS_HIDDEN__", () => (translations.length > 1 ? "" : " hidden"))
 		.replace("__STRUCT__", () => enc(JSON.stringify(STRUCT)))
-		.replace("__ARTCOUNT__", () => String(ARTICLES.length))
+		.replace("__LEDE_LAYERS__", () => ledeLayers)
+		.replace("__CONTENT_SUMMARY__", () => contentSummary)
 		.replace("__GENERATED__", () => new Date().toISOString().slice(0, 10));
 
 	const outPath = normalizePath(htmlPath);
@@ -588,7 +747,11 @@ async function buildSearchIndex(app, htmlPath, onProgress) {
 		await vault.create(outPath, html);
 	}
 	const verses = translations.reduce((n, t) => n + data[t].length, 0);
-	return { translations, verses, articles: ARTICLES.length, bytes: html.length };
+	return {
+		translations, verses, bytes: html.length,
+		articles: ARTICLES.length, topics: TOPICS.length,
+		faq: FAQ.length, history: HISTORY.length, onthisday: OTD_DAYS,
+	};
 }
 
 class OnboardingWizard extends Modal {
@@ -603,13 +766,18 @@ class OnboardingWizard extends Modal {
 			openNotesInNewTab: plugin.settings.openNotesInNewTab,
 			writeSetupNote: true,
 			downloads: Object.fromEntries(DOWNLOADABLE.map((d) => [d.trans, d.picked])),
+			// Which optional content layers to include — seeded from current settings
+			// (all-on for a fresh install) and adjusted in the Extras step.
+			layers: Object.fromEntries(CONTENT_LAYERS.map((l) => [l.key, layerEnabled(plugin.settings.layers, l.key)])),
 		};
+		// Snapshot to detect a layer change on a re-run (connect mode → rebuild).
+		this._initialLayers = JSON.stringify(this.data.layers);
 	}
 
 	steps() {
 		return this.mode === "connect"
-			? ["locate", "existing", "prefs", "finish"]
-			: ["locate", "status", "bibles", "prefs", "finish"];
+			? ["locate", "existing", "extras", "prefs", "finish"]
+			: ["locate", "status", "bibles", "extras", "prefs", "finish"];
 	}
 
 	onOpen() {
@@ -684,6 +852,13 @@ class OnboardingWizard extends Modal {
 	/* ── steps ─────────────────────────────────────────────── */
 
 	render_locate(c) {
+		const rec = c.createEl("div", { cls: "bible-search-onb-rec" });
+		rec.createEl("strong", { text: "Tip: give Bible Search its own vault. " });
+		rec.appendText(
+			"A full Bible is ~1,200 notes per translation, and topics, articles and history add many more. " +
+			"Keeping all of it in a dedicated Obsidian vault keeps that bulk out of your personal notes, your " +
+			"graph uncluttered and sync fast — you can switch vaults anytime from Obsidian's vault menu. " +
+			"If this is that vault, carry on.");
 		c.createEl("p", {
 			text:
 				"Bible Search hosts a single generated HTML file — the whole search interface, " +
@@ -786,6 +961,67 @@ class OnboardingWizard extends Modal {
 		return computePending(this.app, this.data.downloads);
 	}
 
+	// Detected presence per content layer, for the Extras step.
+	layerStatus() {
+		const v = this.app.vault;
+		const mdCount = (folder) => v.getMarkdownFiles()
+			.filter((f) => f.path.startsWith(folder + "/") && !/^readme$/i.test(f.basename)).length;
+		const otdPresent = () =>
+			!!(v.getAbstractFileByPath("tools/data/church-history-curated.js") ||
+				v.getAbstractFileByPath("sources/church-history") ||
+				v.getAbstractFileByPath(ONTHISDAY_PACK_PATH));
+		const out = {};
+		for (const L of CONTENT_LAYERS) {
+			out[L.key] = L.folder ? { present: mdCount(L.folder) > 0, count: mdCount(L.folder) } : { present: otdPresent() };
+		}
+		return out;
+	}
+
+	render_extras(c) {
+		c.createEl("p", {
+			text:
+				"The Bible is the core. These extra search layers are optional — include the ones you want. " +
+				"Each becomes its own tab; a layer with no content is left out automatically.",
+		});
+		const st = this.layerStatus();
+		for (const L of CONTENT_LAYERS) {
+			const { present, count } = st[L.key];
+			let desc;
+			if (L.key === "articles") {
+				desc = present
+					? `${count} notes in Teaching/.`
+					: "Add teaching notes under Teaching/ and rebuild. Articles can't be bundled — most are copyrighted.";
+			} else if (L.key === "onthisday") {
+				desc = present
+					? "Church-history calendar data is in this vault."
+					: "Not in this vault yet — download the shareable pack (original blurbs + public data, no copyrighted text).";
+			} else {
+				desc = present ? `${count} notes in ${L.folder}/.` : `No notes in ${L.folder}/ yet — add some and rebuild.`;
+			}
+			const setting = new Setting(c)
+				.setName(L.label)
+				.setDesc(desc)
+				.addToggle((t) => t.setValue(this.data.layers[L.key]).onChange((v) => { this.data.layers[L.key] = v; }));
+			// On This Day is the one shareable layer — offer the download when absent.
+			if (L.key === "onthisday" && !present) {
+				setting.addButton((b) => b
+					.setButtonText("Download pack")
+					.onClick(async () => {
+						b.setButtonText("Downloading…").setDisabled(true);
+						try {
+							const days = await downloadOnThisDayPack(this.app);
+							this.data.layers.onthisday = true;
+							new Notice(`On This Day pack added — ${days} calendar days.`);
+							this.renderStep(); // re-detect: now shows as present + on
+						} catch (e) {
+							new Notice(e && e.message ? e.message : String(e), 8000);
+							b.setButtonText("Download pack").setDisabled(false);
+						}
+					}));
+			}
+		}
+	}
+
 	render_prefs(c) {
 		new Setting(c)
 			.setName("Open notes in a new tab")
@@ -803,6 +1039,8 @@ class OnboardingWizard extends Modal {
 		const ul = c.createEl("ul");
 		ul.createEl("li", { text: `Search interface file: ${this.data.htmlPath}` });
 		ul.createEl("li", { text: `Open notes in a new tab: ${this.data.openNotesInNewTab ? "yes" : "no"}` });
+		const included = CONTENT_LAYERS.filter((l) => this.data.layers[l.key]).map((l) => l.label);
+		ul.createEl("li", { text: `Extra layers: ${included.length ? included.join(", ") : "none — Bible only"}` });
 		for (const d of pending) {
 			ul.createEl("li", { text: `Download ${d.label}${d.anchor ? " — anchor translation" : ""}` });
 		}
@@ -895,13 +1133,25 @@ class OnboardingWizard extends Modal {
 		try {
 			p.settings.htmlPath = normalizePath(this.data.htmlPath);
 			p.settings.openNotesInNewTab = this.data.openNotesInNewTab;
+			p.settings.layers = { ...this.data.layers };
 			p.settings.onboarded = true;
 			await p.saveSettings();
 			if (this.mode === "connect") {
 				this.finished = true;
+				const layersChanged = JSON.stringify(this.data.layers) !== this._initialLayers;
+				const hasText = surveyTranslations(this.app).translations.length > 0;
 				this.close();
-				new Notice("Bible Search connected.");
 				p.refreshViews();
+				// A layer change only reaches the page through a rebuild. Do it now when
+				// the vault has the Bible text to build from; otherwise say so plainly.
+				if (layersChanged && hasText) {
+					new Notice("Bible Search connected — rebuilding to apply your layer choices.");
+					await p.rebuildIndex();
+				} else {
+					new Notice(layersChanged
+						? "Bible Search connected — run “Rebuild search index” to apply your layer choices."
+						: "Bible Search connected.", layersChanged ? 8000 : 4000);
+				}
 				await p.activateView();
 				return;
 			}
@@ -951,7 +1201,7 @@ class OnboardingWizard extends Modal {
 		const setStatus = (t) => { status.setText(t); };
 
 		try {
-			const { built, problems } = await runSetupPipeline(this.app, this.plugin.settings.htmlPath, pending, setStatus);
+			const { built, problems } = await runSetupPipeline(this.app, this.plugin.settings.htmlPath, pending, setStatus, this.plugin.settings.layers);
 			this.close();
 			if (problems.length) {
 				// Built, but with gaps — keep the ticket so the next launch resumes.
@@ -1178,6 +1428,42 @@ class BibleSearchSettingTab extends PluginSettingTab {
 				})
 			);
 
+		/* ── content layers ────────────────────────────────────── */
+		new Setting(containerEl).setName("Content layers").setHeading();
+		containerEl.createEl("p", {
+			cls: "setting-item-description",
+			text:
+				"The Bible is always searchable. Turn an extra layer off to leave it out of the " +
+				"built page — its tab disappears and the file gets a little smaller. A layer with no " +
+				"content is skipped automatically. Rebuild for changes to take effect.",
+		});
+		const mdCount = (folder) => this.app.vault.getMarkdownFiles()
+			.filter((f) => f.path.startsWith(folder + "/") && !/^readme$/i.test(f.basename)).length;
+		const otdPresent = () =>
+			!!(this.app.vault.getAbstractFileByPath("tools/data/church-history-curated.js") ||
+				this.app.vault.getAbstractFileByPath("sources/church-history"));
+		for (const L of CONTENT_LAYERS) {
+			const n = L.folder ? mdCount(L.folder) : 0;
+			const desc = L.folder
+				? (n ? `${n} note${n === 1 ? "" : "s"} in ${L.folder}/` : `No notes in ${L.folder}/ yet`)
+				: (otdPresent() ? "Church-history data found in this vault" : "No On This Day data in this vault yet");
+			new Setting(containerEl)
+				.setName(L.label)
+				.setDesc(desc)
+				.addToggle((t) => t
+					.setValue(layerEnabled(this.plugin.settings.layers, L.key))
+					.onChange(async (v) => {
+						this.plugin.settings.layers = { ...this.plugin.settings.layers, [L.key]: v };
+						await this.plugin.saveSettings();
+					}));
+		}
+		new Setting(containerEl)
+			.setDesc("Changes apply the next time the page is built.")
+			.addButton((b) => b
+				.setButtonText("Rebuild now")
+				.setCta()
+				.onClick(() => this.plugin.rebuildIndex()));
+
 		/* ── rebuilding ────────────────────────────────────────── */
 		new Setting(containerEl).setName("Rebuilding").setHeading();
 
@@ -1360,7 +1646,7 @@ class BibleSearchPlugin extends Plugin {
 			try {
 				const { built, problems } = await runSetupPipeline(
 					this.app, this.settings.htmlPath, pending,
-					(t) => notice.setMessage("Bible Search: " + t));
+					(t) => notice.setMessage("Bible Search: " + t), this.settings.layers);
 				notice.hide();
 				if (problems.length) {
 					new Notice(`Bible Search: still incomplete (${problems.join("; ")}) — will try again on the next launch.`, 10000);
@@ -1399,9 +1685,16 @@ class BibleSearchPlugin extends Plugin {
 				const res = await requestUrl({ url: TEMPLATE_URL });
 				await writeIfAbsent(this.app, TEMPLATE_PATH, res.text);
 			}
-			const r = await buildSearchIndex(this.app, this.settings.htmlPath, (t) => notice.setMessage(t));
+			const r = await buildSearchIndex(this.app, this.settings.htmlPath, (t) => notice.setMessage(t), this.settings.layers);
 			notice.hide();
-			new Notice(`Rebuilt "${this.settings.htmlPath}" — ${r.verses.toLocaleString()} verses, ${r.articles} articles.`, 6000);
+			const extras = [
+				r.articles && `${r.articles} articles`,
+				r.topics && `${r.topics} topics`,
+				r.faq && `${r.faq} FAQ`,
+				r.history && `${r.history} history`,
+				r.onthisday && `${r.onthisday} On This Day days`,
+			].filter(Boolean).join(", ");
+			new Notice(`Rebuilt "${this.settings.htmlPath}" — ${r.verses.toLocaleString()} verses${extras ? `, ${extras}` : ""}.`, 6000);
 		} catch (e) {
 			notice.hide();
 			new Notice("Rebuild failed: " + (e && e.message ? e.message : e), 8000);
@@ -1449,6 +1742,8 @@ module.exports.BibleSearchView = BibleSearchView;
 module.exports.__testables = {
 	BOOK_ORDER, BOOK_IDS, DOWNLOADABLE, HELLOAO_API, TEMPLATE_PATH,
 	apiVerseText, toParagraphs, fmValue, fmList, isHub, firstHeading, firstUrl, safeUrl,
+	collectNotesFromVault, buildOnThisDayFromVault, CONTENT_LAYERS, layerEnabled,
+	downloadOnThisDayPack, ONTHISDAY_PACK_PATH,
 	surveyTranslations, buildSearchIndex, importTranslation, writeIfAbsent,
 	isTranslationComplete, fetchJson, runSetupPipeline, computePending,
 };
