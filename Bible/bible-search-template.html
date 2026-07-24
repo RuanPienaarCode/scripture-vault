@@ -315,13 +315,13 @@
     background:var(--panel-2);white-space:nowrap;z-index:2}
   .chd-node{position:absolute;box-sizing:border-box;font-family:var(--sans);text-align:left;cursor:pointer;
     background:var(--panel-2);border:1px solid var(--line);border-top:3px solid var(--muted);border-radius:6px;
-    padding:2px 5px 3px;overflow:hidden;z-index:1;transition:opacity .18s ease}
+    padding:3px 7px 4px;overflow:hidden;z-index:1;transition:opacity .18s ease}
   .chd-node:hover{border-color:var(--accent)}
-  .chd-nyr{display:block;font-size:8px;font-weight:400;color:var(--muted-2);letter-spacing:.02em;
+  .chd-nyr{display:block;font-size:9.5px;font-weight:400;color:var(--muted-2);letter-spacing:.02em;
     font-variant-numeric:tabular-nums;line-height:1.15}
   .chd-nname{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
-    font-size:9px;font-weight:400;color:var(--ink);line-height:1.2}
-  .chd-tag{position:absolute;top:2px;right:3px;font-size:6.5px;font-weight:400;letter-spacing:.04em;color:#5b86d6}
+    font-size:11.5px;font-weight:400;color:var(--ink);line-height:1.2}
+  .chd-tag{position:absolute;top:2px;right:4px;font-size:7.5px;font-weight:400;letter-spacing:.04em;color:#5b86d6}
   .chd-node.dim,.chd-canvas path.dim{opacity:.13}
   .chd-node.sel{outline:2px solid var(--accent);z-index:3}
   .chd-node.ch-pulse{animation:chpulse 1.7s ease}
@@ -1328,7 +1328,7 @@ const CH_COLS = ["catholic","forerunner","lutheran","anglican","reformed","radic
 // Node box + spacing. Kept tight so branches sit close like the poster; the column
 // pitch is a touch wider than the box (CH_COLW − CH_NW) and the vertical pitch a
 // touch taller (CH_VGAP), so boxes always have a small gap and never touch.
-const CH_COLW = 80, CH_NW = 72, CH_NH = 40, CH_VGAP = 9, CH_BANDPAD = 40, CH_BANDGAP = 16;
+const CH_COLW = 104, CH_NW = 94, CH_NH = 52, CH_VGAP = 11, CH_BANDPAD = 40, CH_BANDGAP = 16;
 function chData(){
   if (_ch) return _ch;
   _ch = JSON.parse(document.getElementById("cd").textContent);
@@ -1556,11 +1556,18 @@ function chWirePanZoom(){
   wrap.addEventListener("pointerup", end);
   wrap.addEventListener("pointercancel", end);
   // In the pane the wheel zooms toward the cursor (rather than scrolls) — you move
-  // around by dragging. Trackpad pinch arrives here too (as ctrl+wheel).
+  // around by dragging. Trackpad pinch arrives here too (as ctrl+wheel). The zoom
+  // step is proportional to how far you scrolled (normalised across wheel/line/page
+  // delta modes) and clamped, so a light trackpad swipe eases the zoom smoothly
+  // instead of the old fixed 10%-per-event that compounded into big jumps.
   wrap.addEventListener("wheel", e => {
     e.preventDefault();
+    let dy = e.deltaY;
+    if (e.deltaMode === 1) dy *= 16;                      // lines → ~px
+    else if (e.deltaMode === 2) dy *= wrap.clientHeight;  // pages → ~px
+    const step = Math.max(-0.1, Math.min(0.1, -dy * 0.0012));
     const r = wrap.getBoundingClientRect();
-    chApplyZoom(chZ * (e.deltaY < 0 ? 1.1 : 1 / 1.1), e.clientX - r.left, e.clientY - r.top);
+    chApplyZoom(chZ * (1 + step), e.clientX - r.left, e.clientY - r.top);
   }, { passive: false });
 }
 // Fill and show the floating popup for a branch: date, family, title, description,
