@@ -609,7 +609,7 @@ __TRANS_MENU__
 
   <footer>
     <p>Generated __GENERATED__ from the vault — Bible full text (__TRANS_DOT__)__CONTENT_SUMMARY__.
-      Self-contained — works offline, no network. Personal study use only; the NLT, ESV, AMP and article text is
+      __SELF_CONTAINED__ Personal study use only; the NLT, ESV, AMP and article text is
       copyrighted — don't share this file.</p>
   </footer>
 </main>
@@ -1783,7 +1783,7 @@ document.querySelectorAll("#popTrans [data-t]").forEach(btn => btn.addEventListe
   checkRadio(document.getElementById("popTrans"), btn);
   scope = btn.dataset.t;
   document.getElementById("chipTrans").innerHTML =
-    "<b>" + (scope === "ALL" ? "All four" : scope) + '</b> <span class="chev" aria-hidden="true">▾</span>';
+    "<b>" + (scope === "ALL" ? "All " + TRANS.length : scope) + '</b> <span class="chev" aria-hidden="true">▾</span>';
   closePops(); run();
 }));
 
