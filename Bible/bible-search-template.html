@@ -61,10 +61,14 @@
     font-weight:300;padding-bottom:4rem;background:var(--bg)}
   body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
     background:radial-gradient(120% 80% at 50% -10%,var(--bg-glow),var(--bg) 60%)}
-  main{max-width:var(--maxw);margin:0 auto;padding:40px 24px 96px}
+  main{max-width:var(--maxw);margin:0 auto;padding:40px 24px 96px;position:relative}
   /* Full-width mode (the ▭ chip) lets the whole page — search bar and results —
      use the window, which the wide Church History poster especially wants. */
   :root[data-width="full"]{--maxw:min(1580px,95vw)}
+  /* Page tools — the help (?), width (▯/▭) and theme (☀/☾) buttons live in the
+     page's top-right corner, out of the command bar. Absolute against main's
+     padding box, so they sit at the inner top-right edge, level with the eyebrow. */
+  .pagetools{position:absolute;top:36px;right:24px;display:flex;gap:6px;z-index:6}
   a{color:var(--accent-2)}
   header.hero{padding:8px 0 10px}
   .eyebrow{font-size:10.5px;letter-spacing:.42em;text-transform:uppercase;color:var(--accent);font-weight:400}
@@ -406,8 +410,10 @@
        them into the More sheet, so the strip stays one row. */
     .srctabs button.tab-of{display:none}
     .srctabs .tabmore:not([hidden]){display:inline-flex;align-items:center}
-    /* Full-width mode only helps the wide desktop poster views — on a phone the
-       page already fills the screen, so the ▭ width toggle is dead weight. */
+    /* The top-right tool cluster follows main's tighter mobile padding. */
+    .pagetools{top:22px;right:16px}
+    /* On a phone the page is forced full width and the ▭ toggle is hidden — it
+       only helps the wide desktop poster views, and mobile already fills the screen. */
     #chipWidth{display:none}
     /* Keep each example intact — the narrow first column otherwise breaks them
        mid-token ("John 3:16–" / "18", '"born' / 'again"'), which reads as two
@@ -485,6 +491,12 @@
     <p class="lede">Search __TRANS_LIST____LEDE_LAYERS__ Every result links straight into Obsidian.</p>
   </header>
 
+  <div class="pagetools">
+    <button class="chip" id="chipHelp" aria-haspopup="true" aria-expanded="false" aria-label="How to search">?</button>
+    <button class="chip" id="chipWidth" aria-label="Full width"></button>
+    <button class="chip" id="chipTheme" aria-label="Switch theme"></button>
+  </div>
+
   <div class="searchbar">
     <div class="srctabs" role="tablist" aria-label="Search in">
       <button role="tab" data-s="bible" aria-selected="true">📖 Bible</button>
@@ -507,9 +519,6 @@
         <button class="chip" id="chipTrans" aria-haspopup="true" aria-expanded="false"__TRANS_HIDDEN__><b>__DEFAULT_TRANS_LABEL__</b> <span class="chev" aria-hidden="true">▾</span></button>
         <button class="chip" id="chipTest" aria-haspopup="true" aria-expanded="false"><b>All 66</b> <span class="chev" aria-hidden="true">▾</span></button>
         <button class="chip" id="chipBrowse" aria-haspopup="true" aria-expanded="false">Browse <span class="chev" aria-hidden="true">▾</span></button>
-        <button class="chip" id="chipHelp" aria-haspopup="true" aria-expanded="false" aria-label="How to search">?</button>
-        <button class="chip" id="chipWidth" aria-label="Full width"></button>
-        <button class="chip" id="chipTheme" aria-label="Switch theme"></button>
       </div>
 
       <div class="pop" id="popSource" role="menu" aria-label="Search in" hidden>
@@ -732,8 +741,11 @@ const WIDTH_KEY = "bs-width";
 const $width = document.getElementById("chipWidth");
 function applyWidth(){
   let pref = null; try { pref = localStorage.getItem(WIDTH_KEY); } catch (e) {}
-  // Default to full for a new visitor (no stored pref); an explicit "narrow" still wins.
-  const full = pref !== "narrow";
+  // On a phone the page already fills the screen and the ▭ toggle is hidden, so force
+  // full there — a "narrow" pref carried over from desktop must not shrink the mobile
+  // view. On desktop, default to full for a new visitor; an explicit "narrow" wins.
+  const mobile = window.matchMedia && matchMedia("(max-width:640px)").matches;
+  const full = mobile || pref !== "narrow";
   document.documentElement.setAttribute("data-width", full ? "full" : "narrow");
   $width.textContent = full ? "▯" : "▭";
   $width.setAttribute("aria-label", full ? "Narrow width" : "Full width");
@@ -1814,16 +1826,17 @@ if ($visTabs.length <= 1) document.querySelector(".srctabs").hidden = true;
 // overflow tabs are tagged .tab-of (hidden on mobile via CSS); the More button is
 // tagged active whenever the current source lives in the overflow.
 //
-// The inline count is width-responsive: a really small phone keeps 3 (one tidy
-// row), wider phones keep 4. matchMedia re-runs layoutTabs() when that boundary is
-// crossed, rebuilding the sheet so its contents always match what's inline.
-const SMALL_SCREEN = window.matchMedia("(max-width: 389px)");
+// Below the 640px mobile breakpoint we keep a hard 3 tabs inline (one tidy row)
+// and fold everything else into "More"; above it every tab shows inline and the
+// CSS hides the More button anyway. matchMedia re-runs layoutTabs() when that
+// boundary is crossed, rebuilding the sheet so its contents match what's inline.
+const SMALL_SCREEN = window.matchMedia("(max-width: 640px)");
 const $srcMore = document.getElementById("srcMore");
 const $srcMoreLbl = $srcMore.querySelector(".tabmore-lbl");
 const $popSource = document.getElementById("popSource");
 let $ofTabs = [];                    // the tabs currently folded under "More"
 function layoutTabs(){
-  const inlineCount = SMALL_SCREEN.matches ? 3 : 4;
+  const inlineCount = SMALL_SCREEN.matches ? 3 : 99;
   $tabs.forEach(b => b.classList.remove("tab-of"));
   $popSource.querySelectorAll('[role="menuitemradio"]').forEach(b => b.remove());
   $ofTabs = $visTabs.slice(inlineCount);
@@ -1847,6 +1860,8 @@ function syncSrcMore(){
     b => b.setAttribute("aria-checked", b.dataset.s === source ? "true" : "false"));
 }
 SMALL_SCREEN.addEventListener("change", layoutTabs);
+// Crossing the mobile breakpoint also re-evaluates the forced-full width above.
+SMALL_SCREEN.addEventListener("change", applyWidth);
 layoutTabs();
 const HELP_ID = { bible: "help-bible", articles: "help-articles", topics: "help-topics", faq: "help-faq", history: "help-history", timeline: "help-timeline", churchhistory: "help-churchhistory", onthisday: "help-otd" };
 const PLACEHOLDER = {
