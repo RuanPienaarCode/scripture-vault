@@ -27,7 +27,7 @@
     --mk-bg:rgba(217,180,90,.20); --mk-ink:#f0d68f;
     --bg-glow:#12172b; --bar-bg:rgba(11,14,24,.88); --code-bg:#0d1120;
     --on-accent:#0b0e18; --accent-line:rgba(217,180,90,.5);
-    --backdrop:rgba(5,7,14,.76); --target-bg:rgba(217,180,90,.10);
+    --target-bg:rgba(217,180,90,.10);
     --shadow-tab:0 1px 3px rgba(0,0,0,.4);
     --shadow-pop:0 22px 55px rgba(0,0,0,.55);
     --shadow-reader:0 24px 70px rgba(0,0,0,.6);
@@ -45,7 +45,7 @@
     --mk-bg:rgba(217,180,90,.45); --mk-ink:#3d2f06;
     --bg-glow:#fffdf7; --bar-bg:rgba(247,244,236,.9); --code-bg:#efeadd;
     --on-accent:#fffdf8; --accent-line:rgba(138,106,28,.42);
-    --backdrop:rgba(60,54,38,.42); --target-bg:rgba(217,180,90,.30);
+    --target-bg:rgba(217,180,90,.30);
     --shadow-tab:0 1px 3px rgba(60,50,20,.16);
     --shadow-pop:0 18px 45px rgba(60,50,20,.16);
     --shadow-reader:0 24px 70px rgba(60,50,20,.2);
@@ -327,22 +327,38 @@
   .chd-node.ch-pulse{animation:chpulse 1.7s ease}
   @keyframes chpulse{0%{box-shadow:0 0 0 0 rgba(0,0,0,0)}22%{box-shadow:0 0 0 4px var(--accent)}100%{box-shadow:0 0 0 0 rgba(0,0,0,0)}}
 
-  /* in-page reader */
-  .reader{position:fixed;inset:0;z-index:50;background:var(--backdrop);
-    display:flex;justify-content:center;align-items:flex-start;padding:4vh 16px}
+  /* ── the reader: a PAGE, not an overlay ──────────────────────────────────────
+     It used to be position:fixed;inset:0 over a backdrop. That cannot survive the
+     host plugin's iframe: fixed offsets and vh units resolve against the IFRAME
+     box, not the visible pane, so whenever the iframe was taller than the pane
+     (Obsidian mobile — the leaf height fitFrame() measures overshoots once the
+     soft keyboard or the mobile chrome eats into the visual viewport) the panel
+     was sized to the iframe and its head, ✕ and footer nav landed off-screen.
+     What the user saw was an opaque, unclosable sheet — blank outright on a short
+     chapter, because the slice on screen was empty panel.
+     So the reader now takes over `main` in normal flow: no fixed positioning, no
+     vh, no scroll lock, nothing that depends on the iframe box matching the pane.
+     body.reading hides `main`'s other children; the head sticks to the top of
+     whichever box actually scrolls, so Back is always reachable. */
+  body.reading main > :not(.reader){display:none}
+  .reader{margin:8px 0 0}
   .reader-panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
-    width:100%;max-width:720px;max-height:92vh;display:flex;flex-direction:column;
+    width:100%;max-width:720px;margin:0 auto;display:flex;flex-direction:column;
     box-shadow:var(--shadow-reader);perspective:1600px;position:relative}
-  .reader-head{display:flex;align-items:center;gap:12px;padding:16px 20px;border-bottom:1px solid var(--line)}
+  .reader-head{display:flex;align-items:center;gap:12px;padding:16px 20px;border-bottom:1px solid var(--line);
+    position:sticky;top:0;z-index:2;background:var(--panel);border-radius:var(--radius) var(--radius) 0 0}
   .reader-head h2{margin:0;font-size:16px;font-weight:300;letter-spacing:.04em;border:none;padding:0;
     display:flex;align-items:center;gap:10px;flex-wrap:wrap}
   .reader-head .spacer{flex:1}
   .reader-head a.obs{font-size:12.5px;font-weight:300;text-decoration:none;white-space:nowrap;color:var(--accent-2)}
   .reader-head a.obs:hover{text-decoration:underline}
-  .reader-close{background:none;border:1px solid var(--line);color:var(--muted);border-radius:999px;
-    width:31px;height:31px;font-size:15px;line-height:1;cursor:pointer;flex:none}
+  /* "‹ Back" rather than a ✕ — this is a page you leave, not a dialog you dismiss. */
+  .reader-close{font-family:var(--sans);font-size:12.5px;font-weight:300;letter-spacing:.02em;
+    background:none;border:1px solid var(--line);color:var(--muted);border-radius:999px;
+    padding:7px 14px;line-height:1;cursor:pointer;flex:none;white-space:nowrap}
   .reader-close:hover{border-color:var(--accent);color:var(--ink)}
-  .reader-body{padding:18px 22px 30px;overflow:auto;flex:1 1 auto;min-height:0}
+  /* No overflow/flex sizing: the page scrolls, the body doesn't. */
+  .reader-body{padding:18px 22px 30px}
   /* page-turn: on chapter nav the outgoing chapter becomes a two-sided leaf laid
      over the incoming one (which is already in place beneath it), hinged on the
      spine — left for next, right for prev — and lifted 90° to edge-on so it
@@ -387,7 +403,7 @@
           names ("1 Thessalonians 4" / "2 Thessalonians 1") need 307px inside a
           248px panel, so the "next" button ran 24px off-screen at 320px.
        3. The reader head is a single flex row, which squeezed the chapter title
-          into a 111px column (3 lines) and pushed the ✕ past the panel edge. */
+          into a 111px column (3 lines) and pushed Back past the panel edge. */
   @media (max-width:640px){
     main{padding:24px 16px 72px}
     h1{font-size:32px;margin:10px 0 8px}
@@ -424,9 +440,9 @@
       min-width:0;max-width:none;max-height:70vh;
       overflow-y:auto;overscroll-behavior:contain}
 
-    /* Reader: more of the screen, and a head that wraps instead of squeezing. */
-    .reader{padding:2vh 8px}
-    .reader-panel{max-height:96vh}
+    /* Reader: a head that wraps instead of squeezing. (No max-height/padding in
+       vh here any more — the reader is page flow now, see the .reader rules.) */
+    .reader{margin:0}
     .reader-head{flex-wrap:wrap;gap:8px 10px;padding:14px 16px}
     .reader-head h2{flex:1 1 auto;min-width:0;font-size:15px}
     .reader-head .spacer{display:none}
@@ -616,14 +632,17 @@ __TRANS_MENU__
   <p id="status" role="status" aria-live="polite"></p>
   <section id="results" aria-label="Search results"></section>
 
+  <!-- The reader lives INSIDE main, as a sibling page: body.reading hides the
+       other children and this takes the page over. It is deliberately not a
+       role=dialog/aria-modal overlay any more — see the .reader CSS. -->
+  <section class="reader" id="reader" aria-label="Reader" hidden></section>
+
   <footer>
     <p>Generated __GENERATED__ from the vault — Bible full text (__TRANS_DOT__)__CONTENT_SUMMARY__.
       __SELF_CONTAINED__ Personal study use only; the NLT, ESV, AMP and article text is
       copyrighted — don't share this file.</p>
   </footer>
 </main>
-
-<div class="reader" id="reader" role="dialog" aria-modal="true" aria-label="Reader" hidden></div>
 
 __DATA_SCRIPTS__
 
@@ -1038,17 +1057,37 @@ function renderNotes(coll, input){
 
 /* ── in-page reader ──────────────────────────────────────────── */
 const $reader = document.getElementById("reader");
-let curNav = null;   // { t, prev:[bi,ch]|null, next:[bi,ch]|null } while a chapter is open
-function closeReader(){ $reader.hidden = true; $reader.innerHTML = ""; document.body.style.overflow = ""; curNav = null; }
+let curNav = null;     // { t, prev:[bi,ch]|null, next:[bi,ch]|null } while a chapter is open
+let backScroll = 0;    // where the results were scrolled to when the reader took over
+function closeReader(){
+  $reader.hidden = true;
+  $reader.innerHTML = "";
+  document.body.classList.remove("reading");
+  curNav = null;
+  // Put the results back exactly where they were — leaving a page and coming
+  // back to the top of a 200-hit list is worse than the overlay ever was.
+  // "instant" beats html{scroll-behavior:smooth}: a page swap should land, not glide.
+  window.scrollTo({ top: backScroll, behavior: "instant" });
+}
 function openReader(headHtml, bodyHtml, bodyClass, footHtml){
+  const fresh = $reader.hidden;
+  if (fresh) backScroll = window.scrollY || document.documentElement.scrollTop || 0;
   $reader.innerHTML =
     '<div class="reader-panel"><div class="reader-head">' + headHtml +
-    '<button class="reader-close" aria-label="Close" title="Close (Esc)">✕</button></div>' +
+    '<button class="reader-close">‹ Back</button></div>' +
     '<div class="reader-body ' + (bodyClass || "") + '">' + bodyHtml + '</div>' + (footHtml || "") + '</div>';
   $reader.hidden = false;
-  document.body.style.overflow = "hidden";
+  document.body.classList.add("reading");
   $reader.querySelector(".reader-close").addEventListener("click", closeReader);
-  $reader.querySelector(".reader-close").focus();
+  // scrollIntoView first, because it walks every ancestor scrolling box — including,
+  // across a same-origin iframe, the host's. So the reader is brought into view even
+  // when the plugin's iframe is the thing that isn't scrolling. Then pin this
+  // document to the top, since the reader IS the page now. Both instant, not smooth.
+  if (fresh){
+    $reader.scrollIntoView({ block: "start", behavior: "instant" });
+    window.scrollTo({ top: 0, behavior: "instant" });
+  }
+  $reader.querySelector(".reader-close").focus({ preventScroll: true });
 }
 // neighbouring chapter across book boundaries: -1 = previous, +1 = next; null at the ends of the canon
 function chapterNav(bi, ch, delta){
@@ -1141,8 +1180,8 @@ async function openVerse(t, bi, ch, v, dir){
   $reader.querySelectorAll(".rnav").forEach(b =>
     b.addEventListener("click", () => openVerse(t, +b.dataset.bi, +b.dataset.ch, null, +b.dataset.dir)));
   const tgt = document.getElementById("rv-target");
-  if (tgt) tgt.scrollIntoView({ block: "center" });
-  else $reader.querySelector(".reader-body").scrollTop = 0;
+  if (tgt) tgt.scrollIntoView({ block: "center", behavior: "instant" });
+  else window.scrollTo({ top: 0, behavior: "instant" });   // page flow: top of the chapter
   // Turn the old page over the freshly-mounted new one.
   if (snap) pageTurn(snap, dir);
 }
@@ -1163,7 +1202,6 @@ function openNote(coll, i){
     return '<p>' + text + '</p>';
   }).join("");
   openReader(head, meta + paras, "article");
-  $reader.querySelector(".reader-body").scrollTop = 0;
 }
 
 /* ── book / chapter / verse selector ─────────────────────────── */
@@ -1949,8 +1987,8 @@ document.addEventListener("keydown", e => {
   const pop = document.getElementById("chdPop");
   if (pop && !pop.hidden) chClosePop();
 });
-// close reader on backdrop click or Esc
-$reader.addEventListener("click", e => { if (e.target === $reader) closeReader(); });
+// Esc leaves the reader; ← / → page between chapters. (There is no backdrop to
+// click any more — the reader is a page, and Back is always on screen.)
 document.addEventListener("keydown", e => {
   if ($reader.hidden){
     if (e.key === "Escape" && anyPopOpen()) closePops();
