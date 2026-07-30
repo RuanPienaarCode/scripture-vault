@@ -445,8 +445,14 @@
   .chd-pill .ch-ico{width:11px;height:11px}
   /* Node boxes. They were 94×52 with an 11.5px two-line name, which meant most
      branch names clipped and the emblem had nowhere to sit — you had to zoom to
-     read the tree at all. At 132×74 with a 13px three-line name almost every
-     branch reads at 100%, and the family emblem gets a proper top-left slot. */
+     read the tree at all. 132×74 fixed the emblem but not the clipping: the box
+     claimed three lines and only had room for two, so "NCMI (New Covenant
+     Ministries Int'l)" was still sliced through the middle of its third line.
+     The box is now 168×88 and the name 12.5px, which is the real fix — the extra
+     WIDTH is what makes names fit, because at 148px of usable line almost every
+     branch lands in one or two lines, and the height then genuinely holds the
+     three the clamp allows. Longest word in the data ("Congregationalists",
+     ~112px) still clears the line, so nothing hyphen-breaks. */
   .chd-node{position:absolute;box-sizing:border-box;font-family:var(--sans);text-align:left;cursor:pointer;
     display:flex;flex-direction:column;gap:3px;
     background:var(--panel-2);border:1px solid var(--line);border-top:3px solid var(--muted);border-radius:8px;
@@ -457,7 +463,7 @@
   .chd-nyr{font-size:10.5px;font-weight:400;color:var(--muted-2);letter-spacing:.02em;
     font-variant-numeric:tabular-nums;line-height:1.15;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .chd-nname{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;
-    font-size:13px;font-weight:400;color:var(--ink);line-height:1.22}
+    font-size:12.5px;font-weight:400;color:var(--ink);line-height:1.25}
   .chd-tag{position:absolute;top:4px;right:6px;font-size:9px;font-weight:400;letter-spacing:.04em;color:var(--badge-sa)}
   /* Lineage lighting — selecting a branch marks its whole ancestry (and its direct
      children) plus the lines between them, so "where did this come from" is a
@@ -671,9 +677,11 @@
     .reader-close{min-height:44px;position:relative;z-index:1}
     button.rnav{padding:8px 15px}
     /* Church History and On This Day landed after this block was first written and
-       never got their controls added to it. The chart's zoom buttons matter most:
-       .chd-wrap sets touch-action:none (pan is handled through pointer events), so
-       pinch-zoom is off and these are the only way to zoom the poster on a phone.
+       never got their controls added to it. The chart's zoom buttons still want a
+       proper target: .chd-wrap sets touch-action:none, so the browser does none of
+       its own gesture handling and pan AND pinch are both ours (see chWirePanZoom —
+       two live pointers become a pinch). The buttons are no longer the ONLY way to
+       zoom on a phone, but they remain the precise one, and the discoverable one.
        min-width/min-height rather than width/height — min-* beats the base width,
        and lets the wider .chd-zpct and the labelled .ch-chip keep their own size. */
     /* Timeline chips grow THEMSELVES rather than getting the ::after overlay below: they
@@ -1899,11 +1907,13 @@ const CH_PILL = {
 // ("roots") is centred over the whole canvas.
 const CH_COLS = ["catholic","forerunner","lutheran","anglican","reformed","radical","baptist",
   "methodist","restoration","pentecostal","african","nonnicene","orthodox","oriental","cote"];
-// Node box + spacing. Boxes are big enough to READ at 100% — most branch names now
-// fit without zooming, and the family emblem has a slot — while the pitch stays a
+// Node box + spacing. Boxes are big enough to READ at 100% — a branch's FULL name
+// fits without zooming, and the family emblem has a slot — while the pitch stays a
 // touch wider/taller than the box so they never touch. Widening the box widens the
-// whole poster, which is fine: it is a pan-and-zoom canvas, not a fixed grid.
-const CH_NW = 132, CH_NH = 74, CH_VGAP = 13, CH_BANDPAD = 42, CH_BANDGAP = 18;
+// whole poster, which is fine: it is a pan-and-zoom canvas, not a fixed grid, and
+// the fit-to-width zoom rescales to match. Width is the lever that stops names
+// wrapping into a fourth clipped line; height only has to hold what width leaves.
+const CH_NW = 168, CH_NH = 88, CH_VGAP = 13, CH_BANDPAD = 42, CH_BANDGAP = 18;
 function chData(){
   if (_ch) return _ch;
   _ch = JSON.parse(document.getElementById("cd").textContent);
@@ -2116,7 +2126,7 @@ function chBuild(){
     '<svg width="' + d.W + '" height="' + d.H + '" viewBox="0 0 ' + d.W + ' ' + d.H + '" aria-hidden="true">' + edges + '</svg>' +
     bandsHtml + nodesHtml + '</div></div></div>' +
     '<div class="chd-pop" id="chdPop" role="dialog" aria-label="Branch details" hidden></div></div>' +
-    '<p class="chd-hint">Drag to pan · scroll to zoom · −/+ or Fit above · ⛶ for full screen · tap a branch for its story. ' +
+    '<p class="chd-hint">Drag to pan · scroll or pinch to zoom · −/+ or Fit above · ⛶ for full screen · tap a branch for its story. ' +
     'With a branch selected, <strong>↑</strong> walks up to its parent, <strong>↓</strong> down into what came out of it, ' +
     '<strong>←</strong>/<strong>→</strong> step sideways across the same row — and its whole ancestry lights up. ' +
     'Dashed ✦ boxes are turning points — the councils, edicts and revivals that caused the branch below.</p>' +
@@ -2236,13 +2246,19 @@ function chWirePanZoom(){
   const canvas = document.getElementById("chdCanvas");
   const pct = document.querySelector(".chd-zpct");
   chZ = 1; canvas.style.transform = "scale(1)";
-  // zoom keeping the point (cx,cy) — in wrap-viewport coords — fixed under the cursor
-  chApplyZoom = (z, cx, cy) => {
+  // Zoom, keeping one content point pinned under one wrap-viewport point (cx,cy).
+  // `pt` is that point in CONTENT coords. Omitted — the wheel case — it's whatever
+  // is under the cursor right now, so the poster grows toward the pointer. Pinch
+  // passes the point it captured when the fingers went down: the midpoint moves
+  // during a pinch, and re-deriving the anchor from the moving midpoint would keep
+  // re-pinning the poster under the fingers instead of letting it travel with them.
+  chApplyZoom = (z, cx, cy, pt) => {
     z = Math.max(0.35, Math.min(2.4, z));
     const r = wrap.getBoundingClientRect();
     cx = cx == null ? r.width / 2 : cx;
     cy = cy == null ? r.height / 2 : cy;
-    const contentX = (wrap.scrollLeft + cx) / chZ, contentY = (wrap.scrollTop + cy) / chZ;
+    const contentX = pt ? pt.x : (wrap.scrollLeft + cx) / chZ;
+    const contentY = pt ? pt.y : (wrap.scrollTop + cy) / chZ;
     chZ = z;
     canvas.style.transform = "scale(" + z + ")";
     zoomEl.style.width = (_ch.W * z) + "px";
@@ -2251,39 +2267,79 @@ function chWirePanZoom(){
     wrap.scrollTop = contentY * z - cy;
     if (pct) pct.textContent = Math.round(z * 100) + "%";
   };
-  // drag-to-pan
+  /* Drag-to-pan (one pointer) and pinch-to-zoom (two). Both ride pointer events
+     rather than touch events, because .chd-wrap sets touch-action:none — the browser
+     hands us every gesture and does none of its own, so a phone gets no pinch at all
+     unless we implement it. Live pointers are tracked in a Map: the moment a second
+     one lands the pan is abandoned mid-drag and the gesture becomes a pinch, which
+     is what stops the second finger from being read as a wild pan jump. */
   let down = false, sx = 0, sy = 0, sl = 0, st = 0;
+  const pts = new Map();
+  let pinch = null;             // {dist, z, pt} captured when the second finger lands
+  const twoPts = () => { const a = [...pts.values()]; return [a[0], a[1]]; };
+  // Anchor a pinch on the content point under the fingers' midpoint, in wrap coords.
+  const startPinch = () => {
+    const [p, q] = twoPts();
+    const r = wrap.getBoundingClientRect();
+    const mx = (p.x + q.x) / 2 - r.left, my = (p.y + q.y) / 2 - r.top;
+    pinch = { dist: Math.max(1, Math.hypot(p.x - q.x, p.y - q.y)), z: chZ,
+              pt: { x: (wrap.scrollLeft + mx) / chZ, y: (wrap.scrollTop + my) / chZ } };
+    // A pinch must never end up tapping the branch under it, and it is not a pan.
+    down = false; chPanned = true; wrap.classList.remove("grabbing");
+  };
   wrap.addEventListener("pointerdown", e => {
-    if (e.button != null && e.button !== 0) return;      // left / touch only
     if (e.target.closest(".chd-toolbar")) return;
+    if (e.pointerType === "mouse" && e.button !== 0) return;   // left button only
+    pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    try { wrap.setPointerCapture(e.pointerId); } catch (_) {}
+    if (pts.size === 2){ startPinch(); return; }
+    if (pts.size > 2) return;
     down = true; chPanned = false;
     sx = e.clientX; sy = e.clientY; sl = wrap.scrollLeft; st = wrap.scrollTop;
   });
   wrap.addEventListener("pointermove", e => {
+    if (!pts.has(e.pointerId)) return;
+    pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pinch && pts.size >= 2){
+      const [p, q] = twoPts();
+      const r = wrap.getBoundingClientRect();
+      const dist = Math.max(1, Math.hypot(p.x - q.x, p.y - q.y));
+      chApplyZoom(pinch.z * (dist / pinch.dist),
+                  (p.x + q.x) / 2 - r.left, (p.y + q.y) / 2 - r.top, pinch.pt);
+      return;
+    }
     if (!down) return;
     const dx = e.clientX - sx, dy = e.clientY - sy;
-    if (!chPanned && Math.hypot(dx, dy) > 4){
-      chPanned = true; wrap.classList.add("grabbing");
-      try { wrap.setPointerCapture(e.pointerId); } catch (_) {}
-    }
+    if (!chPanned && Math.hypot(dx, dy) > 4){ chPanned = true; wrap.classList.add("grabbing"); }
     if (chPanned){ wrap.scrollLeft = sl - dx; wrap.scrollTop = st - dy; }
   });
   const end = e => {
-    if (!down) return;
-    down = false; wrap.classList.remove("grabbing");
+    const had = pts.delete(e.pointerId);
     try { wrap.releasePointerCapture(e.pointerId); } catch (_) {}
+    if (!had) return;
+    // Lifting one finger out of a pinch does NOT resume a pan with the other — the
+    // remaining finger is wherever the pinch left it, and panning from there jumps.
+    // The gesture is over; a fresh press starts the next one.
+    if (pinch){ if (pts.size < 2){ pinch = null; down = false; } else startPinch(); }
+    else if (down) down = false;
+    wrap.classList.remove("grabbing");
     // A drag may or may not be followed by a synthetic click. If it is, the click
     // handler consumes it (chPanned true) and clears the flag; if it isn't, clear
     // it on the next tick so it can never swallow a later, unrelated click.
-    if (chPanned) setTimeout(() => { chPanned = false; }, 0);
+    if (chPanned && !pts.size) setTimeout(() => { chPanned = false; }, 0);
   };
   wrap.addEventListener("pointerup", end);
   wrap.addEventListener("pointercancel", end);
   // In the pane the wheel zooms toward the cursor (rather than scrolls) — you move
   // around by dragging. Trackpad pinch arrives here too (as ctrl+wheel). The zoom
   // step is proportional to how far you scrolled (normalised across wheel/line/page
-  // delta modes) and clamped, so a light trackpad swipe eases the zoom smoothly
-  // instead of the old fixed 10%-per-event that compounded into big jumps.
+  // delta modes) and clamped, so one violent flick can't jump the whole range.
+  // Pinch and wheel get DIFFERENT rates, which is the point: a trackpad pinch emits
+  // deltas around ±1–10px where a mouse notch is 100, so one shared rate can only
+  // ever suit one of them. The old shared 0.0012/px was tuned for the notch and left
+  // pinch crawling at well under 1% an event — hence "zooms very slowly". Pinch now
+  // runs ~8× hotter, putting a comfortable gesture in the same league as the ×1.25
+  // the toolbar buttons step, and the plain wheel is up enough to feel live too.
   // …but the chart must not be a scroll trap. It's a tall window that swallows every
   // gesture starting inside it, so once the poster is panned hard against its top or
   // bottom edge a plain vertical wheel is handed back to the page instead of zooming
@@ -2304,7 +2360,10 @@ function chWirePanZoom(){
     let dy = e.deltaY;
     if (e.deltaMode === 1) dy *= 16;                      // lines → ~px
     else if (e.deltaMode === 2) dy *= wrap.clientHeight;  // pages → ~px
-    const step = Math.max(-0.1, Math.min(0.1, -dy * 0.0012));
+    const zoomGesture = e.ctrlKey || e.metaKey;           // trackpad pinch
+    const rate = zoomGesture ? 0.01 : 0.0035;
+    const cap = zoomGesture ? 0.25 : 0.15;
+    const step = Math.max(-cap, Math.min(cap, -dy * rate));
     const r = wrap.getBoundingClientRect();
     chApplyZoom(chZ * (1 + step), e.clientX - r.left, e.clientY - r.top);
   }, { passive: false });
