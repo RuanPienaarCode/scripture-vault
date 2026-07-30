@@ -260,6 +260,12 @@
   .tl-when{font-family:var(--sans);font-size:12px;font-weight:400;color:var(--muted);letter-spacing:.02em}
   .tl-title{font-family:var(--sans);font-size:15px;font-weight:400;color:var(--ink);margin:1px 0 2px}
   .tl-note{font-size:14px;font-weight:300;color:var(--muted);line-height:1.55;margin:0}
+  /* an event's links out — into a history note or straight to the passage */
+  .tl-links{display:flex;flex-wrap:wrap;gap:6px;margin:7px 0 1px}
+  .tl-chip{font-family:var(--sans);font-size:11.5px;font-weight:300;letter-spacing:.02em;
+    color:var(--muted);text-decoration:none;background:var(--panel);border:1px solid var(--line);
+    border-radius:999px;padding:3px 10px;white-space:nowrap}
+  .tl-chip:hover{color:var(--ink);border-color:var(--accent);background:var(--panel-2)}
 
   /* On This Day — church-history calendar panel */
   .otd-card{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--panel);margin-top:6px}
@@ -454,6 +460,14 @@
   .reader-body .rv.target .rvn{color:var(--accent)}
   .reader-body.article .rmeta{color:var(--muted-2);font-size:12.5px;font-weight:300;letter-spacing:.03em;margin:0 0 16px}
   .reader-body.article p{margin:0 0 14px;line-height:1.8;font-weight:300}
+  /* A curated note's own links — [[wikilinks]] and bare "Romans 8:28" refs — rebuilt as
+     anchors. Underlined only on hover so a "Related Concepts" row of a dozen links reads as
+     prose rather than a wall of rules; the dotted rest state keeps them findable. */
+  .reader-body.article a.xlink{color:var(--accent-2);text-decoration:none;
+    border-bottom:1px dotted var(--accent-2);        /* fallback for engines without color-mix */
+    border-bottom-color:color-mix(in srgb,var(--accent-2) 45%,transparent)}
+  .reader-body.article a.xlink:hover{border-bottom-style:solid;color:var(--accent)}
+  .reader-body.article a.xlink:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}
 
   details.help{margin:12px 0 0;color:var(--muted);font-size:14px;font-weight:300}
   details.help summary{cursor:pointer;color:var(--muted-2);letter-spacing:.02em}
@@ -729,7 +743,7 @@ __TRANS_MENU__
             <tr><td><code>vulgate</code></td><td>filter to moments mentioning the word</td></tr>
             <tr><td><code>nicaea</code></td><td>jump to a council, person or translation</td></tr>
           </table>
-          <p>A visual sweep from the patriarchs through the church fathers to today. Early dates are traditional and debated.</p>
+          <p>A visual sweep from the patriarchs through the church fathers to today. Early dates are traditional and debated. Tap a 📜 chip to read the history note behind a moment, or a 📖 chip to read the passage.</p>
         </div>
         <div id="help-churchhistory" hidden>
           <table>
@@ -916,6 +930,15 @@ const esc = s => String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>
 // so a javascript: URL here would be code execution in the vault.
 const safeUrl = u => (/^https?:\/\//i.test(u || "") ? u : "");
 const norm = s => s.toLowerCase().replace(/\./g,"").replace(/\s+/g," ").trim();
+/* Link markers. The builder keeps every [[wikilink]] in a note body as
+   \u0001target\u0002alias\u0003 instead of flattening it to its alias, so the reader can
+   rebuild a real anchor (see noteSegments). The format is a contract with
+   build-bible-search.js and the plugin’s twin builder — change it in all three or none.
+   stripLinks() is the plain-text view: everything that INDEXES, SNIPPETS or measures a
+   body must call it first, or a wikilink target leaks into search results.
+   `[^\\u0001-\\u0003]` on both halves keeps a malformed run from swallowing the next marker. */
+const LINK_RE = /\u0001([^\u0001-\u0003]*)\u0002([^\u0001-\u0003]*)\u0003/g;
+const stripLinks = s => String(s).replace(/\u0001([^\u0001-\u0003]*)\u0002([^\u0001-\u0003]*)\u0003/g, "$2");
 
 function noteName(t, book, ch){ return t === "KJV" ? book + " " + ch : book + " " + ch + " (" + t + ")"; }
 function obsUrl(t, book, ch, v){
@@ -1109,17 +1132,23 @@ function renderSearch(input){
 
 /* ── note search (articles · topics · faq · history) ─────────────── */
 function noteIndex(coll){
-  if (!_noteLC[coll]) _noteLC[coll] = notes(coll).map(a => ({
-    title:   a[0].toLowerCase(),
-    meta:    (a[1] + " " + a[3] + " " + a[8]).toLowerCase(),   // author + topics + source
-    excerpt: a[4].toLowerCase(),
-    body:    a[7].toLowerCase(),
-    blob:    (a[0] + " " + a[1] + " " + a[3] + " " + a[4] + " " + a[7]).toLowerCase()
-  }));
+  // stripLinks before indexing: a marker carries its wikilink TARGET, and an unstripped
+  // body would let "ESV" or "Topics" match every curated note that links one.
+  if (!_noteLC[coll]) _noteLC[coll] = notes(coll).map(a => {
+    const body = stripLinks(a[7]).toLowerCase();
+    return {
+      title:   a[0].toLowerCase(),
+      meta:    (a[1] + " " + a[3] + " " + a[8]).toLowerCase(),   // author + topics + source
+      excerpt: a[4].toLowerCase(),
+      body:    body,
+      blob:    (a[0] + " " + a[1] + " " + a[3] + " " + a[4] + " " + body).toLowerCase()
+    };
+  });
   return _noteLC[coll];
 }
 function noteSnippet(a, terms){
-  const body = a[7], low = body.toLowerCase();
+  // snippets are plain text on a result card — markers must never reach one
+  const body = stripLinks(a[7]), low = body.toLowerCase();
   let pos = -1;
   for (const w of terms){
     const m = new RegExp("\\b" + escRe(w), "i").exec(low);
@@ -1174,6 +1203,117 @@ function renderNotes(coll, input){
       esc(a[0]) + ' ↗</a></div>' +
       (meta.length ? '<div class="ameta">' + meta.join(' · ') + '</div>' : '') +
       '<p class="snip">' + noteSnippet(a, terms) + '</p></div>';
+  }).join("");
+}
+
+/* ── curated links inside a note body ─────────────────────────────
+   A Topics page is a hub — "Related Verses", "Four12 Articles", "Related Concepts" — and
+   those rows arrive as link markers (see LINK_RE). The four functions below turn them back
+   into anchors, so a topic in the reader is a node in the graph instead of a leaf. Bare
+   "Romans 8:28" references in ordinary prose get the same treatment, which is why
+   refSegments() also runs over the text BETWEEN markers.
+
+   A paragraph is split into segments before anything is escaped, on purpose: highlight() is
+   not tag-aware, so it must only ever see display text, never the markup built around it. */
+
+// Which translation a verse link opens: the one the wikilink named, else the current
+// single-translation scope, else whatever shipped first. TRANS is what this page actually has.
+function pickTrans(pref){
+  if (pref && TRANS.indexOf(pref) >= 0) return pref;
+  if (scope !== "ALL" && TRANS.indexOf(scope) >= 0) return scope;
+  return TRANS[0];
+}
+const validCh = (bi, ch) => bi >= 0 && !!STRUCT[bi] && ch >= 1 && ch <= STRUCT[bi].maxCh;
+
+/* title / path / filename → [collection, index] over the note payloads that shipped. A
+   disabled layer has no <script> tag (the same test the tab strip uses), so it is skipped
+   and links into it stay plain text rather than opening a note this page doesn't hold.
+   Fixed collection order = fixed precedence when two collections share a basename. */
+let _noteTargets = null;
+function noteTargets(){
+  if (_noteTargets) return _noteTargets;
+  const map = {};
+  ["topics", "articles", "faq", "history"].forEach(coll => {
+    if (!document.getElementById(NOTE_ID[coll])) return;
+    notes(coll).forEach((a, i) => {
+      const leaf = a[5].split("/").pop();
+      [a[0], a[5], leaf].forEach(k => { const n = norm(k); if (n && !(n in map)) map[n] = [coll, i]; });
+    });
+  });
+  return (_noteTargets = map);
+}
+
+/* A wikilink target → what it opens. Notes win over verses: a chapter note lives under
+   Bible/ and is never in the note index, so checking there first can only help a note whose
+   name happens to parse as a reference. Chapter notes are "Hebrews 11 (ESV)" (or bare
+   "Hebrews 11" for the anchor translation) with the verse in a "#^6" block anchor; when the
+   anchor is missing the alias ("Hebrews 11:1") supplies the verse. Returns null when nothing
+   in this page can serve the link — those render as plain text, never as a dead anchor. */
+function resolveWikiTarget(target, alias){
+  const hash = target.indexOf("#");
+  const base = (hash < 0 ? target : target.slice(0, hash)).trim();
+  const frag = hash < 0 ? "" : target.slice(hash + 1).trim();
+  const leaf = base.split("/").pop();
+  const hit = noteTargets()[norm(base)] || noteTargets()[norm(leaf)];
+  if (hit) return { kind: "note", coll: hit[0], i: hit[1] };
+  const tm = leaf.match(/^(.*\S)\s*\(([A-Za-z]{2,8})\)$/);   // trailing "(ESV)" names the translation
+  const ref = parseRef(tm ? tm[1] : leaf);
+  if (!ref || ref.v1 != null || !validCh(ref.bi, ref.ch)) return null;
+  const am = frag.match(/^\^(\d+)$/);
+  let v = am ? +am[1] : null;
+  if (v == null){
+    const ar = parseRef(alias);
+    if (ar && ar.bi === ref.bi && ar.ch === ref.ch) v = ar.v1;
+  }
+  return { kind: "verse", t: pickTrans(tm ? tm[2].toUpperCase() : null), bi: ref.bi, ch: ref.ch, v: v };
+}
+
+/* A bare scripture reference in prose. Deliberately narrow: a capitalised (optionally
+   numbered) book word then "ch:v". Requiring the colon keeps "Sunday 3" and "at 3:16 pm"
+   out, and matchBook + validCh reject anything that isn't real Scripture. */
+const PROSE_REF_RE = /\b((?:[1-3]\s*)?[A-Z][A-Za-z]+)\.?\s+(\d{1,3}):(\d{1,3})(?:\s*[-–—]\s*\d{1,3})?/g;
+function refSegments(s){
+  const out = [];
+  let last = 0, m;
+  PROSE_REF_RE.lastIndex = 0;
+  while ((m = PROSE_REF_RE.exec(s)) !== null){
+    const book = matchBook(m[1]), bi = book ? BOOKS.indexOf(book) : -1, ch = +m[2];
+    if (!validCh(bi, ch)) continue;
+    if (m.index > last) out.push({ k: "text", s: s.slice(last, m.index) });
+    out.push({ k: "ref", s: m[0], bi: bi, ch: ch, v: +m[3] });
+    last = m.index + m[0].length;
+  }
+  if (last < s.length) out.push({ k: "text", s: s.slice(last) });
+  return out;
+}
+function noteSegments(p){
+  const out = [];
+  let last = 0, m;
+  LINK_RE.lastIndex = 0;
+  while ((m = LINK_RE.exec(p)) !== null){
+    if (m.index > last) out.push.apply(out, refSegments(p.slice(last, m.index)));
+    out.push({ k: "link", target: m[1], alias: m[2] });
+    last = m.index + m[0].length;
+  }
+  if (last < p.length) out.push.apply(out, refSegments(p.slice(last)));
+  return out;
+}
+// data-open is the same contract the result cards use, so the reader's click delegate
+// below can hand a link straight to openVerse() / openNote().
+function vLink(t, bi, ch, v, inner){
+  return '<a class="xlink" href="' + obsUrl(t, BOOKS[bi], ch, v) + '" data-open="verse" data-t="' + esc(t) +
+    '" data-bi="' + bi + '" data-ch="' + ch + '" data-v="' + (v == null ? "" : v) + '">' + inner + '</a>';
+}
+function renderNoteParagraph(p, terms){
+  return noteSegments(p).map(seg => {
+    const inner = highlight(esc(seg.k === "link" ? seg.alias : seg.s), terms && terms.length ? terms : []);
+    if (seg.k === "text") return inner;
+    if (seg.k === "ref") return vLink(pickTrans(null), seg.bi, seg.ch, seg.v, inner);
+    const r = resolveWikiTarget(seg.target, seg.alias);
+    if (!r) return inner;
+    if (r.kind === "verse") return vLink(r.t, r.bi, r.ch, r.v, inner);
+    return '<a class="xlink" href="' + noteUrl(notes(r.coll)[r.i]) + '" data-open="note" data-coll="' +
+      esc(r.coll) + '" data-i="' + r.i + '">' + inner + '</a>';
   }).join("");
 }
 
@@ -1321,12 +1461,17 @@ function openNote(coll, i){
     parts.push('<a href="' + esc(safeUrl(a[6])) + '" target="_blank" rel="noopener">Read on ' + esc(host) + ' ↗</a>');
   }
   const meta = '<p class="rmeta">' + parts.join(' · ') + '</p>';
-  const paras = a[7].split("\n").filter(Boolean).map(p => {
-    let text = esc(p);
-    if (lastTerms.length) text = highlight(text, lastTerms);
-    return '<p>' + text + '</p>';
-  }).join("");
+  const paras = a[7].split("\n").filter(Boolean)
+    .map(p => '<p>' + renderNoteParagraph(p, lastTerms) + '</p>').join("");
+  // A note reached from a link in another note replaces the body underneath wherever the
+  // reader happened to be scrolled, so land at the top — openReader only does that for a
+  // FRESH open, and following a link is not one. Back still returns to the results list.
+  const followed = !$reader.hidden;
   openReader(head, meta + paras, "article");
+  if (followed){
+    $reader.scrollIntoView({ block: "start", behavior: "instant" });
+    window.scrollTo({ top: 0, behavior: "instant" });
+  }
 }
 
 /* ── book / chapter / verse selector ─────────────────────────── */
@@ -1370,56 +1515,124 @@ $go.addEventListener("click", () => {
    to today. Not a note collection — it's rendered straight into the results
    area and the search box filters it. Pre-exilic dates are traditional and
    debated (the vault's "Bible History Timeline" note carries the same caveat). */
+/* `refs` are scripture the moment happens in (or is remembered by) — parsed with the
+   same parseRef the search box uses, so a typo shows up as a dropped chip and a
+   console warning, never a dead link. `see` are vault paths into the History payload,
+   resolved by path at render time: rename or delete a note, or switch the History
+   layer off, and its chip simply stops being drawn. */
 const TIMELINE = [
   { era: "Patriarchs & Exodus", approx: true, events: [
-    { when: "c. 2000 BC", title: "Abraham", note: "God calls Abraham and makes a covenant — the family that becomes Israel begins." },
-    { when: "c. 1500–1250 BC", title: "The Exodus & Moses", note: "Israel is led out of Egypt and given the Law at Sinai. Scholars debate the date by centuries." },
-    { when: "c. 1000 BC", title: "King David", note: "David reigns from Jerusalem; many of the Psalms come from this era." },
-    { when: "c. 960 BC", title: "Solomon's Temple", note: "The First Temple is built in Jerusalem." },
+    { when: "c. 2000 BC", title: "Abraham", note: "God calls Abraham and makes a covenant — the family that becomes Israel begins.",
+      refs: ["Genesis 12:1-3", "Genesis 15:5-6"] },
+    { when: "c. 1500–1250 BC", title: "The Exodus & Moses", note: "Israel is led out of Egypt and given the Law at Sinai. Scholars debate the date by centuries.",
+      refs: ["Exodus 14:21-22", "Exodus 20:1-3"] },
+    { when: "c. 1000 BC", title: "King David", note: "David reigns from Jerusalem; many of the Psalms come from this era.",
+      refs: ["2 Samuel 5:4-5", "Psalms 51:1-2"] },
+    { when: "c. 960 BC", title: "Solomon's Temple", note: "The First Temple is built in Jerusalem.",
+      refs: ["1 Kings 6:1", "1 Kings 8:10-11"] },
   ]},
   { era: "Prophets & Exile", events: [
-    { when: "722 BC", title: "Fall of the North", note: "Assyria destroys the northern kingdom of Israel." },
-    { when: "586 BC", title: "Fall of Jerusalem", note: "Babylon destroys the city and Temple; the exile begins." },
-    { when: "538 BC", title: "The Return", note: "Persia lets the exiles return; the Second Temple is rebuilt by 516 BC." },
+    { when: "722 BC", title: "Fall of the North", note: "Assyria destroys the northern kingdom of Israel.",
+      refs: ["2 Kings 17:6-7"] },
+    { when: "586 BC", title: "Fall of Jerusalem", note: "Babylon destroys the city and Temple; the exile begins.",
+      refs: ["2 Kings 25:8-10", "Lamentations 1:1"] },
+    { when: "538 BC", title: "The Return", note: "Persia lets the exiles return; the Second Temple is rebuilt by 516 BC.",
+      refs: ["Ezra 1:1-4", "Ezra 6:15"] },
   ]},
   { era: "Between the Testaments", events: [
-    { when: "c. 250–100 BC", title: "The Septuagint", note: "The Hebrew Scriptures are translated into Greek (the LXX) for the wider Jewish world." },
-    { when: "167–160 BC", title: "Maccabean revolt", note: "Judea revolts against Greek rule (remembered at Hanukkah); the Dead Sea Scrolls community forms." },
-    { when: "63 BC", title: "Rome takes Judea", note: "Roman control begins over the land of the Gospels." },
+    { when: "c. 250–100 BC", title: "The Septuagint", note: "The Hebrew Scriptures are translated into Greek (the LXX) for the wider Jewish world.",
+      see: ["Bible History/Sources/Prologue of Sirach", "Bible History/Concepts/Deuterocanon"] },
+    { when: "167–160 BC", title: "Maccabean revolt", note: "Judea revolts against Greek rule (remembered at Hanukkah); the Dead Sea Scrolls community forms.",
+      see: ["Bible History/Sources/Dead Sea Scrolls"], refs: ["John 10:22-23"] },
+    { when: "63 BC", title: "Rome takes Judea", note: "Roman control begins over the land of the Gospels.",
+      see: ["Bible History/People/Josephus"], refs: ["Luke 3:1-2"] },
   ]},
   { era: "Jesus & the Apostles", events: [
-    { when: "c. 4 BC", title: "Birth of Jesus", note: "Jesus is born in Bethlehem (our calendar is a few years off)." },
-    { when: "c. AD 30–33", title: "Death & resurrection", note: "Jesus' public ministry, crucifixion under Pilate, and resurrection — the centre of the Christian faith." },
-    { when: "c. AD 34", title: "Conversion of Paul", note: "A fierce opponent becomes the movement's greatest missionary." },
-    { when: "c. AD 48–65", title: "Paul's letters", note: "Paul writes to young churches — the earliest New Testament books to be written." },
-    { when: "c. AD 65–95", title: "The Gospels & Revelation", note: "Matthew, Mark, Luke, John, and the rest of the New Testament are written." },
-    { when: "AD 70", title: "The Temple destroyed", note: "Rome razes the Second Temple; Judaism and the church are reshaped." },
+    { when: "c. 4 BC", title: "Birth of Jesus", note: "Jesus is born in Bethlehem (our calendar is a few years off).",
+      refs: ["Luke 2:1-7", "Matthew 2:1"] },
+    { when: "c. AD 30–33", title: "Death & resurrection", note: "Jesus' public ministry, crucifixion under Pilate, and resurrection — the centre of the Christian faith.",
+      refs: ["Luke 23:44-46", "Luke 24:1-7", "1 Corinthians 15:3-8"] },
+    { when: "c. AD 34", title: "Conversion of Paul", note: "A fierce opponent becomes the movement's greatest missionary.",
+      refs: ["Acts 9:1-9", "Galatians 1:13-16"] },
+    { when: "c. AD 48–65", title: "Paul's letters", note: "Paul writes to young churches — the earliest New Testament books to be written.",
+      refs: ["1 Thessalonians 1:1", "Colossians 4:16"] },
+    { when: "c. AD 65–95", title: "The Gospels & Revelation", note: "Matthew, Mark, Luke, John, and the rest of the New Testament are written.",
+      refs: ["Luke 1:1-4", "John 20:30-31", "Revelation 1:9"] },
+    { when: "AD 70", title: "The Temple destroyed", note: "Rome razes the Second Temple; Judaism and the church are reshaped.",
+      see: ["Bible History/People/Josephus"], refs: ["Matthew 24:1-2"] },
   ]},
   { era: "The Early Church & Fathers", events: [
     { when: "c. AD 95–110", title: "Apostolic Fathers", note: "Clement of Rome, Ignatius of Antioch, and Polycarp — the first generation after the apostles." },
-    { when: "c. AD 150", title: "Justin Martyr", note: "An early apologist defends the faith; the Gospels are read in worship." },
-    { when: "c. AD 180", title: "Irenaeus of Lyons", note: "Defends the fourfold Gospel and the church's core teaching against heresies." },
-    { when: "AD 313", title: "Edict of Milan", note: "Constantine ends the persecution of Christians across the Roman Empire." },
-    { when: "AD 325", title: "Council of Nicaea", note: "The full deity of Christ is affirmed — the root of the Nicene Creed." },
-    { when: "AD 367", title: "Athanasius' list", note: "Athanasius names the exact 27 New Testament books we use today." },
-    { when: "AD 382–405", title: "Jerome's Vulgate", note: "Jerome translates the Bible into Latin — the West's Bible for a thousand years." },
-    { when: "AD 397", title: "Council of Carthage", note: "A church council confirms the New Testament canon." },
+    { when: "c. AD 150", title: "Justin Martyr", note: "An early apologist defends the faith; the Gospels are read in worship.",
+      see: ["Bible History/People/Melito of Sardis"] },
+    { when: "c. AD 180", title: "Irenaeus of Lyons", note: "Defends the fourfold Gospel and the church's core teaching against heresies.",
+      see: ["Bible History/People/Irenaeus of Lyons"] },
+    { when: "AD 313", title: "Edict of Milan", note: "Constantine ends the persecution of Christians across the Roman Empire.",
+      see: ["Bible History/Events/Edict of Milan (312)", "Bible History/People/Constantine"] },
+    { when: "AD 325", title: "Council of Nicaea", note: "The full deity of Christ is affirmed — the root of the Nicene Creed.",
+      see: ["Bible History/People/Constantine", "Bible History/People/Athanasius of Alexandria"] },
+    { when: "AD 367", title: "Athanasius' list", note: "Athanasius names the exact 27 New Testament books we use today.",
+      see: ["Bible History/People/Athanasius of Alexandria", "Bible History/Concepts/Canon (Biblical)"] },
+    { when: "AD 382–405", title: "Jerome's Vulgate", note: "Jerome translates the Bible into Latin — the West's Bible for a thousand years.",
+      see: ["Bible History/People/Jerome", "Bible History/Sources/Latin Vulgate"] },
+    { when: "AD 397", title: "Council of Carthage", note: "A church council confirms the New Testament canon.",
+      see: ["Bible History/People/Augustine of Hippo", "Bible History/Concepts/Canon (Biblical)", "Bible History/Concepts/Deuterocanon"] },
     { when: "AD 451", title: "Council of Chalcedon", note: "Affirms that Christ is fully God and fully man in one person." },
   ]},
   { era: "Middle Ages to Reformation", events: [
-    { when: "1382", title: "Wycliffe's Bible", note: "The first complete English Bible, translated from the Latin by hand." },
-    { when: "1456", title: "Gutenberg's press", note: "The printing press makes the Bible widely reproducible for the first time." },
-    { when: "1517", title: "Luther's 95 Theses", note: "The Reformation begins, recovering salvation by grace through faith and the Bible in the language of the people." },
+    { when: "1382", title: "Wycliffe's Bible", note: "The first complete English Bible, translated from the Latin by hand.",
+      see: ["Bible History/Sources/Latin Vulgate"] },
+    { when: "1456", title: "Gutenberg's press", note: "The printing press makes the Bible widely reproducible for the first time.",
+      see: ["Bible History/Sources/Complutensian Polyglot"] },
+    { when: "1517", title: "Luther's 95 Theses", note: "The Reformation begins, recovering salvation by grace through faith and the Bible in the language of the people.",
+      see: ["Bible History/People/Martin Luther", "Bible History/Events/Protestant Reformation", "Bible History/Events/Indulgences & Purgatory"],
+      refs: ["Romans 1:16-17"] },
     { when: "1526", title: "Tyndale's New Testament", note: "The first English New Testament translated from the Greek; it shapes English for centuries." },
-    { when: "1611", title: "The King James Version", note: "The KJV is published and becomes the most widely read English Bible for generations." },
+    { when: "1611", title: "The King James Version", note: "The KJV is published and becomes the most widely read English Bible for generations.",
+      see: ["Bible History/Canons/Protestant Canon (66)"] },
   ]},
   { era: "The Modern Era", events: [
-    { when: "1947", title: "Dead Sea Scrolls", note: "Ancient manuscripts push our earliest Hebrew copies back a thousand years and confirm careful transmission." },
+    { when: "1947", title: "Dead Sea Scrolls", note: "Ancient manuscripts push our earliest Hebrew copies back a thousand years and confirm careful transmission.",
+      see: ["Bible History/Sources/Dead Sea Scrolls"], refs: ["Isaiah 40:8"] },
     { when: "19th–21st c.", title: "Critical texts & new translations", note: "Careful study of the Greek and Hebrew yields modern translations — ESV, NIV, NLT, and many more." },
-    { when: "Today", title: "The Bible for the world", note: "The whole Bible is available in well over 700 languages, and portions in thousands more — and it links straight into this vault." },
+    { when: "Today", title: "The Bible for the world", note: "The whole Bible is available in well over 700 languages, and portions in thousands more — and it links straight into this vault.",
+      refs: ["Matthew 28:18-20"] },
   ]},
 ];
 const TIMELINE_NOTE = "Bible History/Bible History Timeline";
+/* path → index into the History payload, built once. Returns -1 when the layer is
+   off (no `hd` payload) or the note is gone, which is how a chip disappears instead
+   of becoming a dead link. */
+let _histByPath = null;
+function historyIdx(path){
+  if (!document.getElementById(NOTE_ID.history)) return -1;
+  if (!_histByPath){
+    _histByPath = new Map();
+    notes("history").forEach((a, i) => _histByPath.set(a[5], i));
+  }
+  return _histByPath.has(path) ? _histByPath.get(path) : -1;
+}
+// An event's links out: 📜 into a history note, 📖 straight into the passage. Both
+// carry data-open, so the existing results click handler opens them in the reader.
+function tlLinks(e){
+  const chips = [];
+  for (const p of (e.see || [])){
+    const i = historyIdx(p);
+    if (i === -1){ if (document.getElementById(NOTE_ID.history)) console.warn("timeline: no history note at " + p); continue; }
+    const a = notes("history")[i];
+    chips.push('<a class="tl-chip" href="' + noteUrl(a) + '" data-open="note" data-coll="history" data-i="' + i +
+      '" title="Read the note">📜 ' + esc(a[0]) + '</a>');
+  }
+  const t = scope === "ALL" ? TRANS[0] : scope;
+  for (const r of (e.refs || [])){
+    const ref = parseRef(r);
+    if (!ref || ref.bi < 0){ console.warn("timeline: unparseable reference " + r); continue; }
+    chips.push('<a class="tl-chip" href="' + obsUrl(t, ref.book, ref.ch, ref.v1) + '" data-open="verse" data-t="' + t +
+      '" data-bi="' + ref.bi + '" data-ch="' + ref.ch + '" data-v="' + (ref.v1 == null ? "" : ref.v1) +
+      '" title="Read the passage">📖 ' + esc(r.replace(/-/g, "–")) + '</a>');
+  }
+  return chips.length ? '<div class="tl-links">' + chips.join("") + '</div>' : "";
+}
 function renderTimeline(filter){
   lastTerms = [];
   const terms = filter ? parseTerms(filter) : [];
@@ -1427,7 +1640,8 @@ function renderTimeline(filter){
   const keep = ev => terms.every(w => termRe(w, "i").test(ev.blob));
   const eras = TIMELINE.map(g => {
     const events = g.events
-      .map(e => ({ ...e, blob: (g.era + " " + e.when + " " + e.title + " " + e.note).toLowerCase() }))
+      // linked passages join the blob, so "Acts" or "Romans" finds the moment they belong to
+      .map(e => ({ ...e, blob: (g.era + " " + e.when + " " + e.title + " " + e.note + " " + (e.refs || []).join(" ")).toLowerCase() }))
       .filter(e => !terms.length || keep(e));
     return { era: g.era, approx: g.approx, events };
   }).filter(g => g.events.length);
@@ -1448,7 +1662,7 @@ function renderTimeline(filter){
     '<div class="tl-track">' + g.events.map(e =>
       '<div class="tl-event"><div class="tl-when">' + esc(e.when) + '</div>' +
       '<div class="tl-title">' + highlight(esc(e.title), terms) + '</div>' +
-      '<p class="tl-note">' + highlight(esc(e.note), terms) + '</p></div>'
+      '<p class="tl-note">' + highlight(esc(e.note), terms) + '</p>' + tlLinks(e) + '</div>'
     ).join("") + '</div>'
   ).join("");
   $res.innerHTML = open + '<div class="tl">' + body + '</div>';
@@ -2105,12 +2319,25 @@ document.querySelector(".srctabs").addEventListener("keydown", e => {
 });
 
 // result clicks → open the in-page reader (links keep their href for right-click / fallback)
+function openFrom(el){
+  if (el.dataset.open === "verse") openVerse(el.dataset.t, +el.dataset.bi, +el.dataset.ch, el.dataset.v === "" ? null : +el.dataset.v);
+  else openNote(el.dataset.coll, +el.dataset.i);
+}
 $res.addEventListener("click", e => {
   const el = e.target.closest("[data-open]");
   if (!el) return;                       // e.g. the "web ↗" link → normal navigation
   e.preventDefault();
-  if (el.dataset.open === "verse") openVerse(el.dataset.t, +el.dataset.bi, +el.dataset.ch, el.dataset.v === "" ? null : +el.dataset.v);
-  else openNote(el.dataset.coll, +el.dataset.i);
+  openFrom(el);
+});
+// The same delegate INSIDE the reader — this is what makes a curated note's own links
+// work: "Related Verses" opens the chapter, "Related Concepts" opens the other topic.
+// Bound to #reader itself, which survives every body swap. Links without data-open
+// (Open in Obsidian ↗, Read on … ↗) fall through to normal navigation.
+$reader.addEventListener("click", e => {
+  const el = e.target.closest("[data-open]");
+  if (!el) return;
+  e.preventDefault();
+  openFrom(el);
 });
 // Church History tab — node taps tell the story, lineage links jump the chart,
 // legend chips toggle the family spotlight, the toolbar zooms.
