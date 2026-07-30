@@ -2548,6 +2548,28 @@ function chGoto(id){
     behavior: reduceMotion() ? "instant" : "smooth" });
   el.classList.remove("ch-pulse"); void el.offsetWidth; el.classList.add("ch-pulse");
   chShowPop(id);
+  chRevealPop();
+}
+/* The popup is anchored to the BOTTOM of .chd-frame, and the frame is as tall as the
+   pane allows (min(72vh, 100vh - 220px)). That 220px reserve assumes the chart sits
+   near the top of the page — but the heading, tabs, filter box, two intro paragraphs
+   and the family selector above it come to ~570px in a narrow pane. So in the
+   Obsidian side pane (and on a phone) the card opened correctly and landed entirely
+   below the fold: you tapped a branch and nothing appeared to happen.
+
+   Scroll it into view instead of shrinking the chart — the reserve can't be made
+   right for every pane width, and the chart is the thing you came for. `block:
+   "nearest"` is what keeps this quiet on desktop: when the card is already fully
+   visible it scrolls nothing at all. Guarded on the rect for the same reason, so a
+   tap on a visible card never nudges the page. The popup is a SIBLING of .chd-wrap,
+   not a child, so this scrolls the page and never the chart underneath. */
+function chRevealPop(){
+  const pop = document.getElementById("chdPop");
+  if (!pop || pop.hidden) return;
+  const r = pop.getBoundingClientRect();
+  const vh = window.innerHeight || document.documentElement.clientHeight;
+  if (r.top >= 0 && r.bottom <= vh) return;   // already fully visible — leave the page alone
+  pop.scrollIntoView({ block: "nearest", behavior: reduceMotion() ? "instant" : "smooth" });
 }
 
 /* ── On This Day (church-history calendar) ────────────────────────
