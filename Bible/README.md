@@ -109,6 +109,34 @@ how to restore them.)*
 node "Bible/build-bible-search.js" . "Bible/bible-search-template.html" "Bible Search.html"
 ```
 
-`Bible Search.html` is **generated** (~20 MB) — edit
-`Bible/bible-search-template.html` instead, then rebuild. The Bible Search tab
-reloads itself when the file is rewritten.
+`Bible Search.html` is **generated** — edit `Bible/bible-search-template.html`
+instead, then rebuild. The Bible Search tab reloads itself when the file is
+rewritten.
+
+### Two build shapes
+
+The default build is **split**: the page is a small shell (~2.5 MB with four
+translations) and each translation's verse text goes to
+`Bible/search-data/bd-<TRANS>.json`. The plugin feeds those sidecars to the page on
+demand, which is what makes it usable on a phone — a single self-contained file meant
+parsing the whole Bible just to read one verse. Sidecars are only rewritten when the
+verse text actually changes, and stale ones are deleted, so a routine rebuild pushes
+almost nothing through file sync.
+
+```
+node "Bible/build-bible-search.js" . "Bible/bible-search-template.html" "Bible Search.html" --inline
+```
+
+`--inline` embeds the verse text in the page instead, producing the older
+self-contained file (~20 MB with four translations). **Use `--inline` if you want to
+open the page directly in a browser** — outside Obsidian there is no plugin to hand
+the sidecars over, so a split page finds no verse text. The template supports both
+shapes; an inline payload wins when present.
+
+### Which layers get built
+
+Every layer whose folder or pack is present is emitted; anything absent is omitted so
+its tab hides. `Teaching/` → Articles, `Topics/` → Topics, `FAQ/` → FAQ,
+`Bible History/` → History, and the `data/*.json` packs → the On This Day calendar
+and the Church History tree. So a vault with only translations and `Teaching/` builds
+a Bible-and-Articles page, and the other tabs simply do not appear.

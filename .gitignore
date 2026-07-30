@@ -6,5 +6,6 @@
 .trash/
 # macOS
 .DS_Store
-# Generated search page — each vault builds its own
+# Generated search page and its verse-text sidecars — each vault builds its own
 Bible Search.html
+Bible/search-data/
