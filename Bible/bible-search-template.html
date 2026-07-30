@@ -2350,14 +2350,23 @@ function chWirePanZoom(){
     const mx = (p.x + q.x) / 2 - r.left, my = (p.y + q.y) / 2 - r.top;
     pinch = { dist: Math.max(1, Math.hypot(p.x - q.x, p.y - q.y)), z: chZ,
               pt: { x: (wrap.scrollLeft + mx) / chZ, y: (wrap.scrollTop + my) / chZ } };
+    // Capture BOTH pointers, so a finger that slides off the chart mid-pinch keeps
+    // reporting. Safe here — a pinch is not meant to tap the branch underneath, and
+    // capture retargeting the click to the wrap is the behaviour we want.
+    for (const id of pts.keys()){ try { wrap.setPointerCapture(id); } catch (_) {} }
     // A pinch must never end up tapping the branch under it, and it is not a pan.
     down = false; chPanned = true; wrap.classList.remove("grabbing");
   };
   wrap.addEventListener("pointerdown", e => {
     if (e.target.closest(".chd-toolbar")) return;
     if (e.pointerType === "mouse" && e.button !== 0) return;   // left button only
+    /* Do NOT capture the pointer here. A captured pointer retargets the resulting
+       CLICK to the capturing element, so capturing on every press sent every tap to
+       .chd-wrap instead of the branch button — `.closest(".chd-node")` then found
+       nothing and no branch popup ever opened. Capture is taken only once a gesture
+       is really a gesture: below, when a drag passes the 4px threshold, and in
+       startPinch. A plain tap is never captured, so its click reaches the node. */
     pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    try { wrap.setPointerCapture(e.pointerId); } catch (_) {}
     if (pts.size === 2){ startPinch(); return; }
     if (pts.size > 2) return;
     down = true; chPanned = false;
@@ -2376,7 +2385,12 @@ function chWirePanZoom(){
     }
     if (!down) return;
     const dx = e.clientX - sx, dy = e.clientY - sy;
-    if (!chPanned && Math.hypot(dx, dy) > 4){ chPanned = true; wrap.classList.add("grabbing"); }
+    if (!chPanned && Math.hypot(dx, dy) > 4){
+      chPanned = true; wrap.classList.add("grabbing");
+      // now it IS a drag — capture so it survives leaving the chart, and let the
+      // retargeted click be swallowed by the chPanned guard rather than tap a branch
+      try { wrap.setPointerCapture(e.pointerId); } catch (_) {}
+    }
     if (chPanned){ wrap.scrollLeft = sl - dx; wrap.scrollTop = st - dy; }
   });
   const end = e => {
