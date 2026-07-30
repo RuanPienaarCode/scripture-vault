@@ -321,6 +321,7 @@
   .ch-badge{font-family:var(--sans);font-size:9px;font-weight:400;text-transform:uppercase;letter-spacing:.06em;
     border-radius:4px;padding:1px 5px;border:1px solid currentColor;white-space:nowrap}
   .ch-badge.nn{color:var(--badge-nn)} .ch-badge.sa{color:var(--badge-sa)}
+  .ch-badge.ev{color:var(--accent)}
   .ch-from{font-family:var(--sans);font-size:11.5px;font-weight:300;color:var(--muted-2);margin:0 0 6px;line-height:1.45}
   .ch-from a{color:var(--accent-2);text-decoration:none;cursor:pointer}
   .ch-from a:hover{text-decoration:underline}
@@ -393,6 +394,12 @@
   .chd-nname{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
     font-size:11.5px;font-weight:400;color:var(--ink);line-height:1.2}
   .chd-tag{position:absolute;top:2px;right:4px;font-size:7.5px;font-weight:400;letter-spacing:.04em;color:var(--badge-sa)}
+  /* Turning points — the councils, edicts and revivals that CAUSED the branch below.
+     Dashed edge + ✦ so they read as a different kind of thing at a glance, with the
+     family tint still carried on the top border. */
+  .chd-node.ev{border-style:dashed;background:var(--panel-2)}
+  .chd-node.ev .chd-nname{font-style:italic}
+  .chd-tag.chd-ev{font-size:9px;color:var(--accent)}
   .chd-node.dim,.chd-canvas path.dim{opacity:.13}
   .chd-node.sel{outline:2px solid var(--accent);z-index:3}
   .chd-node.ch-pulse{animation:chpulse 1.7s ease}
@@ -598,6 +605,12 @@
        pinch-zoom is off and these are the only way to zoom the poster on a phone.
        min-width/min-height rather than width/height — min-* beats the base width,
        and lets the wider .chd-zpct and the labelled .ch-chip keep their own size. */
+    /* Timeline chips grow THEMSELVES rather than getting the ::after overlay below: they
+       sit in a wrapping flex row 6px apart, so a 44px overlay on a 27px chip would reach
+       into the row above and steal its taps — the same collision the overlay comment
+       describes. align-items:center keeps the label centred in the taller pill. */
+    .tl-chip{min-height:44px;display:inline-flex;align-items:center}
+    .tl-links{gap:8px}
     .ch-chip,.ch-clear,.chd-zbtn,.otd-nav button,.chd-pop .pclose{min-height:44px}
     .chd-zbtn,.otd-nav button,.chd-pop .pclose{min-width:44px}
     /* the close button grew from 32px to 44px — give the title back its clearance */
@@ -750,8 +763,9 @@ __TRANS_MENU__
             <tr><td><code>(nothing)</code></td><td>leave the box empty to see the whole family tree</td></tr>
             <tr><td><code>reformation</code></td><td>filter to branches mentioning the word</td></tr>
             <tr><td><code>pentecostal</code></td><td>find a tradition and everything named for it</td></tr>
+            <tr><td><code>chalcedon</code></td><td>find a turning point and the branches it caused</td></tr>
           </table>
-          <p>A family-tree chart of how the churches branched, apostles to today — it scrolls sideways like a poster. Tap a branch for its story; tap a colour to light up one family.</p>
+          <p>A family-tree chart of how the churches branched, apostles to today — it scrolls sideways like a poster. Tap a branch for its story; tap a colour to light up one family. The dashed <strong>✦</strong> boxes are turning points — Chalcedon, the Great Schism, Worms, Trent, Vatican II — and they sit in the chain between what came before and the branch they caused, so you can read <em>why</em> a split happened and not only who came from whom.</p>
         </div>
         <div id="help-otd" hidden>
           <table>
@@ -1207,7 +1221,7 @@ function renderNotes(coll, input){
 }
 
 /* ── curated links inside a note body ─────────────────────────────
-   A Topics page is a hub — "Related Verses", "Four12 Articles", "Related Concepts" — and
+   A Topics page is a hub — "Related Verses", "Articles", "Related Concepts" rows — and
    those rows arrive as link markers (see LINK_RE). The four functions below turn them back
    into anchors, so a topic in the reader is a node in the graph instead of a leaf. Bare
    "Romans 8:28" references in ordinary prose get the same treatment, which is why
@@ -1612,22 +1626,34 @@ function historyIdx(path){
   }
   return _histByPath.has(path) ? _histByPath.get(path) : -1;
 }
+/* renderTimeline() runs on every keystroke in the filter box, and the `see:` paths below
+   are THIS vault's notes baked into a shipped template — a vault with a Bible History
+   folder full of different notes would otherwise log the same warning 25 times per
+   keystroke. Warn once per key, for the lifetime of the page. */
+const _tlWarned = new Set();
+function tlWarn(msg){ if (!_tlWarned.has(msg)){ _tlWarned.add(msg); console.warn(msg); } }
 // An event's links out: 📜 into a history note, 📖 straight into the passage. Both
 // carry data-open, so the existing results click handler opens them in the reader.
 function tlLinks(e){
   const chips = [];
   for (const p of (e.see || [])){
     const i = historyIdx(p);
-    if (i === -1){ if (document.getElementById(NOTE_ID.history)) console.warn("timeline: no history note at " + p); continue; }
+    if (i === -1){ if (document.getElementById(NOTE_ID.history)) tlWarn("timeline: no history note at " + p); continue; }
     const a = notes("history")[i];
     chips.push('<a class="tl-chip" href="' + noteUrl(a) + '" data-open="note" data-coll="history" data-i="' + i +
       '" title="Read the note">📜 ' + esc(a[0]) + '</a>');
   }
-  const t = scope === "ALL" ? TRANS[0] : scope;
+  const t = pickTrans(null);
   for (const r of (e.refs || [])){
+    /* Bounds-check the chapter AND the verse, not just the book name. `parseRef` only
+       fails on an unresolvable book, so "Hebrews 40:2" used to sail through and render a
+       live chip onto an empty chapter — and a wrong number is the far likelier typo in a
+       hand-curated list. validCh is the same gate the note-body ref autolinker uses. */
     const ref = parseRef(r);
-    if (!ref || ref.bi < 0){ console.warn("timeline: unparseable reference " + r); continue; }
-    chips.push('<a class="tl-chip" href="' + obsUrl(t, ref.book, ref.ch, ref.v1) + '" data-open="verse" data-t="' + t +
+    if (!ref || !validCh(ref.bi, ref.ch)){ tlWarn("timeline: no such reference " + r); continue; }
+    const maxV = (STRUCT[ref.bi].ch || {})[ref.ch] || 0;
+    if (ref.v1 != null && maxV && ref.v1 > maxV){ tlWarn("timeline: verse out of range " + r); continue; }
+    chips.push('<a class="tl-chip" href="' + obsUrl(t, ref.book, ref.ch, ref.v1) + '" data-open="verse" data-t="' + esc(t) +
       '" data-bi="' + ref.bi + '" data-ch="' + ref.ch + '" data-v="' + (ref.v1 == null ? "" : ref.v1) +
       '" title="Read the passage">📖 ' + esc(r.replace(/-/g, "–")) + '</a>');
   }
@@ -1753,15 +1779,37 @@ function chData(){
       const bary = pxs.length ? pxs.reduce((a, b) => a + b, 0) / pxs.length : null;
       want[n.id] = bary == null ? famX(n.family) : PARENT_PULL * bary + (1 - PARENT_PULL) * famX(n.family);
     }
-    // place left→right by desired x; anything that would overlap drops to a sub-row
+    /* Order: the existing left→right sweep by desired x — that's what interlocks the
+       boxes into a tight mosaic — but refined so a node's parents FROM THE SAME ERA are
+       always emitted first. Cross-era parents are already placed (eras run top→bottom);
+       same-era ones were not, so a child could land in the row above its own parent and
+       the lineage line ran sideways or upward. That matters most for the event nodes
+       (a council and the branch it produced usually share an era), and it also tidies
+       the pairs that were always here — orthodox → ecumenical, reformation →
+       lutheranstate. `seen` is set BEFORE recursing, so a cycle in the data can't hang
+       the page — it just stops pulling. */
+    const inThisEra = new Set(inEra.map(n => n.id));
+    const order = [], seen = new Set();
+    const emit = n => {
+      if (!n || seen.has(n.id)) return;
+      seen.add(n.id);
+      for (const p of (n.parents || [])) if (inThisEra.has(p)) emit(_ch.byId[p]);
+      order.push(n);
+    };
+    inEra.slice().sort((a, b) => want[a.id] - want[b.id] || (a.year || 0) - (b.year || 0)).forEach(emit);
+    // place; anything that would overlap — or sit at/above a same-era parent — drops a row
     const rows = [];
     let maxRow = 0;
-    for (const n of inEra.slice().sort((a, b) => want[a.id] - want[b.id] || (a.year || 0) - (b.year || 0))){
+    for (const n of order){
       const x = want[n.id];
       let r = 0;
+      for (const p of (n.parents || [])){
+        const pp = inThisEra.has(p) ? _ch.pos[p] : null;
+        if (pp && pp.row >= r) r = pp.row + 1;
+      }
       while ((rows[r] || (rows[r] = [])).some(ox => Math.abs(ox - x) < PITCH)) r++;
       rows[r].push(x);
-      _ch.pos[n.id] = { x, y: bandY + r * ROWH };
+      _ch.pos[n.id] = { x, y: bandY + r * ROWH, row: r };
       if (r > maxRow) maxRow = r;
     }
     y = bandY + (maxRow + 1) * ROWH - CH_VGAP + CH_BANDGAP;
@@ -1860,10 +1908,15 @@ function chBuild(){
   }
   const nodesHtml = d.nodes.map(n => {
     const p = d.pos[n.id];
-    return '<button class="chd-node" id="ch-' + esc(n.id) + '" data-node="' + esc(n.id) + '"' +
+    // A turning point (council, edict, act, revival) reads as a dashed box with a ✦ —
+    // shape and glyph, not colour alone, so it survives a colour-blind reader and the
+    // family tint stays free to say which stream it belongs to.
+    const ev = n.kind === "event";
+    return '<button class="chd-node' + (ev ? ' ev' : '') + '" id="ch-' + esc(n.id) + '" data-node="' + esc(n.id) + '"' +
       ' style="left:' + p.x + 'px;top:' + p.y + 'px;width:' + CH_NW + 'px;height:' + CH_NH + 'px;' +
       'border-top-color:' + chColor(n.family) + '">' +
-      (n.sa ? '<span class="chd-tag">SA</span>' : (n.nonNicene ? '<span class="chd-tag" style="color:var(--fam-nonnicene)">✳</span>' : '')) +
+      (ev ? '<span class="chd-tag chd-ev">✦</span>'
+          : (n.sa ? '<span class="chd-tag">SA</span>' : (n.nonNicene ? '<span class="chd-tag" style="color:var(--fam-nonnicene)">✳</span>' : ''))) +
       '<span class="chd-nyr">' + esc(n.when) + '</span>' +
       '<span class="chd-nname">' + esc(n.name) + '</span></button>';
   }).join("");
@@ -1882,7 +1935,7 @@ function chBuild(){
     '<svg width="' + d.W + '" height="' + d.H + '" viewBox="0 0 ' + d.W + ' ' + d.H + '" aria-hidden="true">' + edges + '</svg>' +
     bandsHtml + nodesHtml + '</div></div></div>' +
     '<div class="chd-pop" id="chdPop" role="dialog" aria-label="Branch details" hidden></div></div>' +
-    '<p class="chd-hint">Drag to pan · scroll to zoom · use −/+ or Fit above · tap a branch to zoom in and open its details.</p>';
+    '<p class="chd-hint">Drag to pan · scroll to zoom · use −/+ or Fit above · tap a branch to zoom in and open its details. Dashed ✦ boxes are turning points — the councils, edicts and revivals that caused the branch below.</p>';
   chWirePanZoom();
   // start the view on the trunk, centred
   const wrap = document.getElementById("chdWrap");
@@ -1980,23 +2033,43 @@ function chShowPop(id){
   const d = chData(), n = d.byId[id];
   const pop = document.getElementById("chdPop");
   if (!n || !pop) return;
+  const ev = n.kind === "event";
   const badges =
+    (ev ? '<span class="ch-badge ev">turning point</span>' : '') +
     (n.nonNicene ? '<span class="ch-badge nn">non-Nicene</span>' : '') +
     (n.sa ? '<span class="ch-badge sa">South Africa</span>' : '');
+  /* `note` names a vault note by title and is VAULT-LOCAL — gen-churchhistory-pack.js
+     strips it, so a downloaded pack has none and this simply doesn't render. Resolved
+     through the same title index the note-body wikilinks use, so it opens in the reader
+     rather than bouncing the user out to Obsidian. */
+  let deeper = '';
+  if (n.note){
+    const r = resolveWikiTarget(n.note, n.note);
+    if (r && r.kind === "note"){
+      const a = notes(r.coll)[r.i];
+      deeper = '<div class="ch-from"><a class="tl-chip" href="' + noteUrl(a) + '" data-open="note" data-coll="' +
+        esc(r.coll) + '" data-i="' + r.i + '" title="Read the note">📜 ' + esc(a[0]) + '</a></div>';
+    }
+  }
   // The lineage jumps are buttons, not <a>s: they have no href (chGoto moves the
   // chart), and an hrefless <a> is neither focusable nor exposed with a role, so
   // walking the tree by keyboard or screen reader was impossible. .lnk restyles
   // them back into links; the [data-goto] delegate below takes either element.
+  /* Wording follows the KIND at each end, so the chain reads as cause and effect rather
+     than as descent: an event "came out of" its parent and "led to" its children, while a
+     tradition "grew from" a parent — or, when that parent is a turning point, "came out
+     of" it. Same buttons either way. */
+  const lnk = x => '<button type="button" class="lnk" data-goto="' + esc(x.id || x) + '">' +
+    esc((x.name != null ? x.name : (d.byId[x] || {}).name) || x.id || x) + '</button>';
+  const parentIsEvent = (n.parents || []).some(p => (d.byId[p] || {}).kind === "event");
   const from = n.parents && n.parents.length
-    ? '<div class="ch-from">grew from ' + n.parents.map(p =>
-        '<button type="button" class="lnk" data-goto="' + esc(p) + '">' +
-        esc((d.byId[p] || {}).name || p) + '</button>').join(' + ') + '</div>'
+    ? '<div class="ch-from">' + (ev || parentIsEvent ? 'came out of ' : 'grew from ') +
+      n.parents.map(p => lnk(p)).join(' + ') + '</div>'
     : '';
   const kids = d.nodes.filter(k => (k.parents || []).includes(id));
   const into = kids.length
-    ? '<div class="ch-from">branched into ' + kids.map(k =>
-        '<button type="button" class="lnk" data-goto="' + esc(k.id) + '">' +
-        esc(k.name) + '</button>').join(' · ') + '</div>'
+    ? '<div class="ch-from">' + (ev ? 'led to ' : 'branched into ') +
+      kids.map(k => lnk(k)).join(' · ') + '</div>'
     : '';
   pop.style.borderTopColor = chColor(n.family);
   pop.innerHTML =
@@ -2005,7 +2078,7 @@ function chShowPop(id){
     esc(d.famLabel[n.family] || n.family) + '</span>' +
     '<h3>' + esc(n.name) + badges + '</h3>' +
     '<p class="pblurb">' + esc(n.blurb) + '</p>' +
-    (n.members ? '<div class="ch-members">' + esc(n.members) + '</div>' : '') + from + into;
+    (n.members ? '<div class="ch-members">' + esc(n.members) + '</div>' : '') + from + into + deeper;
   pop.hidden = false;
   pop.scrollTop = 0;
 }
@@ -2034,7 +2107,8 @@ function chApplyFilter(filter){
       ? '<strong>' + total + '</strong> branch' + (total === 1 ? '' : 'es') + ' lit up matching “' + esc(filter) + '”' + famNote
       : (chFam
           ? 'The <strong>' + esc(d.famLabel[chFam]) + '</strong> family lit up — <strong>' + total + '</strong> branches'
-          : 'How the church branched, apostles to today — <strong>' + total + '</strong> traditions across twenty centuries');
+          : 'How the church branched, apostles to today — <strong>' + total + '</strong> branches across twenty centuries, ' +
+              'including <strong>' + d.nodes.filter(n => n.kind === "event").length + '</strong> turning points (✦) that caused a split');
 }
 function renderChurchHistory(filter){
   lastTerms = [];
