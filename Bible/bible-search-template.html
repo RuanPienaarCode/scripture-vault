@@ -390,12 +390,14 @@
      calc() reserves ~220px for the furniture above and below. */
   /* overscroll-behavior is `contain auto`, not plain `contain`: sideways stays
      contained (an over-swipe there is the browser's back gesture), but the vertical
-     axis has to chain, or the wheel handler's "already at the edge, take it" escape
-     hatch would be swallowed here and the chart would still trap the page. */
+     axis has to chain — it is now the ONLY thing stopping the chart trapping the
+     page. A plain wheel/swipe is left unhandled so this container scrolls natively
+     (see chWirePanZoom), so when the poster is swiped past its top or bottom edge
+     `auto` is what hands the rest of the gesture to the page. */
   .chd-wrap{overflow:auto;overscroll-behavior:contain auto;border:1px solid var(--line);border-radius:12px;
     background:var(--panel);height:min(72vh,calc(100vh - 220px));min-height:260px;
     cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;
-    scrollbar-width:none;-ms-overflow-style:none}          /* pan by dragging — hide the scrollbars */
+    scrollbar-width:none;-ms-overflow-style:none}     /* pan by dragging/swiping — hide the scrollbars */
   .chd-wrap::-webkit-scrollbar{width:0;height:0;display:none}
   .chd-wrap.grabbing{cursor:grabbing}
   .chd-zoom{position:relative}
@@ -434,8 +436,8 @@
   .chd-pop .pblurb{font-size:15.5px;font-weight:300;color:var(--muted);line-height:1.65;margin:11px 0 0}
   .chd-pop .ch-from{font-size:13px;margin-top:11px}
   .chd-pop .ch-members{font-size:12.5px;margin-top:11px}
-  .chd-eralabel{position:absolute;font-family:var(--sans);font-size:12px;font-weight:400;color:var(--accent);
-    white-space:nowrap;letter-spacing:.02em}
+  .chd-eralabel{position:absolute;font-family:var(--sans);font-size:calc(12px * var(--lodk,1));
+    font-weight:400;color:var(--accent);white-space:nowrap;letter-spacing:.02em}
   .chd-eralabel .ch-span{margin-left:8px}
   .chd-rule{position:absolute;left:0;right:0;height:1px;background:var(--line);opacity:.55}
   .chd-pill{position:absolute;transform:translateX(-50%);display:flex;align-items:center;gap:4px;
@@ -463,7 +465,24 @@
   .chd-nyr{font-size:10.5px;font-weight:400;color:var(--muted-2);letter-spacing:.02em;
     font-variant-numeric:tabular-nums;line-height:1.15;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .chd-nname{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;
-    font-size:12.5px;font-weight:400;color:var(--ink);line-height:1.25}
+    font-size:calc(12.5px * var(--lodk,1));font-weight:400;color:var(--ink);line-height:1.25}
+  /* ── semantic zoom (level of detail) ─────────────────────────────────────────
+     The canvas is scaled by one CSS transform, so at 35% a 12.5px name renders at
+     4.4px — and 35% is roughly where "Fit" lands in a normal pane, which made the
+     DEFAULT view the unreadable one. So the type is counter-scaled: --lodk (set by
+     chApplyZoom) grows as you zoom out, holding the name near a constant size ON
+     SCREEN rather than on the canvas. Type alone isn't enough — a bigger font in a
+     box that is itself shrinking just clips sooner — so the furniture that competes
+     for the box is dropped as you go out: the year first, then the emblem, the
+     SA/✦ tag and the whole header row, handing the name the entire box. Fewer
+     characters per line would be the price if the font grew without limit, so it
+     doesn't — see CH_LOD_MAXK, which is capped at the measured point where names
+     would start to clip. Family pills are hidden rather than scaled, because their
+     anti-overlap spread is computed once at build time in canvas px and scaling the
+     text would make them collide. */
+  .chd-wrap.z-far .chd-nhead,.chd-wrap.z-far .chd-tag,.chd-wrap.z-far .chd-pill{display:none}
+  .chd-wrap.z-far .chd-node{justify-content:center;padding:5px 7px}
+  .chd-wrap.z-far .chd-nname{-webkit-line-clamp:4}
   .chd-tag{position:absolute;top:4px;right:6px;font-size:9px;font-weight:400;letter-spacing:.04em;color:var(--badge-sa)}
   /* Lineage lighting — selecting a branch marks its whole ancestry (and its direct
      children) plus the lines between them, so "where did this come from" is a
@@ -1974,17 +1993,39 @@ function chData(){
       for (const p of (n.parents || [])) if (inThisEra.has(p)) emit(_ch.byId[p]);
       order.push(n);
     };
-    inEra.slice().sort((a, b) => want[a.id] - want[b.id] || (a.year || 0) - (b.year || 0)).forEach(emit);
-    // place; anything that would overlap — or sit at/above a same-era parent — drops a row
+    /* Sort by YEAR first, x second. It used to be the other way round, which meant a
+       band's rows were packed in left-to-right order and time inside a band was close
+       to arbitrary — 1517 could sit below 1596, and reading downward told you nothing.
+       Sorting by year and refusing to place a node above one already put down from an
+       earlier year takes the chart from 365 chronological inversions to 31, and the
+       poster comes out slightly SHORTER (5589px → 5488px), because year order happens
+       to pack better than x order. */
+    inEra.slice().sort((a, b) => (a.year || 0) - (b.year || 0) || want[a.id] - want[b.id]).forEach(emit);
+    // place; anything that would overlap — or sit at/above a same-era parent, or above
+    // an earlier year — drops a row
     const rows = [];
-    let maxRow = 0;
+    let maxRow = 0, floor = 0, floorYear = -Infinity;
     for (const n of order){
       const x = want[n.id];
+      const yr = n.year || 0;
       let r = 0;
       for (const p of (n.parents || [])){
         const pp = inThisEra.has(p) ? _ch.pos[p] : null;
         if (pp && pp.row >= r) r = pp.row + 1;
       }
+      /* Moving to a later year drops the floor to the deepest row used so far, so time
+         can only ever run downward. Equal rows are allowed — the rule is "never ABOVE
+         an earlier year", not "always strictly below", which would explode a 23-year
+         band into 23 rows. The 31 residual inversions are ones the DATA forces, where
+         lineage and chronology genuinely disagree: St Thomas Christians is dated AD 52
+         but descends from the Church of the East (432), and a child must sit under its
+         parent — in a genealogy lineage outranks the calendar. */
+      if (yr > floorYear){
+        floor = 0;
+        rows.forEach((row, i) => { if (row && row.length) floor = i; });
+        floorYear = yr;
+      }
+      if (r < floor) r = floor;
       while ((rows[r] || (rows[r] = [])).some(ox => Math.abs(ox - x) < PITCH)) r++;
       rows[r].push(x);
       _ch.pos[n.id] = { x, y: bandY + r * ROWH, row: r };
@@ -2126,7 +2167,7 @@ function chBuild(){
     '<svg width="' + d.W + '" height="' + d.H + '" viewBox="0 0 ' + d.W + ' ' + d.H + '" aria-hidden="true">' + edges + '</svg>' +
     bandsHtml + nodesHtml + '</div></div></div>' +
     '<div class="chd-pop" id="chdPop" role="dialog" aria-label="Branch details" hidden></div></div>' +
-    '<p class="chd-hint">Drag to pan · scroll or pinch to zoom · −/+ or Fit above · ⛶ for full screen · tap a branch for its story. ' +
+    '<p class="chd-hint">Drag or swipe to pan · pinch (or ⌘/Ctrl-scroll) to zoom · −/+ or Fit above · ⛶ for full screen · tap a branch for its story. ' +
     'With a branch selected, <strong>↑</strong> walks up to its parent, <strong>↓</strong> down into what came out of it, ' +
     '<strong>←</strong>/<strong>→</strong> step sideways across the same row — and its whole ancestry lights up. ' +
     'Dashed ✦ boxes are turning points — the councils, edicts and revivals that caused the branch below.</p>' +
@@ -2240,6 +2281,29 @@ document.addEventListener("fullscreenchange", () => {
    scrollbars track the zoom. Pan is single-pointer drag (mouse + touch); a drag that
    moves past a few px sets chPanned so the click it ends on doesn't tap a branch. */
 let chZ = 1, chPanned = false, chApplyZoom = null;
+/* Level of detail for one zoom level. --lodk counter-scales the type so a name holds
+   roughly CH_LOD_TARGET px ON SCREEN however far out you are; the cap stops it from
+   growing so large inside a shrinking box that it clips more than it reveals. The
+   tier classes then strip the box's furniture — year, then the whole header — so the
+   enlarged name has somewhere to go. Both tiers sit below 1, so at 100% nothing here
+   changes what the chart has always looked like. */
+/* MAXK is measured, not guessed: with the header gone the name owns the whole box, and
+   sweeping the multiplier against all 114 names shows a hard cliff — 1.5 clips nothing,
+   1.6 clips 18, 2.0 clips 51. "Never cut a name" is the rule this chart was just fixed
+   to obey, so the cap is the largest value that keeps it. Counter-scaling also only
+   starts BELOW the far threshold, once the year and emblem have gone: while the header
+   is still there the name has no spare room, so a bigger font there would clip rather
+   than reveal. That makes the full-detail tier byte-identical to what it always was. */
+const CH_LOD_TARGET = 10.5, CH_LOD_MAXK = 1.5, CH_LOD_FAR = 0.72;
+function chLod(z){
+  const wrap = document.getElementById("chdWrap");
+  const canvas = document.getElementById("chdCanvas");
+  if (!wrap || !canvas) return;
+  const far = z < CH_LOD_FAR;
+  const k = far ? Math.min(CH_LOD_MAXK, Math.max(1, CH_LOD_TARGET / (z * 12.5))) : 1;
+  canvas.style.setProperty("--lodk", k.toFixed(3));
+  wrap.classList.toggle("z-far", far);
+}
 function chWirePanZoom(){
   const wrap = document.getElementById("chdWrap");
   const zoomEl = document.getElementById("chdZoom");
@@ -2266,7 +2330,9 @@ function chWirePanZoom(){
     wrap.scrollLeft = contentX * z - cx;
     wrap.scrollTop = contentY * z - cy;
     if (pct) pct.textContent = Math.round(z * 100) + "%";
+    chLod(z);
   };
+  chLod(chZ);
   /* Drag-to-pan (one pointer) and pinch-to-zoom (two). Both ride pointer events
      rather than touch events, because .chd-wrap sets touch-action:none — the browser
      hands us every gesture and does none of its own, so a phone gets no pinch at all
@@ -2330,40 +2396,30 @@ function chWirePanZoom(){
   };
   wrap.addEventListener("pointerup", end);
   wrap.addEventListener("pointercancel", end);
-  // In the pane the wheel zooms toward the cursor (rather than scrolls) — you move
-  // around by dragging. Trackpad pinch arrives here too (as ctrl+wheel). The zoom
-  // step is proportional to how far you scrolled (normalised across wheel/line/page
-  // delta modes) and clamped, so one violent flick can't jump the whole range.
-  // Pinch and wheel get DIFFERENT rates, which is the point: a trackpad pinch emits
-  // deltas around ±1–10px where a mouse notch is 100, so one shared rate can only
-  // ever suit one of them. The old shared 0.0012/px was tuned for the notch and left
-  // pinch crawling at well under 1% an event — hence "zooms very slowly". Pinch now
-  // runs ~8× hotter, putting a comfortable gesture in the same league as the ×1.25
-  // the toolbar buttons step, and the plain wheel is up enough to feel live too.
-  // …but the chart must not be a scroll trap. It's a tall window that swallows every
-  // gesture starting inside it, so once the poster is panned hard against its top or
-  // bottom edge a plain vertical wheel is handed back to the page instead of zooming
-  // (see also overscroll-behavior:contain auto, which has to allow the hand-off).
-  // ctrl/meta+wheel — trackpad pinch — always zooms, and a horizontal-dominant gesture
-  // stays here too, since sideways is how you read the poster.
-  // The `over` guard matters: at fit-to-width the scaled canvas can be SHORTER than the
-  // window, and then scrollTop is 0 and at the maximum at once — without it every
-  // vertical wheel would chain and "scroll to zoom" would simply stop working.
+  /* The map convention: a plain wheel or two-finger swipe MOVES the poster, and zoom
+     is the deliberate gesture — pinch, ctrl/⌘+wheel, or the −/+ buttons. It reads the
+     way Figma and Maps do, and it needs no guessing about what kind of device sent the
+     event, which matters because a wheel notch and a trackpad swipe are the same event
+     and a Magic Mouse scrolls like a trackpad anyway.
+
+     Panning is the browser's job, not ours: we simply don't preventDefault, so
+     .chd-wrap — a real overflow:auto container whose .chd-zoom sizer already carries
+     the scaled dimensions — scrolls natively in both axes, with the platform's own
+     momentum. That also retires the old at-the-edge escape hatch: overscroll-behavior
+     (contain sideways, auto vertically) decides on its own when an over-swipe belongs
+     to the page, so the chart stops being a scroll trap without any help from here.
+
+     Zoom keeps ONE rate for both devices, because the clamp does the reconciling: a
+     trackpad pinch sends ±1–10px, so it eases at ~6% an event, while a ctrl+wheel
+     mouse notch sends 100 and saturates the cap at exactly ×1.25 — the same step the
+     toolbar buttons take. */
   wrap.addEventListener("wheel", e => {
-    if (!e.ctrlKey && !e.metaKey && Math.abs(e.deltaY) > Math.abs(e.deltaX)){
-      const over = wrap.scrollHeight - wrap.clientHeight;
-      const atTop = e.deltaY < 0 && wrap.scrollTop <= 0;
-      const atBottom = e.deltaY > 0 && wrap.scrollTop >= over - 1;
-      if (over > 1 && (atTop || atBottom)) return;          // let it chain to the page
-    }
+    if (!e.ctrlKey && !e.metaKey) return;                 // swipe/wheel → native pan
     e.preventDefault();
     let dy = e.deltaY;
     if (e.deltaMode === 1) dy *= 16;                      // lines → ~px
     else if (e.deltaMode === 2) dy *= wrap.clientHeight;  // pages → ~px
-    const zoomGesture = e.ctrlKey || e.metaKey;           // trackpad pinch
-    const rate = zoomGesture ? 0.01 : 0.0035;
-    const cap = zoomGesture ? 0.25 : 0.15;
-    const step = Math.max(-cap, Math.min(cap, -dy * rate));
+    const step = Math.max(-0.25, Math.min(0.25, -dy * 0.01));
     const r = wrap.getBoundingClientRect();
     chApplyZoom(chZ * (1 + step), e.clientX - r.left, e.clientY - r.top);
   }, { passive: false });
