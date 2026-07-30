@@ -480,21 +480,9 @@
      would start to clip. Family pills are hidden rather than scaled, because their
      anti-overlap spread is computed once at build time in canvas px and scaling the
      text would make them collide. */
-  .chd-wrap.z-far .chd-tag,.chd-wrap.z-far .chd-pill,.chd-wrap.z-far .chd-nyr{display:none}
+  .chd-wrap.z-far .chd-nhead,.chd-wrap.z-far .chd-tag,.chd-wrap.z-far .chd-pill{display:none}
   .chd-wrap.z-far .chd-node{justify-content:center;padding:5px 7px}
-  .chd-wrap.z-far .chd-nname{-webkit-line-clamp:4;position:relative;z-index:1}
-  /* The family emblem at far zoom. A 20px mark shrinks to 7px on screen at 35% — a
-     smudge — but counter-scaling it into a corner badge is worse than it sounds: the
-     badge has to be inset out of the text, and the ~44px of line width that costs
-     pushes the name font back below the no-clip cap. So the emblem goes the other
-     way. It leaves the flow (costing the box no height, so the name keeps the full
-     width AND the 1.5x cap) and becomes a large, faint watermark behind the text.
-     Bigger is what makes it legible when zoomed out: 46px of canvas still reads as a
-     recognisable shape at 35%, where 20px could not. It stays the same <img>, so the
-     per-theme invert/plate contrast fixes decided at build time still apply. */
-  .chd-wrap.z-far .chd-nhead{position:absolute;right:5px;bottom:3px;min-height:0;
-    opacity:.24;z-index:0;pointer-events:none}
-  .chd-wrap.z-far .chd-node .ch-ico{width:46px;height:46px}
+  .chd-wrap.z-far .chd-nname{-webkit-line-clamp:4}
   .chd-tag{position:absolute;top:4px;right:6px;font-size:9px;font-weight:400;letter-spacing:.04em;color:var(--badge-sa)}
   /* Lineage lighting — selecting a branch marks its whole ancestry (and its direct
      children) plus the lines between them, so "where did this come from" is a
