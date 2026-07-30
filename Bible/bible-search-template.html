@@ -304,12 +304,59 @@
      The canvas is wider than the page and scrolls sideways like a wall poster;
      tapping a node tells its story in the card above the chart. */
   .ch-intro{font-size:13.5px;font-weight:300;color:var(--muted);margin:2px 0 10px;line-height:1.6;max-width:60ch}
-  .ch-legend{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 6px}
-  .ch-chip{display:inline-flex;align-items:center;gap:7px;font-family:var(--sans);font-size:12px;font-weight:300;
-    color:var(--muted);background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:4px 11px;cursor:pointer}
-  .ch-chip:hover{color:var(--ink)}
-  .ch-chip[aria-pressed="true"]{color:var(--ink);background:var(--panel-2);border-color:currentColor}
-  .ch-dot{width:9px;height:9px;border-radius:50%;flex:none}
+  /* Sixteen family badges laid out as a wrapped chip row cost four lines of vertical
+     space above a chart that is already fighting for height, and on a narrow pane
+     they reflowed into a wall. They are one dropdown now: the button says which
+     family is spotlit, the menu lists all sixteen with emblem and branch count. */
+  .ch-legend{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:4px 0 6px}
+  .ch-famsel{position:relative}
+  .ch-fambtn{display:inline-flex;align-items:center;gap:8px;font-family:var(--sans);font-size:12.5px;font-weight:300;
+    color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:6px 12px;cursor:pointer}
+  .ch-fambtn:hover{border-color:var(--accent)}
+  .ch-fambtn .ch-caret{color:var(--muted-2);font-size:10px;line-height:1}
+  .ch-fammenu{position:absolute;z-index:8;top:calc(100% + 6px);left:0;min-width:292px;
+    max-height:min(56vh,400px);overflow:auto;overscroll-behavior:contain;
+    background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow-pop);padding:5px}
+  .ch-fammenu[hidden]{display:none}
+  .ch-famopt{display:flex;align-items:center;gap:9px;width:100%;text-align:left;font-family:var(--sans);
+    font-size:13px;font-weight:300;color:var(--muted);background:none;border:none;border-radius:8px;
+    padding:7px 10px;cursor:pointer}
+  .ch-famopt:hover{background:var(--panel-2);color:var(--ink)}
+  .ch-famopt[aria-checked="true"]{color:var(--ink);background:var(--panel-2)}
+  .ch-famopt .ch-span{margin-left:auto;font-variant-numeric:tabular-nums}
+  /* Each family carries a traditional emblem — an Orthodox three-bar cross, the
+     Luther rose, the Reformed burning bush, crossed keys for Rome. They are drawn
+     as inline SVG (stroked in the family's own colour) rather than fetched images:
+     the page has to work offline inside the plugin pane, and a symbol you can
+     recolour per theme beats a raster that can't. */
+  /* 15px was too small for any of these to read — the detail in a three-bar cross or
+     a pair of crossed keys just turns to mush. 20px in the node boxes (which are big
+     enough for it now) and 17px in the dropdown, where the label carries the meaning
+     anyway and the emblem is only a visual anchor. */
+  .ch-ico{width:17px;height:17px;flex:none;display:block}
+  .chd-node .ch-ico{width:20px;height:20px}
+  /* Real emblem artwork (a base64 PNG) rather than a drawn glyph. object-fit keeps a
+     tall emblem from stretching; the images are pre-squared at build time anyway.
+     .inv marks the ones that are near-black on transparent — the plain Orthodox,
+     Coptic and voided crosses — which would otherwise disappear into the dark panel.
+     Inverted by default because dark IS the default theme; the light theme, where
+     black is already correct, switches the filter back off. */
+  /* Contrast fixes for the real artwork, applied per theme and decided at build time
+     from each image's own luminance and colourfulness (see tools/data/family-emblems.js).
+     The problem runs BOTH ways: a near-black cross disappears into the dark panel, and
+     the white Pentecost dove disappears just as completely into the cream one.
+       .inv-d / .inv-l  monochrome artwork — invert it on the theme it loses against.
+       .plate-d / .plate-l  coloured artwork, which can't be inverted without wrecking
+       its hues, so it gets a contrasting plate to sit on instead. That is the ordinary
+       way to show someone else's logo against an unfriendly background rather than
+       repainting their artwork. */
+  img.ch-emb{object-fit:contain}
+  img.ch-emb.inv-d{filter:invert(1)}
+  img.ch-emb.plate-d{background:#f2efe7;border-radius:4px;padding:1px;box-sizing:border-box}
+  :root[data-theme="light"] img.ch-emb.inv-d{filter:none}
+  :root[data-theme="light"] img.ch-emb.plate-d{background:none;padding:0}
+  :root[data-theme="light"] img.ch-emb.inv-l{filter:invert(1)}
+  :root[data-theme="light"] img.ch-emb.plate-l{background:#2b2f36;border-radius:4px;padding:1px;box-sizing:border-box}
   .ch-clear{font-family:var(--sans);font-size:12px;font-weight:300;color:var(--accent);background:none;border:none;
     cursor:pointer;padding:4px 6px;text-decoration:underline}
   .ch-span{font-size:11px;font-weight:300;color:var(--muted-2);letter-spacing:.02em}
@@ -362,6 +409,15 @@
   .chd-zbtn:hover{color:var(--ink);background:var(--panel-2)}
   .chd-zpct{font-size:11px;min-width:46px;font-variant-numeric:tabular-nums;letter-spacing:.02em}
   .chd-hint{font-family:var(--sans);font-size:11px;font-weight:300;color:var(--muted-2);margin:7px 2px 0;letter-spacing:.02em}
+  /* Expanded view. Native requestFullscreen is attempted, but the page normally
+     runs inside the plugin's pane, where fullscreen is often refused — so the real
+     work is done by position:fixed, which fills the pane (or the window, when the
+     native request did land). Flex, not height:100%, so the padding doesn't push
+     the wrap past the bottom edge. */
+  .chd-frame.full{position:fixed;inset:0;z-index:60;margin:0;padding:12px;
+    background:var(--bg);display:flex;flex-direction:column}
+  .chd-frame.full .chd-wrap{flex:1 1 auto;height:auto;min-height:0;max-height:none;border-radius:10px}
+  .chd-zbtn[aria-pressed="true"]{color:var(--accent);background:var(--panel-2)}
   /* the branch popup — a floating card over the chart when a node is tapped */
   .chd-pop{position:absolute;left:50%;transform:translateX(-50%);bottom:14px;z-index:6;
     width:min(560px,92%);max-height:74%;overflow:auto;overscroll-behavior:contain;
@@ -382,18 +438,33 @@
     white-space:nowrap;letter-spacing:.02em}
   .chd-eralabel .ch-span{margin-left:8px}
   .chd-rule{position:absolute;left:0;right:0;height:1px;background:var(--line);opacity:.55}
-  .chd-pill{position:absolute;transform:translateX(-50%);font-family:var(--sans);font-size:7.5px;font-weight:400;
-    text-transform:uppercase;letter-spacing:.05em;padding:2px 6px;border-radius:999px;border:1px solid;
+  .chd-pill{position:absolute;transform:translateX(-50%);display:flex;align-items:center;gap:4px;
+    font-family:var(--sans);font-size:8.5px;font-weight:400;
+    text-transform:uppercase;letter-spacing:.05em;padding:2px 7px;border-radius:999px;border:1px solid;
     background:var(--panel-2);white-space:nowrap;z-index:2}
+  .chd-pill .ch-ico{width:11px;height:11px}
+  /* Node boxes. They were 94×52 with an 11.5px two-line name, which meant most
+     branch names clipped and the emblem had nowhere to sit — you had to zoom to
+     read the tree at all. At 132×74 with a 13px three-line name almost every
+     branch reads at 100%, and the family emblem gets a proper top-left slot. */
   .chd-node{position:absolute;box-sizing:border-box;font-family:var(--sans);text-align:left;cursor:pointer;
-    background:var(--panel-2);border:1px solid var(--line);border-top:3px solid var(--muted);border-radius:6px;
-    padding:3px 7px 4px;overflow:hidden;z-index:1;transition:opacity .18s ease}
+    display:flex;flex-direction:column;gap:3px;
+    background:var(--panel-2);border:1px solid var(--line);border-top:3px solid var(--muted);border-radius:8px;
+    padding:6px 9px 7px;overflow:hidden;z-index:1;transition:opacity .18s ease,border-color .15s ease}
   .chd-node:hover{border-color:var(--accent)}
-  .chd-nyr{display:block;font-size:9.5px;font-weight:400;color:var(--muted-2);letter-spacing:.02em;
-    font-variant-numeric:tabular-nums;line-height:1.15}
-  .chd-nname{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
-    font-size:11.5px;font-weight:400;color:var(--ink);line-height:1.2}
-  .chd-tag{position:absolute;top:2px;right:4px;font-size:7.5px;font-weight:400;letter-spacing:.04em;color:var(--badge-sa)}
+  .chd-node:focus-visible{outline:2px solid var(--accent);outline-offset:1px;z-index:3}
+  .chd-nhead{display:flex;align-items:center;gap:6px;min-height:15px}
+  .chd-nyr{font-size:10.5px;font-weight:400;color:var(--muted-2);letter-spacing:.02em;
+    font-variant-numeric:tabular-nums;line-height:1.15;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .chd-nname{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;
+    font-size:13px;font-weight:400;color:var(--ink);line-height:1.22}
+  .chd-tag{position:absolute;top:4px;right:6px;font-size:9px;font-weight:400;letter-spacing:.04em;color:var(--badge-sa)}
+  /* Lineage lighting — selecting a branch marks its whole ancestry (and its direct
+     children) plus the lines between them, so "where did this come from" is a
+     visible path up the poster rather than something you reconstruct by eye. It is
+     a separate class from .dim, which the search/legend filter owns. */
+  .chd-node.kin{border-color:var(--accent-2)}
+  .chd-canvas path.lit{opacity:.95;stroke-width:2.4}
   /* Turning points — the councils, edicts and revivals that CAUSED the branch below.
      Dashed edge + ✦ so they read as a different kind of thing at a glance, with the
      family tint still carried on the top border. */
@@ -765,7 +836,7 @@ __TRANS_MENU__
             <tr><td><code>pentecostal</code></td><td>find a tradition and everything named for it</td></tr>
             <tr><td><code>chalcedon</code></td><td>find a turning point and the branches it caused</td></tr>
           </table>
-          <p>A family-tree chart of how the churches branched, apostles to today — it scrolls sideways like a poster. Tap a branch for its story; tap a colour to light up one family. The dashed <strong>✦</strong> boxes are turning points — Chalcedon, the Great Schism, Worms, Trent, Vatican II — and they sit in the chain between what came before and the branch they caused, so you can read <em>why</em> a split happened and not only who came from whom.</p>
+          <p>A family-tree chart of how the churches branched, apostles to today — it scrolls sideways like a poster. Tap a branch for its story — its ancestry lights up all the way back, and the arrow keys then walk the family line. Pick a family from the dropdown to light up one tradition, and <strong>⛶</strong> opens the chart full screen. The dashed <strong>✦</strong> boxes are turning points — Chalcedon, the Great Schism, Worms, Trent, Vatican II — and they sit in the chain between what came before and the branch they caused, so you can read <em>why</em> a split happened and not only who came from whom.</p>
         </div>
         <div id="help-otd" hidden>
           <table>
@@ -1569,14 +1640,15 @@ const TIMELINE = [
     { when: "c. AD 34", title: "Conversion of Paul", note: "A fierce opponent becomes the movement's greatest missionary.",
       refs: ["Acts 9:1-9", "Galatians 1:13-16"] },
     { when: "c. AD 48–65", title: "Paul's letters", note: "Paul writes to young churches — the earliest New Testament books to be written.",
-      refs: ["1 Thessalonians 1:1", "Colossians 4:16"] },
+      see: ["Bible History/Sources/Paul's Letters"], refs: ["1 Thessalonians 1:1", "Colossians 4:16"] },
     { when: "c. AD 65–95", title: "The Gospels & Revelation", note: "Matthew, Mark, Luke, John, and the rest of the New Testament are written.",
-      refs: ["Luke 1:1-4", "John 20:30-31", "Revelation 1:9"] },
+      see: ["Bible History/Sources/The Writing of the New Testament"], refs: ["Luke 1:1-4", "John 20:30-31", "Revelation 1:9"] },
     { when: "AD 70", title: "The Temple destroyed", note: "Rome razes the Second Temple; Judaism and the church are reshaped.",
       see: ["Bible History/People/Josephus"], refs: ["Matthew 24:1-2"] },
   ]},
   { era: "The Early Church & Fathers", events: [
-    { when: "c. AD 95–110", title: "Apostolic Fathers", note: "Clement of Rome, Ignatius of Antioch, and Polycarp — the first generation after the apostles." },
+    { when: "c. AD 95–110", title: "Apostolic Fathers", note: "Clement of Rome, Ignatius of Antioch, and Polycarp — the first generation after the apostles.",
+      see: ["Bible History/Sources/Apostolic Fathers"] },
     { when: "c. AD 150", title: "Justin Martyr", note: "An early apologist defends the faith; the Gospels are read in worship.",
       see: ["Bible History/People/Melito of Sardis"] },
     { when: "c. AD 180", title: "Irenaeus of Lyons", note: "Defends the fourfold Gospel and the church's core teaching against heresies.",
@@ -1591,7 +1663,8 @@ const TIMELINE = [
       see: ["Bible History/People/Jerome", "Bible History/Sources/Latin Vulgate"] },
     { when: "AD 397", title: "Council of Carthage", note: "A church council confirms the New Testament canon.",
       see: ["Bible History/People/Augustine of Hippo", "Bible History/Concepts/Canon (Biblical)", "Bible History/Concepts/Deuterocanon"] },
-    { when: "AD 451", title: "Council of Chalcedon", note: "Affirms that Christ is fully God and fully man in one person." },
+    { when: "AD 451", title: "Council of Chalcedon", note: "Affirms that Christ is fully God and fully man in one person.",
+      see: ["Bible History/Events/Council of Chalcedon (451)"] },
   ]},
   { era: "Middle Ages to Reformation", events: [
     { when: "1382", title: "Wycliffe's Bible", note: "The first complete English Bible, translated from the Latin by hand.",
@@ -1601,16 +1674,24 @@ const TIMELINE = [
     { when: "1517", title: "Luther's 95 Theses", note: "The Reformation begins, recovering salvation by grace through faith and the Bible in the language of the people.",
       see: ["Bible History/People/Martin Luther", "Bible History/Events/Protestant Reformation", "Bible History/Events/Indulgences & Purgatory"],
       refs: ["Romans 1:16-17"] },
-    { when: "1526", title: "Tyndale's New Testament", note: "The first English New Testament translated from the Greek; it shapes English for centuries." },
+    { when: "1518", title: "Cajetan confronts Luther", note: "Rome sends its sharpest theologian to argue Luther down — and Cajetan turns out to agree with him that the disputed books can't settle doctrine.",
+      see: ["Bible History/People/Cardinal Cajetan", "Bible History/Concepts/Deuterocanon"] },
+    { when: "1519", title: "Leipzig Disputation", note: "Luther argues that purgatory has no scriptural basis, because its one proof-text sits in a book he does not count as canon.",
+      see: ["Bible History/Events/Leipzig Disputation", "Bible History/People/Martin Luther"] },
+    { when: "1526", title: "Tyndale's New Testament", note: "The first English New Testament translated from the Greek; it shapes English for centuries.",
+      see: ["Bible History/Sources/Tyndale's New Testament"] },
+    { when: "1546", title: "Council of Trent", note: "Rome fixes its 73-book canon and, for the first time in canon history, attaches an anathema to dissent.",
+      see: ["Bible History/Events/Council of Trent (1546)", "Bible History/Canons/Roman Catholic Canon (73)", "Bible History/Concepts/Deuterocanon"] },
     { when: "1611", title: "The King James Version", note: "The KJV is published and becomes the most widely read English Bible for generations.",
       see: ["Bible History/Canons/Protestant Canon (66)"] },
   ]},
   { era: "The Modern Era", events: [
     { when: "1947", title: "Dead Sea Scrolls", note: "Ancient manuscripts push our earliest Hebrew copies back a thousand years and confirm careful transmission.",
       see: ["Bible History/Sources/Dead Sea Scrolls"], refs: ["Isaiah 40:8"] },
-    { when: "19th–21st c.", title: "Critical texts & new translations", note: "Careful study of the Greek and Hebrew yields modern translations — ESV, NIV, NLT, and many more." },
+    { when: "19th–21st c.", title: "Critical texts & new translations", note: "Careful study of the Greek and Hebrew yields modern translations — ESV, NIV, NLT, and many more.",
+      see: ["Bible History/Sources/Critical Texts & Modern Translations"] },
     { when: "Today", title: "The Bible for the world", note: "The whole Bible is available in well over 700 languages, and portions in thousands more — and it links straight into this vault.",
-      refs: ["Matthew 28:18-20"] },
+      see: ["Bible History/Concepts/The Bible in Every Language"], refs: ["Matthew 28:18-20"] },
   ]},
 ];
 const TIMELINE_NOTE = "Bible History/Bible History Timeline";
@@ -1722,6 +1803,88 @@ const CH_COLOR = {
 // and hand a function back to be interpolated into a style string.
 const chColor = fam =>
   Object.prototype.hasOwnProperty.call(CH_COLOR, fam) ? CH_COLOR[fam] : "var(--muted)";
+/* Family emblems. Each is the traditional sign the tradition itself uses — the
+   Orthodox three-bar cross with its slanted footrest, Rome's crossed keys, Luther's
+   rose, the Reformed burning bush, the Restorationists' open Bible, Pentecost's
+   descending dove. They are hand-drawn inline SVG paths, not fetched artwork: the
+   built page has to render offline inside the plugin pane (no network at runtime),
+   and a stroked path takes the family's own colour in both themes where a raster
+   would sit wrong on one of them. The forms are ancient and public domain; modern
+   trademarked marks (the UMC cross-and-flame, the Anglican Communion compass rose
+   as drawn) are deliberately NOT copied — Methodist gets Wesley's warmed heart and
+   Anglican a plain compass star. */
+const CH_ICON = {
+  // Chi-Rho — the ☧ monogram, oldest sign of the common trunk
+  roots:'<path d="M6 8l12 10M18 8L6 18"/><path d="M12 21V4h2.4a2.7 2.7 0 0 1 0 5.4H12"/>',
+  // East Syriac cross, standing on its stepped base
+  cote:'<path d="M12 3v13M7.5 8h9M8 20.5h8M9.6 17h4.8"/>',
+  // Coptic / Oriental cross — equal arms about a centre
+  oriental:'<path d="M12 4v16M4 12h16"/><circle cx="12" cy="12" r="2.6"/>',
+  // Orthodox three-bar cross, footrest slanted
+  orthodox:'<path d="M12 3v18M8 7h8M5.5 12h13M8.5 17.8l7-3.2"/>',
+  // the crossed keys of Peter
+  catholic:'<circle cx="6.8" cy="6.4" r="2.3"/><circle cx="17.2" cy="6.4" r="2.3"/><path d="M8.4 8.1L17 17.4M15.6 7.9L7 17.4M15.3 15.4l-1.6 1.7M8.7 15.4l1.6 1.7"/>',
+  // Hus and Wycliffe — the candle lit before the dawn
+  forerunner:'<path d="M9.6 21h4.8M12 21v-6.6"/><path d="M12 14.4c-2 0-3.2-1.4-3.2-3.1C8.8 9 12 7.2 12 3.4c0 3.8 3.2 5.6 3.2 7.9 0 1.7-1.2 3.1-3.2 3.1z"/>',
+  // the Luther rose — a cross in a heart, set in a rose
+  lutheran:'<circle cx="12" cy="12" r="8.6"/><path d="M12 18c-2.9-2.1-4.3-3.5-4.3-5.1a2.15 2.15 0 0 1 4.3-.9 2.15 2.15 0 0 1 4.3.9c0 1.6-1.4 3-4.3 5.1z"/><path d="M12 15.2V9.6M10.2 11.4h3.6"/>',
+  // the burning bush that was not consumed. Drawn as a dome on the ground with the
+  // flame above it — the earlier outlined-bush-on-a-stem version read as a lollipop
+  // once it was scaled down to the size it actually ships at.
+  reformed:'<path d="M4.6 18h14.8"/><path d="M6 18a6 6 0 0 1 12 0"/><path d="M9.2 8.8c0-1.5 1.4-2 1.4-3.4M14.8 9.2c0-1.4 1.4-1.9 1.4-3.3M12 7.2c0-1.8 1.6-2.4 1.6-4.2"/>',
+  // a plain compass star — the church sent to the four corners
+  anglican:'<circle cx="12" cy="12" r="4.4"/><path d="M12 1.8v5.8M12 16.4v5.8M1.8 12h5.8M16.4 12h5.8M5.6 5.6l3 3M15.4 15.4l3 3M18.4 5.6l-3 3M8.6 15.4l-3 3"/>',
+  // the shepherd's crook — the flock rather than the sword. A lamb is the truer
+  // Anabaptist sign, but every lamb silhouette tested turned into an unreadable blob
+  // at 15–20px; a single curved stroke survives the size, so legibility wins.
+  radical:'<path d="M9 21V8.4a4.1 4.1 0 0 1 8.2 0v1.3"/>',
+  // believer's baptism — the drop going down into the water
+  baptist:'<path d="M12 2.6s4.8 5.6 4.8 8.9a4.8 4.8 0 0 1-9.6 0c0-3.3 4.8-8.9 4.8-8.9z"/><path d="M3 18.6c1.8 0 1.8 1.6 3.6 1.6s1.8-1.6 3.6-1.6 1.8 1.6 3.6 1.6 1.8-1.6 3.6-1.6 1.8 1.6 3.6 1.6"/>',
+  // Wesley's heart, strangely warmed
+  methodist:'<path d="M12 21c-4.4-3.2-7-5.7-7-8.6a3.5 3.5 0 0 1 7-1.4 3.5 3.5 0 0 1 7 1.4c0 2.9-2.6 5.4-7 8.6z"/><path d="M12 8.6c-1.7-1.5-.9-3.4 0-4.8.9 1.4 2.5 2.6 1.4 4.2"/>',
+  // the open Bible — "no creed but Scripture"
+  restoration:'<path d="M12 6.6S9.6 4.9 7.4 4.9 2.6 6.6 2.6 6.6v12S5 16.9 7.4 16.9s4.6 1.7 4.6 1.7z"/><path d="M12 6.6s2.4-1.7 4.6-1.7 4.8 1.7 4.8 1.7v12s-2.4-1.7-4.8-1.7-4.6 1.7-4.6 1.7z"/>',
+  // the descending dove of Pentecost
+  pentecostal:'<path d="M21.2 4.4c-2.7.7-4.8 2.4-6.6 4.7-1.6 2-3 3.1-5.1 3.1H4.9a6.4 6.4 0 0 0 12.2 1.7"/><path d="M11.2 12.4L8.6 19.8l5.2-3.6M19.4 6.6l.9 2.6"/>',
+  // the sun rising over Africa — the Spirit poured out on a new continent
+  african:'<path d="M3 18.4h18M6.6 18.4a5.4 5.4 0 0 1 10.8 0"/><path d="M12 4.2v3M4.9 7.3l2.1 2.1M19.1 7.3L17 9.4M2.4 13.6h2.8M18.8 13.6h2.8"/>',
+  // a cross left open — these groups stand outside the Nicene confession
+  nonnicene:'<path d="M12 3.4v5.2M12 12v8.6M7.4 12h2.6M14 12h2.6"/>' };
+/* Real emblem artwork, when the payload carries it. `cd.emblems` is a family → entry
+   map built at build time from Public-Domain / CC0 Wikimedia Commons files, each
+   embedded as a base64 PNG so the page still works with no network (see
+   tools/data/family-emblems.js). `src` is checked to be a data: PNG before it goes
+   anywhere near an attribute — the payload is trusted, but an img src is exactly the
+   kind of place where "trusted" quietly stops being true.
+   The four contrast flags are decided at build time from each image's own luminance and
+   colourfulness, and each maps to one CSS class: monochrome artwork that loses against a
+   theme is inverted there, coloured artwork gets a contrasting plate instead (inverting
+   it would hue-shift someone else's emblem into nonsense). Anything the payload has no
+   image for falls back to the drawn glyph below. */
+const CH_IMG_OK = /^data:image\/png;base64,[A-Za-z0-9+/=]+$/;
+function chEmblem(fam){
+  const all = (_ch && _ch.emblems) || null;
+  if (!all || !Object.prototype.hasOwnProperty.call(all, fam)) return null;
+  const e = all[fam];
+  return (e && typeof e.src === "string" && CH_IMG_OK.test(e.src)) ? e : null;
+}
+// hasOwnProperty for the same reason chColor() uses it — `fam` is payload data.
+const chIcon = (fam, cls) => {
+  const em = chEmblem(fam);
+  if (em){
+    let fix = "";
+    if (em.invertOnDark) fix += " inv-d";
+    if (em.plateOnDark) fix += " plate-d";
+    if (em.invertOnLight) fix += " inv-l";
+    if (em.plateOnLight) fix += " plate-l";
+    return '<img class="' + (cls || "ch-ico") + ' ch-emb' + fix +
+      '" src="' + em.src + '" alt="" aria-hidden="true" draggable="false">';
+  }
+  const d = Object.prototype.hasOwnProperty.call(CH_ICON, fam) ? CH_ICON[fam] : '<circle cx="12" cy="12" r="6"/>';
+  return '<svg class="' + (cls || "ch-ico") + '" viewBox="0 0 24 24" aria-hidden="true" focusable="false" ' +
+    'fill="none" stroke="' + chColor(fam) + '" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">' +
+    d + '</svg>';
+};
 // Short header labels for the family pills — the full names ("Reformed &
 // Presbyterian") are far wider than a column and collide, so the pills use these.
 const CH_PILL = {
@@ -1736,10 +1899,11 @@ const CH_PILL = {
 // ("roots") is centred over the whole canvas.
 const CH_COLS = ["catholic","forerunner","lutheran","anglican","reformed","radical","baptist",
   "methodist","restoration","pentecostal","african","nonnicene","orthodox","oriental","cote"];
-// Node box + spacing. Kept tight so branches sit close like the poster; the column
-// pitch is a touch wider than the box (CH_COLW − CH_NW) and the vertical pitch a
-// touch taller (CH_VGAP), so boxes always have a small gap and never touch.
-const CH_COLW = 104, CH_NW = 94, CH_NH = 52, CH_VGAP = 11, CH_BANDPAD = 40, CH_BANDGAP = 16;
+// Node box + spacing. Boxes are big enough to READ at 100% — most branch names now
+// fit without zooming, and the family emblem has a slot — while the pitch stays a
+// touch wider/taller than the box so they never touch. Widening the box widens the
+// whole poster, which is fine: it is a pan-and-zoom canvas, not a fixed grid.
+const CH_NW = 132, CH_NH = 74, CH_VGAP = 13, CH_BANDPAD = 42, CH_BANDGAP = 18;
 function chData(){
   if (_ch) return _ch;
   _ch = JSON.parse(document.getElementById("cd").textContent);
@@ -1748,6 +1912,10 @@ function chData(){
   _ch.famLabel = Object.fromEntries(_ch.families.map(f => [f.id, f.label]));
   _ch.famCount = {};
   _ch.nodes.forEach(n => { _ch.famCount[n.family] = (_ch.famCount[n.family] || 0) + 1; });
+  // parent → children, built once. The lineage lighting and the ↓ arrow-key step both
+  // need "what came out of this", which was previously a full scan of every node.
+  _ch.kids = {};
+  _ch.nodes.forEach(n => (n.parents || []).forEach(p => (_ch.kids[p] = _ch.kids[p] || []).push(n.id)));
   /* layout — a tall, narrow genealogy. Each branch is pulled UNDER its parent
      (x = mostly the parents' average x), with a lighter pull toward its family's
      home column so the Western → Eastern spread is kept and the tree doesn't
@@ -1842,10 +2010,20 @@ function chMatch(n, terms){
 // tab switch wipes it); filtering afterwards only toggles .dim classes.
 function chBuild(){
   const d = chData();
-  const legend = '<div class="ch-legend">' + d.families.map(f =>
-    '<button class="ch-chip" data-fam="' + esc(f.id) + '" aria-pressed="false">' +
-    '<span class="ch-dot" style="background:' + chColor(f.id) + '"></span>' +
-    esc(f.label) + ' <span class="ch-span">' + (d.famCount[f.id] || 0) + '</span></button>').join("") +
+  // The family spotlight — one dropdown rather than sixteen wrapped chips. The button
+  // is the current state ("All families", or the spotlit one); the menu is the legend,
+  // each row carrying the family's emblem, its name and how many branches it holds.
+  const legend = '<div class="ch-legend"><div class="ch-famsel">' +
+    '<button class="ch-fambtn" id="chFamBtn" aria-haspopup="true" aria-expanded="false" aria-controls="chFamMenu">' +
+      '<span id="chFamLabel">All families</span><span class="ch-caret">▾</span></button>' +
+    '<div class="ch-fammenu" id="chFamMenu" role="menu" aria-labelledby="chFamBtn" hidden>' +
+      '<button class="ch-famopt" role="menuitemradio" data-fam="" aria-checked="true">All families' +
+      '<span class="ch-span">' + d.nodes.length + '</span></button>' +
+      d.families.map(f =>
+        '<button class="ch-famopt" role="menuitemradio" data-fam="' + esc(f.id) + '" aria-checked="false">' +
+        chIcon(f.id) + esc(f.label) +
+        '<span class="ch-span">' + (d.famCount[f.id] || 0) + '</span></button>').join("") +
+    '</div></div>' +
     '<button class="ch-clear" data-fam="" hidden>clear ✕</button></div>';
   // edges: orthogonal connectors (drop from the parent, a short horizontal jog, then
   // straight down into the child) — the poster's clean lineage look. Coloured by the
@@ -1894,8 +2072,8 @@ function chBuild(){
   for (const era of Object.keys(pillsByEra)){
     const arr = pillsByEra[era].map(n => {
       const label = CH_PILL[n.family] || d.famLabel[n.family];
-      return { fam: n.family, label, cx: d.pos[n.id].x + CH_NW / 2, y: d.pos[n.id].y - 22,
-               w: label.length * 5.4 + 16 };            // rough rendered width
+      return { fam: n.family, label, cx: d.pos[n.id].x + CH_NW / 2, y: d.pos[n.id].y - 24,
+               w: label.length * 6 + 34 };  // rough rendered width — text + emblem + padding
     }).sort((a, b) => a.cx - b.cx);
     // push each pill right of the previous one's edge if they would overlap
     for (let i = 1; i < arr.length; i++){
@@ -1904,7 +2082,8 @@ function chBuild(){
     }
     bandsHtml += arr.map(pl =>
       '<div class="chd-pill" style="left:' + Math.round(pl.cx) + 'px;top:' + pl.y + 'px;' +
-      'color:' + chColor(pl.fam) + ';border-color:' + chColor(pl.fam) + '">' + esc(pl.label) + '</div>').join("");
+      'color:' + chColor(pl.fam) + ';border-color:' + chColor(pl.fam) + '">' +
+      chIcon(pl.fam) + esc(pl.label) + '</div>').join("");
   }
   const nodesHtml = d.nodes.map(n => {
     const p = d.pos[n.id];
@@ -1917,7 +2096,7 @@ function chBuild(){
       'border-top-color:' + chColor(n.family) + '">' +
       (ev ? '<span class="chd-tag chd-ev">✦</span>'
           : (n.sa ? '<span class="chd-tag">SA</span>' : (n.nonNicene ? '<span class="chd-tag" style="color:var(--fam-nonnicene)">✳</span>' : ''))) +
-      '<span class="chd-nyr">' + esc(n.when) + '</span>' +
+      '<span class="chd-nhead">' + chIcon(n.family) + '<span class="chd-nyr">' + esc(n.when) + '</span></span>' +
       '<span class="chd-nname">' + esc(n.name) + '</span></button>';
   }).join("");
   const toolbar =
@@ -1925,6 +2104,8 @@ function chBuild(){
       '<button class="chd-zbtn" data-z="out" aria-label="Zoom out" title="Zoom out">−</button>' +
       '<button class="chd-zbtn chd-zpct" data-z="fit" aria-label="Fit width" title="Fit to width">100%</button>' +
       '<button class="chd-zbtn" data-z="in" aria-label="Zoom in" title="Zoom in">+</button>' +
+      '<button class="chd-zbtn" data-z="full" aria-pressed="false" aria-label="Expand the chart to full screen" ' +
+        'title="Full screen (Esc to leave)">⛶</button>' +
     '</div>';
   $res.innerHTML =
     '<p class="ch-intro">Time flows downward: each branch sits in the era it began, in its family\'s colour, and every line traces a branch back to what it grew from.</p>' +
@@ -1935,13 +2116,115 @@ function chBuild(){
     '<svg width="' + d.W + '" height="' + d.H + '" viewBox="0 0 ' + d.W + ' ' + d.H + '" aria-hidden="true">' + edges + '</svg>' +
     bandsHtml + nodesHtml + '</div></div></div>' +
     '<div class="chd-pop" id="chdPop" role="dialog" aria-label="Branch details" hidden></div></div>' +
-    '<p class="chd-hint">Drag to pan · scroll to zoom · use −/+ or Fit above · tap a branch to zoom in and open its details. Dashed ✦ boxes are turning points — the councils, edicts and revivals that caused the branch below.</p>';
+    '<p class="chd-hint">Drag to pan · scroll to zoom · −/+ or Fit above · ⛶ for full screen · tap a branch for its story. ' +
+    'With a branch selected, <strong>↑</strong> walks up to its parent, <strong>↓</strong> down into what came out of it, ' +
+    '<strong>←</strong>/<strong>→</strong> step sideways across the same row — and its whole ancestry lights up. ' +
+    'Dashed ✦ boxes are turning points — the councils, edicts and revivals that caused the branch below.</p>' +
+    // Provenance. PD/CC0 imposes no attribution duty, but saying where the artwork came
+    // from is the honest thing when a page carries fifteen other people's emblems.
+    (_ch.emblems ? '<p class="chd-hint">Family emblems are public-domain / CC0 artwork from Wikimedia Commons, ' +
+      'embedded in the page so it still works offline. Each is the tradition\'s own historic sign, shown to identify ' +
+      'that family — not as any claim of endorsement.</p>' : '');
   chWirePanZoom();
   // start the view on the trunk, centred
   const wrap = document.getElementById("chdWrap");
   wrap.scrollLeft = (d.W * chZ - wrap.clientWidth) / 2;
-  if (chSel) chShowPop(chSel);
+  // A tab switch wipes $res, so a branch selected before leaving has to be restored
+  // here — selection ring, lineage lighting and popup together, not the popup alone.
+  if (chSel){
+    const el = document.getElementById("ch-" + chSel);
+    if (el) el.classList.add("sel");
+    chLight(chSel);
+    chShowPop(chSel);
+  }
 }
+/* Lineage lighting. Selecting a branch marks its full ancestry — every step back up
+   to the apostles — plus its direct children, and boosts the lines that join them.
+   Ancestry runs the whole way (that is the question the tree exists to answer);
+   descendants stop at one generation, because the full closure below an early node
+   is most of the poster and lights nothing useful. The `seen` set is added to before
+   recursing, so a cycle in the payload can't hang the page. */
+function chLight(id){
+  document.querySelectorAll(".chd-node.kin").forEach(el => el.classList.remove("kin"));
+  document.querySelectorAll("#chdCanvas path.lit").forEach(p => p.classList.remove("lit"));
+  if (!id) return;
+  const d = chData();
+  const set = new Set([id]);
+  const up = x => {
+    const n = d.byId[x];
+    if (!n) return;
+    for (const p of (n.parents || [])) if (!set.has(p)){ set.add(p); up(p); }
+  };
+  up(id);
+  for (const k of (d.kids[id] || [])) set.add(k);
+  set.forEach(x => {
+    if (x === id) return;
+    const el = document.getElementById("ch-" + x);
+    if (el) el.classList.add("kin");
+  });
+  document.querySelectorAll("#chdCanvas path").forEach(p => {
+    if (set.has(p.dataset.c) && set.has(p.dataset.p)) p.classList.add("lit");
+  });
+}
+/* Arrow-key traversal. Before this the only way through the chart was Tab, which
+   walks DOM order — that is layout order, and layout order is not lineage. These
+   steps follow the genealogy instead: ↑ to a parent, ↓ to a child, ←/→ to the
+   nearest branch on the same row. Candidates that the current filter has dimmed are
+   skipped where there is a lit alternative, so arrowing around a spotlit family
+   stays inside it rather than wandering into the greyed-out rest of the tree. */
+function chStep(dir){
+  const d = chData();
+  if (!chSel || !d.byId[chSel]) return;
+  const here = d.pos[chSel];
+  const lit = x => { const el = document.getElementById("ch-" + x); return el && !el.classList.contains("dim"); };
+  let ids;
+  if (dir === "up") ids = (d.byId[chSel].parents || []).slice();
+  else if (dir === "down") ids = (d.kids[chSel] || []).slice();
+  else {
+    const way = dir === "right" ? 1 : -1;
+    ids = d.nodes.filter(m => m.id !== chSel && d.pos[m.id] &&
+      Math.abs(d.pos[m.id].y - here.y) < CH_NH * 0.75 &&
+      (d.pos[m.id].x - here.x) * way > 0).map(m => m.id);
+  }
+  ids = ids.filter(x => d.pos[x]);
+  if (!ids.length) return;
+  const preferred = ids.filter(lit);
+  if (preferred.length) ids = preferred;
+  // nearest in x, so the step lands on the branch the eye would have picked
+  ids.sort((a, b) => Math.abs(d.pos[a].x - here.x) - Math.abs(d.pos[b].x - here.x));
+  chGoto(ids[0]);
+}
+/* Full screen. requestFullscreen is attempted, but the page usually runs inside the
+   plugin's pane, where the host iframe commonly has no allowfullscreen and the
+   promise rejects — so the class does the real work: position:fixed fills the pane,
+   which is the "bigger screen" that was actually asked for. Both compose fine when
+   the native request does land. */
+function chFull(on){
+  const frame = document.querySelector(".chd-frame");
+  if (!frame) return;
+  if (on == null) on = !frame.classList.contains("full");
+  frame.classList.toggle("full", on);
+  const btn = document.querySelector('.chd-zbtn[data-z="full"]');
+  if (btn){
+    btn.setAttribute("aria-pressed", String(on));
+    btn.setAttribute("aria-label", on ? "Leave full screen" : "Expand the chart to full screen");
+  }
+  try {
+    if (on && !document.fullscreenElement && frame.requestFullscreen){
+      const r = frame.requestFullscreen();
+      if (r && r.catch) r.catch(() => {});
+    } else if (!on && document.fullscreenElement && document.exitFullscreen){
+      const r = document.exitFullscreen();
+      if (r && r.catch) r.catch(() => {});
+    }
+  } catch (_) {}
+}
+// Leaving native fullscreen by Esc or the browser's own chrome must drop the class
+// too, or the chart stays pinned over the page with no obvious way out.
+document.addEventListener("fullscreenchange", () => {
+  const frame = document.querySelector(".chd-frame.full");
+  if (frame && !document.fullscreenElement) chFull(false);
+});
 /* Pan/zoom for the chart pane. The canvas is a fixed W×H layout; zoom scales it via
    CSS transform, and the .chd-zoom sizer carries the scaled dimensions so the pane's
    scrollbars track the zoom. Pan is single-pointer drag (mouse + touch); a drag that
@@ -2074,8 +2357,9 @@ function chShowPop(id){
   pop.style.borderTopColor = chColor(n.family);
   pop.innerHTML =
     '<button class="pclose" data-pclose aria-label="Close details">✕</button>' +
-    '<span class="ch-when">' + esc(n.when) + '</span> <span class="ch-fam" style="color:' + chColor(n.family) + '">' +
-    esc(d.famLabel[n.family] || n.family) + '</span>' +
+    '<span class="ch-when">' + esc(n.when) + '</span> ' +
+    '<span class="ch-fam" style="color:' + chColor(n.family) + ';display:inline-flex;align-items:center;gap:5px;' +
+    'vertical-align:middle">' + chIcon(n.family) + esc(d.famLabel[n.family] || n.family) + '</span>' +
     '<h3>' + esc(n.name) + badges + '</h3>' +
     '<p class="pblurb">' + esc(n.blurb) + '</p>' +
     (n.members ? '<div class="ch-members">' + esc(n.members) + '</div>' : '') + from + into + deeper;
@@ -2086,6 +2370,7 @@ function chClosePop(){
   const pop = document.getElementById("chdPop");
   if (pop) pop.hidden = true;
   document.querySelectorAll(".chd-node.sel").forEach(x => x.classList.remove("sel"));
+  chLight(null);
   chSel = null;
 }
 function chApplyFilter(filter){
@@ -2097,7 +2382,11 @@ function chApplyFilter(filter){
   for (const n of d.nodes) document.getElementById("ch-" + n.id).classList.toggle("dim", !vis[n.id]);
   document.querySelectorAll("#chdCanvas path").forEach(pth =>
     pth.classList.toggle("dim", !(vis[pth.dataset.c] && vis[pth.dataset.p])));
-  document.querySelectorAll(".ch-chip").forEach(c => c.setAttribute("aria-pressed", String(c.dataset.fam === chFam)));
+  // reflect the spotlight in the dropdown: the checked row, and the button's own label
+  document.querySelectorAll(".ch-famopt").forEach(o =>
+    o.setAttribute("aria-checked", String((o.dataset.fam || null) === chFam)));
+  const lbl = document.getElementById("chFamLabel");
+  if (lbl) lbl.textContent = chFam ? (d.famLabel[chFam] || chFam) : "All families";
   const clear = document.querySelector(".ch-clear");
   if (clear) clear.hidden = !chFam;
   const famNote = chFam ? ' in the <strong>' + esc(d.famLabel[chFam]) + '</strong> family' : '';
@@ -2123,6 +2412,12 @@ function chGoto(id){
   chSel = id;
   document.querySelectorAll(".chd-node.sel").forEach(x => x.classList.remove("sel"));
   el.classList.add("sel");
+  chLight(id);
+  // Focus follows the selection — that is what makes the arrow keys work straight
+  // after a tap or a lineage link, and it keeps the keyboard and the mouse on the
+  // same branch. preventScroll, or the browser's own scroll-into-view fights the
+  // deliberate placement below.
+  try { el.focus({ preventScroll: true }); } catch (_) { el.focus(); }
   // Zoom in on the branch (never pull back out if already closer), then place it in
   // the UPPER part of the pane so the details popup below doesn't cover it — in scaled
   // coordinates, since the node lives inside a CSS-scaled canvas (scrollIntoView can't).
@@ -2422,11 +2717,21 @@ $res.addEventListener("click", e => {
   const zb = e.target.closest("[data-z]");
   if (zb){
     e.preventDefault();
-    if (zb.dataset.z === "in") chApplyZoom(chZ * 1.25);
-    else if (zb.dataset.z === "out") chApplyZoom(chZ / 1.25);
+    const z = zb.dataset.z;
+    if (z === "in") chApplyZoom(chZ * 1.25);
+    else if (z === "out") chApplyZoom(chZ / 1.25);
+    else if (z === "full"){
+      chFull(null);
+      // the pane just changed size — refit so the poster fills the new box
+      const w = document.getElementById("chdWrap");
+      requestAnimationFrame(() => { if (w) chApplyZoom(w.clientWidth / _ch.W); });
+    }
     else { const w = document.getElementById("chdWrap"); chApplyZoom(w.clientWidth / _ch.W); w.scrollTo({ left: 0, top: 0 }); }
     return;
   }
+  // the family dropdown: the button opens/closes it, a row picks the spotlight
+  const fb = e.target.closest("#chFamBtn");
+  if (fb){ e.preventDefault(); chFamMenu(); return; }
   const node = e.target.closest("[data-node]");
   if (node){ e.preventDefault(); chGoto(node.dataset.node); return; }
   const goto = e.target.closest("[data-goto]");
@@ -2434,18 +2739,55 @@ $res.addEventListener("click", e => {
   const fam = e.target.closest("[data-fam]");
   if (fam){
     e.preventDefault();
-    chFam = (fam.classList.contains("ch-clear") || chFam === fam.dataset.fam) ? null : fam.dataset.fam;
+    // dataset.fam is "" on the "All families" row and on the clear button — normalise
+    // to null, or chFam holds "" and every node fails the family test.
+    const pick = fam.dataset.fam || null;
+    chFam = (fam.classList.contains("ch-clear") || chFam === pick) ? null : pick;
+    chFamMenu(false);
     chApplyFilter($q.value.trim());
     return;
   }
   // a tap on blank chart (not the popup itself) dismisses the popup
   if (e.target.closest(".chd-wrap") && !e.target.closest(".chd-pop")) chClosePop();
 });
-// Esc closes the branch popup
+// Open/close the family dropdown. `on` omitted toggles.
+function chFamMenu(on){
+  const btn = document.getElementById("chFamBtn"), menu = document.getElementById("chFamMenu");
+  if (!btn || !menu) return;
+  if (on == null) on = menu.hidden;
+  menu.hidden = !on;
+  btn.setAttribute("aria-expanded", String(on));
+}
+// A click anywhere else closes it — the $res delegate above can't see clicks that
+// land outside the results panel.
+document.addEventListener("click", e => {
+  if (!e.target.closest(".ch-famsel")) chFamMenu(false);
+});
+/* Esc unwinds the chart one layer at a time — open dropdown, then the branch popup,
+   then full screen. Unwinding in one keypress would drop a user out of full screen
+   just because they wanted to shut a popup. */
 document.addEventListener("keydown", e => {
   if (e.key !== "Escape") return;
+  const menu = document.getElementById("chFamMenu");
+  if (menu && !menu.hidden){ chFamMenu(false); return; }
   const pop = document.getElementById("chdPop");
-  if (pop && !pop.hidden) chClosePop();
+  if (pop && !pop.hidden){ chClosePop(); return; }
+  if (document.querySelector(".chd-frame.full")) chFull(false);
+});
+/* Arrow keys walk the genealogy. Bound to $res, so it only fires while focus is on
+   the chart itself (a node button) — typing in the search box keeps its own caret
+   movement, and the reader's own ←/→ chapter paging is untouched because that
+   handler returns early whenever the reader is hidden. */
+$res.addEventListener("keydown", e => {
+  const on = e.target.closest(".chd-node");
+  if (!on) return;
+  const dir = { ArrowUp:"up", ArrowDown:"down", ArrowLeft:"left", ArrowRight:"right" }[e.key];
+  if (!dir) return;
+  e.preventDefault();          // or the wrap scrolls under us as well as stepping
+  // Tabbing to a node focuses it without selecting it. Step from wherever focus
+  // actually is, not from a stale selection made with the mouse somewhere else.
+  chSel = on.dataset.node;
+  chStep(dir);
 });
 // Esc leaves the reader; ← / → page between chapters. (There is no backdrop to
 // click any more — the reader is a page, and Back is always on screen.)
