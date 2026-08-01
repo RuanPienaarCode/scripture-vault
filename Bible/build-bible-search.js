@@ -343,11 +343,11 @@ const LAYERS = [
   { id: "ad", data: ARTICLES,  n: ARTICLES.length, foot: n => `${n} teaching articles`,             noun: "teaching articles" },
   { id: "td", data: TOPICS,    n: TOPICS.length,   foot: n => `${n} topics`,                         noun: "topics" },
   { id: "fd", data: FAQ,       n: FAQ.length,      foot: n => `${n} FAQ answers`,                    noun: "FAQ answers" },
-  { id: "pd", data: PRAYERS,   n: PRAYERS.length,  foot: n => `${n} prayers`,                        noun: "prayers" },
   { id: "hd", data: HISTORY,   n: HISTORY.length,  foot: n => `${n} Bible-history notes`,            noun: "Bible history" },
-  // cd before od to match the template's tab order (Church History, then On This Day).
+  // Ordered to match the template's tab strip: Church History, then On This Day, then Prayers.
   { id: "cd", data: CHURCHHISTORY, n: CH_NODES,    foot: n => `a Church History family tree (${n} branches)`, noun: "a Church History family tree" },
   { id: "od", data: ONTHISDAY, n: OTD_DAYS,        foot: n => `an On This Day calendar (${n} days)`, noun: "an On This Day calendar" },
+  { id: "pd", data: PRAYERS,   n: PRAYERS.length,  foot: n => `${n} prayers`,                        noun: "prayers" },
 ];
 const presentLayers = LAYERS.filter(l => l.n > 0);
 const andJoin = arr => arr.length <= 1 ? (arr[0] || "")
