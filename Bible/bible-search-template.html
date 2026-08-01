@@ -561,6 +561,11 @@
   .reader-body .rv.target{background:var(--target-bg);border-left:2px solid var(--accent);
     border-radius:0 6px 6px 0;padding:11px 14px 11px 2.3em;text-indent:-1.3em;margin:10px 0;scroll-margin-top:20px}
   .reader-body .rv.target .rvn{color:var(--accent)}
+  /* Only advertise the tap when there is actually a study layer behind it —
+     openVerse adds .has-study only when this book has one. */
+  .reader-body.has-study .rv{cursor:pointer;border-radius:6px}
+  .reader-body.has-study .rv:hover{background:var(--code-bg)}
+  .reader-body .rv.studying{background:var(--code-bg);box-shadow:inset 2px 0 0 var(--accent-2)}
   .reader-body.article .rmeta{color:var(--muted-2);font-size:12.5px;font-weight:300;letter-spacing:.03em;margin:0 0 16px}
   .reader-body.article p{margin:0 0 14px;line-height:1.8;font-weight:300}
   /* A curated note's own links — [[wikilinks]] and bare "Romans 8:28" refs — rebuilt as
@@ -571,6 +576,91 @@
     border-bottom-color:color-mix(in srgb,var(--accent-2) 45%,transparent)}
   .reader-body.article a.xlink:hover{border-bottom-style:solid;color:var(--accent)}
   .reader-body.article a.xlink:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}
+
+  /* ── the study panel ────────────────────────────────────────────────────────
+     Tapping a verse in the reader opens one panel — cross-references, the
+     Hebrew/Greek word breakdown, book context, chapter commentary — as a sibling
+     immediately AFTER that verse's <p class="rv">. There is only ever one panel
+     in the document; opening another verse moves it.
+
+     Sibling-after-the-verse is the whole trick. In normal flow that reads as an
+     expander under the tapped verse, which is what a phone or a narrow Obsidian
+     side pane wants. On a wide pane the grid rule further down lifts the very same
+     element into a sticky right-hand rail without touching the markup, so there is
+     one DOM and one render path for both layouts.
+
+     Note what is NOT used: position:fixed and viewport units. This page runs inside
+     the plugin's iframe, where both resolve against the iframe rather than the
+     visible pane — a rail pinned that way lands off-screen. position:sticky works
+     in flow and is correct in both. */
+  .study{margin:4px 0 18px;border:1px solid var(--line);border-radius:var(--radius);
+    background:var(--code-bg);overflow:hidden;text-indent:0}
+  .study-tabs{display:flex;flex-wrap:wrap;gap:6px;padding:10px 12px;border-bottom:1px solid var(--line)}
+  .study-tabs button{font-family:var(--sans);font-size:11.5px;font-weight:300;letter-spacing:.03em;
+    color:var(--muted);background:none;border:1px solid transparent;border-radius:999px;
+    padding:5px 11px;cursor:pointer;white-space:nowrap}
+  .study-tabs button:hover{color:var(--ink)}
+  .study-tabs button[aria-selected="true"]{color:var(--accent);border-color:var(--line);background:var(--panel)}
+  .study-tabs .spacer{flex:1}
+  .study-close{font-size:15px;line-height:1;color:var(--muted-2);background:none;border:none;
+    cursor:pointer;padding:4px 6px;font-family:var(--sans)}
+  .study-close:hover{color:var(--ink)}
+  .study-body{padding:13px 15px;font-size:13.5px;font-weight:300;line-height:1.65}
+  .study-body p{margin:0 0 10px}
+  .study-body .muted{color:var(--muted-2)}
+  .study-src{margin:10px 0 0;padding-top:9px;border-top:1px solid var(--line);
+    color:var(--muted-2);font-size:11.5px;letter-spacing:.02em}
+
+  /* cross-references — one tappable reference per row */
+  .xr-list{display:flex;flex-wrap:wrap;gap:7px}
+  .xr-list button{font-family:var(--sans);font-size:12.5px;font-weight:300;color:var(--accent-2);
+    background:var(--panel);border:1px solid var(--line);border-radius:999px;
+    padding:5px 11px;cursor:pointer;white-space:nowrap}
+  .xr-list button:hover{border-color:var(--accent);color:var(--accent)}
+
+  /* word-by-word breakdown. Each word is its own block so a Hebrew word can be
+     RTL while its gloss and parsing stay LTR beneath it. */
+  .il-w{padding:9px 0;border-bottom:1px solid var(--line)}
+  .il-w:last-child{border-bottom:none}
+  .il-orig{font-size:19px;line-height:1.5;color:var(--ink)}
+  .il-w.rtl .il-orig{direction:rtl;text-align:right;font-size:21px}
+  .il-tr{font-family:var(--mono);font-size:11.5px;color:var(--muted-2);margin-top:1px}
+  .il-gloss{color:var(--ink);margin-top:4px}
+  .il-parse{color:var(--muted);font-size:11.5px;letter-spacing:.02em;margin-top:3px}
+  .il-lem{color:var(--muted-2);font-size:11.5px;margin-top:2px}
+  .il-str{font-family:var(--mono);font-size:10.5px;color:var(--accent-2);
+    border:1px solid var(--line);border-radius:4px;padding:0 4px;margin-left:6px}
+  .il-super{margin:0 0 10px;padding:8px 10px;background:var(--panel);border-radius:6px;
+    color:var(--muted);font-size:12px}
+
+  /* book context */
+  .ctx-row{margin:0 0 9px}
+  .ctx-k{color:var(--muted-2);font-size:11px;letter-spacing:.06em;text-transform:uppercase}
+  .ctx-v{color:var(--ink)}
+  .ctx-outline{margin:6px 0 0;padding-left:16px}
+  .ctx-outline li{margin:3px 0;color:var(--muted)}
+
+  /* ── wide panes: the panel becomes a sticky rail ──────────────────────────
+     Only when there is genuinely room for 720px of text AND a 320px rail beside
+     it. Below that the media query never matches and the panel stays inline,
+     which is the correct answer for a phone or a narrow Obsidian side pane —
+     squeezing a rail in there would ruin both columns. */
+  @media (min-width:1120px){
+    /* Scoped to .has-study, which only the chapter reader gets. The article reader
+       shares .reader-body, and gridding it would leave a 320px empty column beside
+       every note. */
+    body.reading .reader-panel:has(.reader-body.has-study){max-width:1100px}
+    body.reading .reader-body.has-study{display:grid;grid-template-columns:minmax(0,1fr) 320px;
+      column-gap:30px;align-items:start}
+    body.reading .reader-body.has-study > *{grid-column:1}
+    body.reading .reader-body.has-study > .study{grid-column:2;margin:0;position:sticky;top:18px}
+    /* Its own scrollbox so a long Matthew Henry block cannot outgrow the rail and
+       drag the whole chapter's scroll height with it. A fixed pixel cap rather
+       than vh on purpose: inside the plugin's iframe vh measures the IFRAME, which
+       grows with the chapter, so "64vh" on a long chapter is far taller than the
+       pane the reader can actually see. */
+    body.reading .reader-body.has-study > .study .study-body{max-height:560px;overflow-y:auto}
+  }
 
   details.help{margin:12px 0 0;color:var(--muted);font-size:14px;font-weight:300}
   details.help summary{cursor:pointer;color:var(--muted-2);letter-spacing:.02em}
@@ -946,6 +1036,30 @@ function ensureData(list){
     return _dloading[t];
   }));
 }
+/* Study-panel payloads — cross-references (xr), book context (bx), and the
+   per-book interlinear (il-<bookIdx>) and commentary (cm-<bookIdx>) sidecars.
+   Same two-source idea as ensureData(): an inline <script> wins when the page was
+   built with --inline, otherwise the host plugin reads the file out of the vault.
+   Kept separate from ensureData() because these are keyed by payload id rather
+   than translation, and because a study layer failing to load must degrade to
+   "that tab says why" — never block the chapter text the reader came for. */
+const _pcache = {}, _ploading = {};
+function loadPayload(id){
+  if (_pcache[id]) return Promise.resolve(_pcache[id]);
+  const el = document.getElementById(id);
+  if (el) return Promise.resolve(_pcache[id] = JSON.parse(el.textContent));
+  if (!_ploading[id]){
+    const host = window.bibleSearchLoadData;
+    _ploading[id] = host
+      ? host(id).then(txt => (_pcache[id] = JSON.parse(txt)))
+      : Promise.reject(new Error("This layer loads from the vault through the Bible Search plugin — open this page inside Obsidian."));
+    // Clear the slot on failure so the next open retries: the usual cause is a
+    // sidecar that hasn't finished syncing from iCloud yet, which fixes itself.
+    _ploading[id].catch(() => { delete _ploading[id]; });
+  }
+  return _ploading[id];
+}
+
 /* Note collections — Articles, Topics, FAQ and History all share the record shape
    [ title, author, date, topics, excerpt, path, url, body, source ], so one loader,
    index, search and reader path serves every non-Bible tab. Each payload is parsed
@@ -1548,11 +1662,14 @@ async function openVerse(t, bi, ch, v, dir){
   const head = '<h2><span class="tbadge ' + t + '">' + t + '</span> ' + esc(book + " " + ch) + '</h2>' +
     '<span class="spacer"></span>' +
     '<a class="obs" href="' + obsUrl(t, book, ch, v) + '">Open in Obsidian ↗</a>';
+  // data-v is what the study-panel click delegation reads, so every verse carries
+  // it whether or not it is the one the reader arrived on.
   const body = rows.map(r => {
     const isT = r[2] === v;
     let text = esc(r[3]);
     if (lastTerms.length) text = highlight(text, lastTerms);
-    return '<p class="rv' + (isT ? " target" : "") + '"' + (isT ? ' id="rv-target"' : "") +
+    return '<p class="rv' + (isT ? " target" : "") + '" data-v="' + r[2] + '"' +
+      (isT ? ' id="rv-target"' : "") +
       '><span class="rvn">' + r[2] + '</span>' + text + '</p>';
   }).join("");
   const prev = chapterNav(bi, ch, -1), next = chapterNav(bi, ch, 1);
@@ -1561,11 +1678,28 @@ async function openVerse(t, bi, ch, v, dir){
         (side === "prev" ? "‹ " + esc(BOOKS[n[0]] + " " + n[1]) : esc(BOOKS[n[0]] + " " + n[1]) + " ›") + '</button>'
     : '<span></span>';
   const foot = '<div class="reader-foot">' + navBtn(prev, "prev") + navBtn(next, "next") + '</div>';
-  openReader(head, body || '<p class="muted">Chapter text not found.</p>', "", foot);
+  const canStudy = studyTabsFor(bi).length > 0;
+  openReader(head, body || '<p class="muted">Chapter text not found.</p>', canStudy ? "has-study" : "", foot);
   curNav = { t, prev, next };
+  // The panel lived in the outgoing chapter's DOM, which openReader has just wiped.
+  studyAt = null;
   $reader.querySelectorAll(".rnav").forEach(b =>
     b.addEventListener("click", () => openVerse(t, +b.dataset.bi, +b.dataset.ch, null, +b.dataset.dir)));
+  // One delegated listener rather than one per verse — Psalm 119 has 176 of them.
+  const rbody = $reader.querySelector(".reader-body");
+  if (rbody && canStudy){
+    rbody.addEventListener("click", ev => {
+      if (ev.target.closest(".study")) return;         // clicks inside the panel are the panel's own
+      const p = ev.target.closest(".rv");
+      if (p && p.dataset.v) openStudy(t, bi, ch, +p.dataset.v, p);
+    });
+  }
   const tgt = document.getElementById("rv-target");
+  // Arriving from a search hit opens the panel on that verse straight away — that
+  // is the whole point of the feature. Paging between chapters passes no verse and
+  // so opens nothing. Done BEFORE the scroll, but it cannot move the target: the
+  // panel is inserted after it, so only what is below the target shifts.
+  if (tgt && v != null && canStudy) openStudy(t, bi, ch, v, tgt);
   if (tgt) tgt.scrollIntoView({ block: "center", behavior: "instant" });
   else window.scrollTo({ top: 0, behavior: "instant" });   // page flow: top of the chapter
   // Turn the old page over the freshly-mounted new one.
@@ -1593,6 +1727,316 @@ function openNote(coll, i){
     $reader.scrollIntoView({ block: "start", behavior: "instant" });
     window.scrollTo({ top: 0, behavior: "instant" });
   }
+}
+
+/* ── study panel ──────────────────────────────────────────────────────────────
+   Tap a verse in the reader and this opens beneath it (or, on a wide pane, beside
+   it — see the .study rules in the stylesheet, which do that with grid alone).
+
+   STUDY is the build's manifest of which sidecars actually exist in
+   Bible/search-data/, so a tab is offered only when it can be filled: a vault
+   without the STEP tagged text shows no Original tab rather than an empty one,
+   and only the 30 books that have Matthew Henry notes show Commentary. */
+const STUDY = __STUDY__;
+
+/* The packed-reference contract, read side. Mirrors tools/lib/osis.js — a change
+   there without a change here silently yields wrong verses rather than an error.
+     packed = ((bookIdx * 256 + chapter) * 256 + verse) * 32 + span            */
+const verseKey = (bi, ch, v) => (bi * 256 + ch) * 256 + v;
+function unpackRef(p){
+  const span = p % 32, rest = (p - span) / 32;
+  const v = rest % 256, rest2 = (rest - v) / 256;
+  const ch = rest2 % 256;
+  return { bi: (rest2 - ch) / 256, ch, v, span };
+}
+const refLabel = r => BOOKS[r.bi] + " " + r.ch + ":" + (r.v || 1) +
+  (r.span > 1 ? "–" + (r.v + r.span - 1) : "");
+
+/* ── morphology ───────────────────────────────────────────────────────────────
+   The parsing codes are the point of the Original tab — "loved" is a gloss, but
+   "aorist active indicative, 3rd person singular" is what the sentence is doing.
+   Both schemes decode positionally, and anything unrecognised falls through to
+   the raw code rather than being dropped: a code we can't name is still evidence,
+   and silently hiding it would make the panel look confidently incomplete. */
+const GRK_POS = { N:"noun", A:"adjective", T:"article", V:"verb", P:"personal pronoun",
+  R:"relative pronoun", C:"reciprocal pronoun", D:"demonstrative pronoun", K:"correlative pronoun",
+  I:"interrogative pronoun", X:"indefinite pronoun", Q:"correlative/interrogative pronoun",
+  F:"reflexive pronoun", S:"possessive pronoun", ADV:"adverb", CONJ:"conjunction",
+  PREP:"preposition", INJ:"interjection", COND:"conditional", PRT:"particle",
+  ARAM:"Aramaic transliteration", HEB:"Hebrew transliteration" };
+const GRK_TENSE = { P:"present", I:"imperfect", F:"future", A:"aorist", R:"perfect", L:"pluperfect", X:"perfect", Y:"pluperfect" };
+const GRK_VOICE = { A:"active", M:"middle", P:"passive", E:"middle or passive", D:"middle deponent",
+  O:"passive deponent", N:"middle/passive deponent", Q:"impersonal active" };
+const GRK_MOOD = { I:"indicative", S:"subjunctive", O:"optative", M:"imperative", N:"infinitive", P:"participle" };
+const GRK_CASE = { N:"nominative", G:"genitive", D:"dative", A:"accusative", V:"vocative" };
+const GRK_NUM = { S:"singular", P:"plural" };
+const GRK_GEN = { M:"masculine", F:"feminine", N:"neuter" };
+// Word classes that take a case-number-gender tail. Everything else (particles,
+// conjunctions, adverbs, prepositions, interjections, conditionals) carries a
+// qualifier there instead.
+const GRK_DECLINES = new Set(["N","A","T","P","R","C","D","K","I","X","Q","F","S"]);
+const GRK_QUALIFIER = { N:"negative", I:"interrogative", K:"correlative", C:"comparative",
+  S:"superlative", P:"proper", NUI:"numeral (indeclinable)", PRI:"proper (indeclinable)",
+  LI:"letter (indeclinable)", OI:"other (indeclinable)" };
+
+function parseGreek(code){
+  if (!code) return "";
+  const parts = code.split("-");
+  const head = parts[0];
+  // Verbs carry tense-voice-mood, then person+number (or case-number-gender for
+  // participles): "V-AAI-3S", "V-PAP-NSM", "V-2AMS-3S" (the 2 marks a second aorist).
+  if (head === "V"){
+    let tvm = parts[1] || "";
+    const second = /^2/.test(tvm);
+    if (second) tvm = tvm.slice(1);
+    const bits = [GRK_TENSE[tvm[0]], GRK_VOICE[tvm[1]], GRK_MOOD[tvm[2]]].filter(Boolean);
+    if (second && bits.length) bits[0] = "second " + bits[0];
+    const tail = parts[2] || "";
+    if (GRK_MOOD[tvm[2]] === "participle"){
+      const cng = [GRK_CASE[tail[0]], GRK_NUM[tail[1]], GRK_GEN[tail[2]]].filter(Boolean);
+      return ["verb", bits.join(" "), cng.join(" ")].filter(Boolean).join(", ");
+    }
+    const pn = tail && /^\d/.test(tail)
+      ? tail[0] + (tail[0] === "1" ? "st" : tail[0] === "2" ? "nd" : "rd") + " person " + (GRK_NUM[tail[1]] || "")
+      : "";
+    return ["verb", bits.join(" "), pn.trim()].filter(Boolean).join(", ");
+  }
+  const pos = GRK_POS[head];
+  if (!pos) return code;
+  const tail = parts[1] || "";
+  if (!tail) return pos;
+  /* Whether the tail is a case-number-gender triple depends on the word class,
+     NOT on whether its first letter looks like a case. Particles, conjunctions,
+     adverbs and prepositions do not decline, and their tail is a qualifier — so
+     "PRT-N" is a NEGATIVE particle (μή, οὐ), and reading that N as "nominative"
+     because GRK_CASE has an N entry is exactly the trap. */
+  if (!GRK_DECLINES.has(head)) return pos + ", " + (GRK_QUALIFIER[tail] || tail.toLowerCase());
+  const cng = [GRK_CASE[tail[0]], GRK_NUM[tail[1]], GRK_GEN[tail[2]]].filter(Boolean);
+  return [pos, cng.join(" ")].filter(Boolean).join(", ");
+}
+
+/* STEP's Hebrew codes are a leading language letter (H Hebrew / A Aramaic) then one
+   segment per morpheme, "/"-separated and lined up with the same split in the word
+   and its gloss — "HTd/Ncfsa" is the article plus a common feminine singular noun. */
+const HEB_STEM = { q:"qal", N:"niphal", p:"piel", P:"pual", h:"hiphil", H:"hophal", t:"hithpael",
+  o:"polel", O:"polal", r:"hithpolel", m:"poel", M:"poal", k:"palel", K:"pulal", Q:"qal passive",
+  l:"pilpel", L:"polpal", f:"hithpalpel", D:"nithpael", j:"pealal", i:"pilel", u:"hothpaal",
+  c:"tiphil", v:"hishtaphel", w:"nithpalel", y:"nithpoel", z:"hothpalpal" };
+const HEB_ASPECT = { p:"perfect", q:"sequential perfect", i:"imperfect", w:"sequential imperfect",
+  h:"cohortative", j:"jussive", v:"imperative", r:"participle", s:"passive participle",
+  a:"infinitive absolute", c:"infinitive construct" };
+const HEB_GEN = { m:"masculine", f:"feminine", b:"common", c:"common" };
+const HEB_NUM = { s:"singular", p:"plural", d:"dual" };
+const HEB_STATE = { a:"absolute", c:"construct", d:"determined" };
+const HEB_PART = { d:"definite article", o:"object marker", i:"interrogative", n:"negative",
+  a:"affirmative", j:"conjunctive", e:"exhortation", r:"relative" };
+
+function parseHebrewSeg(seg){
+  if (!seg) return "";
+  const t = seg[0], rest = seg.slice(1);
+  if (t === "R") return "preposition";
+  if (t === "C") return "conjunction";
+  if (t === "T") return HEB_PART[rest[0]] || "particle";
+  if (t === "N"){
+    if (rest[0] === "p") return ["proper noun", HEB_GEN[rest[1]]].filter(Boolean).join(", ");
+    const b = [HEB_GEN[rest[1]], HEB_NUM[rest[2]], HEB_STATE[rest[3]]].filter(Boolean);
+    return ["noun", b.join(" ")].filter(Boolean).join(", ");
+  }
+  if (t === "V"){
+    const stem = HEB_STEM[rest[0]], asp = HEB_ASPECT[rest[1]];
+    const tail = rest.slice(2);
+    let pgn = "";
+    if (/^\d/.test(tail)){
+      pgn = tail[0] + (tail[0] === "1" ? "st" : tail[0] === "2" ? "nd" : "rd") + " person " +
+        [HEB_GEN[tail[1]], HEB_NUM[tail[2]]].filter(Boolean).join(" ");
+    } else {
+      pgn = [HEB_GEN[tail[0]], HEB_NUM[tail[1]], HEB_STATE[tail[2]]].filter(Boolean).join(" ");
+    }
+    return ["verb", [stem, asp].filter(Boolean).join(" "), pgn.trim()].filter(Boolean).join(", ");
+  }
+  if (t === "S"){
+    const tail = rest.slice(1);
+    const pgn = /^\d/.test(tail)
+      ? tail[0] + (tail[0] === "1" ? "st" : tail[0] === "2" ? "nd" : "rd") + " person " +
+        [HEB_GEN[tail[1]], HEB_NUM[tail[2]]].filter(Boolean).join(" ")
+      : "";
+    return ["suffix", pgn.trim()].filter(Boolean).join(" ");
+  }
+  if (t === "A"){
+    const b = [HEB_GEN[rest[1]], HEB_NUM[rest[2]], HEB_STATE[rest[3]]].filter(Boolean);
+    return ["adjective", b.join(" ")].filter(Boolean).join(", ");
+  }
+  if (t === "P") return "pronoun";
+  if (t === "D") return "adverb";
+  return seg;
+}
+function parseHebrew(code){
+  if (!code) return "";
+  // Strip the leading language marker, then decode each "/"-joined morpheme.
+  const body = /^[HA]/.test(code) ? code.slice(1) : code;
+  return body.split("/").map(parseHebrewSeg).filter(Boolean).join(" + ");
+}
+const parseMorph = (code, lang) => lang === "he" ? parseHebrew(code) : parseGreek(code);
+
+/* ── panel state and rendering ─────────────────────────────────────────────── */
+let studyAt = null;        // { t, bi, ch, v } — which verse the panel is showing
+let studyTab = "xr";       // remembered across verses: a reader working through a
+                           // chapter in Greek shouldn't re-pick Original every verse
+
+function studyTabsFor(bi){
+  const tabs = [];
+  if (STUDY.xr) tabs.push(["xr", "References"]);
+  if (STUDY.il && STUDY.il.indexOf(bi) !== -1) tabs.push(["il", "Original"]);
+  if (STUDY.bx) tabs.push(["bx", "Context"]);
+  if (STUDY.cm && STUDY.cm.indexOf(bi) !== -1) tabs.push(["cm", "Commentary"]);
+  return tabs;
+}
+function closeStudy(){
+  const el = document.querySelector(".study");
+  if (el) el.remove();
+  document.querySelectorAll(".reader-body .rv.studying").forEach(p => p.classList.remove("studying"));
+  studyAt = null;
+}
+
+function renderXrefs(box, data, bi, ch, v){
+  const refs = data[verseKey(bi, ch, v)] || [];
+  if (!refs.length) return '<p class="muted">No cross-references listed for this verse.</p>';
+  const btns = refs.map(p => {
+    const r = unpackRef(p);
+    return '<button data-bi="' + r.bi + '" data-ch="' + r.ch + '" data-v="' + (r.v || 1) + '">' +
+      esc(refLabel(r)) + '</button>';
+  }).join("");
+  return '<div class="xr-list">' + btns + '</div>' +
+    '<p class="study-src">Ranked by openbible.info votes · CC-BY</p>';
+}
+
+function renderInterlinear(box, data, ch, v){
+  const rtl = data.lang === "he";
+  const words = data.w[ch + "." + v] || [];
+  if (!words.length) return '<p class="muted">No tagged text for this verse.</p>';
+  // A Psalm superscription is real Hebrew that English Bibles print unnumbered
+  // above verse 1, so it is stored at verse 0 and surfaced here rather than lost.
+  const sup = v === 1 && data.w[ch + ".0"]
+    ? '<p class="il-super">Superscription: ' +
+      esc(data.w[ch + ".0"].map(w => w[2]).join(" ").replace(/\s*\/\s*/g, " ")) + '</p>'
+    : "";
+  const rows = words.map(w => {
+    const [orig, translit, gloss, strongs, morph] = w;
+    const lex = data.lex[strongs];
+    const parsed = parseMorph(morph, data.lang);
+    return '<div class="il-w' + (rtl ? " rtl" : "") + '">' +
+      '<div class="il-orig">' + esc(orig) + '</div>' +
+      (translit ? '<div class="il-tr">' + esc(translit) + '</div>' : "") +
+      '<div class="il-gloss">' + esc(gloss) +
+        (strongs ? '<span class="il-str">' + esc(strongs) + '</span>' : "") + '</div>' +
+      (parsed ? '<div class="il-parse">' + esc(parsed) + '</div>' : "") +
+      (lex ? '<div class="il-lem">' + esc(lex[0]) + (lex[1] ? " — " + esc(lex[1]) : "") + '</div>' : "") +
+      '</div>';
+  }).join("");
+  return sup + rows +
+    '<p class="study-src">STEP Bible tagged text · CC-BY</p>';
+}
+
+function renderContext(box, data, bi){
+  const c = data[bi];
+  if (!c) return '<p class="muted">No introduction for this book yet.</p>';
+  const row = (k, val) => val ? '<div class="ctx-row"><div class="ctx-k">' + k + '</div>' +
+    '<div class="ctx-v">' + esc(val) + '</div></div>' : "";
+  const outline = (c.outline || []).length
+    ? '<div class="ctx-row"><div class="ctx-k">Outline</div><ul class="ctx-outline">' +
+      c.outline.map(o => '<li>' + esc(o) + '</li>').join("") + '</ul></div>'
+    : "";
+  return row("Theme", c.theme) + row("Author", c.author) + row("Date", c.date) +
+    row("Audience", c.audience) + outline + row("Note", c.note);
+}
+
+function renderCommentary(box, data, ch, v){
+  /* Matthew Henry comments in BLOCKS — John 3 has sections at verses 1 and 22, not
+     one per verse — so the covering block is the greatest start ≤ v in this chapter.
+     An exact-match lookup would report "nothing here" for John 3:16 while the
+     commentary sits one key away. The index is derived from the payload's own keys
+     rather than stored, and memoised per book. */
+  if (!data._idx){
+    const idx = {};
+    for (const key of Object.keys(data.v)){
+      const [c, s] = key.split(".").map(Number);
+      (idx[c] || (idx[c] = [])).push(s);
+    }
+    for (const c of Object.keys(idx)) idx[c].sort((a, b) => a - b);
+    Object.defineProperty(data, "_idx", { value: idx, enumerable: false });
+  }
+  const starts = data._idx[ch] || [];
+  let start = null;
+  for (const s of starts){ if (s <= v) start = s; else break; }
+  const intro = data.intro && data.intro[ch]
+    ? '<div class="ctx-row"><div class="ctx-k">Chapter</div><div class="ctx-v">' +
+      data.intro[ch].split("\n").map(p => esc(p)).join("<br><br>") + '</div></div>'
+    : "";
+  const body = start !== null
+    ? '<div class="ctx-row"><div class="ctx-k">On verse ' + start +
+      (starts.indexOf(start) + 1 < starts.length ? "–" + (starts[starts.indexOf(start) + 1] - 1) : " onward") +
+      '</div><div class="ctx-v">' + data.v[ch + "." + start].split("\n").map(p => esc(p)).join("<br><br>") +
+      '</div></div>'
+    : "";
+  if (!intro && !body) return '<p class="muted">No commentary for this chapter.</p>';
+  return intro + body + '<p class="study-src">' + esc(data.by || "Commentary") + ' · public domain</p>';
+}
+
+async function renderStudyBody(box, tab, t, bi, ch, v){
+  box.innerHTML = '<p class="muted">Loading…</p>';
+  const id = tab === "xr" ? "xr" : tab === "bx" ? "bx" : tab + "-" + bi;
+  let data;
+  try { data = await loadPayload(id); }
+  catch (e){
+    box.innerHTML = '<p class="muted">' + esc(String((e && e.message) || e)) + '</p>';
+    return;
+  }
+  // The reader may have moved on while this payload was being read — rendering
+  // then would drop another verse's content into the open panel.
+  if (!studyAt || studyAt.tab !== tab || studyAt.bi !== bi || studyAt.ch !== ch || studyAt.v !== v) return;
+  box.innerHTML =
+    tab === "xr" ? renderXrefs(box, data, bi, ch, v) :
+    tab === "il" ? renderInterlinear(box, data, ch, v) :
+    tab === "bx" ? renderContext(box, data, bi) :
+                   renderCommentary(box, data, ch, v);
+  box.querySelectorAll(".xr-list button").forEach(b =>
+    b.addEventListener("click", () => openVerse(t, +b.dataset.bi, +b.dataset.ch, +b.dataset.v)));
+}
+
+function openStudy(t, bi, ch, v, verseEl){
+  const tabs = studyTabsFor(bi);
+  if (!tabs.length) return;                                  // nothing to show — leave the verse alone
+  // Tapping the verse that is already open closes the panel, so the same gesture
+  // both opens and dismisses it.
+  if (studyAt && studyAt.bi === bi && studyAt.ch === ch && studyAt.v === v){ closeStudy(); return; }
+  closeStudy();
+  if (!tabs.some(([k]) => k === studyTab)) studyTab = tabs[0][0];
+  studyAt = { t, bi, ch, v, tab: studyTab };
+  verseEl.classList.add("studying");
+
+  const panel = document.createElement("div");
+  panel.className = "study";
+  panel.innerHTML =
+    '<div class="study-tabs" role="tablist">' +
+    tabs.map(([k, label]) =>
+      '<button role="tab" data-tab="' + k + '" aria-selected="' + (k === studyTab) + '">' +
+      esc(label) + '</button>').join("") +
+    '<span class="spacer"></span>' +
+    '<button class="study-close" aria-label="Close study panel">✕</button>' +
+    '</div><div class="study-body"></div>';
+  verseEl.insertAdjacentElement("afterend", panel);
+
+  const box = panel.querySelector(".study-body");
+  panel.querySelectorAll('.study-tabs button[role="tab"]').forEach(b =>
+    b.addEventListener("click", () => {
+      studyTab = b.dataset.tab;
+      studyAt.tab = studyTab;
+      panel.querySelectorAll('[role="tab"]').forEach(o =>
+        o.setAttribute("aria-selected", String(o === b)));
+      renderStudyBody(box, studyTab, t, bi, ch, v);
+    }));
+  panel.querySelector(".study-close").addEventListener("click", closeStudy);
+  renderStudyBody(box, studyTab, t, bi, ch, v);
 }
 
 /* ── book / chapter / verse selector ─────────────────────────── */

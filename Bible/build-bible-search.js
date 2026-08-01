@@ -307,6 +307,44 @@ const CHURCHHISTORY = layerOn("churchhistory") ? buildChurchHistory() : null;
 const CH_NODES = CHURCHHISTORY ? CHURCHHISTORY.nodes.length : 0;
 console.log(`Church History: ${CH_NODES} denomination nodes`);
 
+/* ── Study layers (the reader's per-verse panel) ───────────────────
+   Four layers hang off a verse in the reader rather than off a search tab:
+   cross-references, the Hebrew/Greek word breakdown, book context and chapter
+   commentary. All four are PRE-GENERATED sidecars in Bible/search-data/, written
+   by tools/gen-search-{xrefs,interlinear,bookcontext,commentary}.js and served to
+   the page on demand by the same host hook that serves verse text.
+
+   They are pre-generated rather than assembled here because the interlinear's
+   source — the STEP tagged text — is vendored OUTSIDE the vault (~95 MB), so
+   neither this script on a fresh machine nor the Obsidian plugin can derive it.
+   Keeping all four in the same sidecar shape means both build paths agree on
+   what exists by simply listing one folder.
+
+   What this build DOES do is emit a manifest of which sidecars are actually
+   present, so the page offers a study tab only when it can be filled: a vault
+   without the STEP data shows no Original tab rather than an empty one, and
+   Commentary appears only for the books that have notes. Mirrored by
+   studyManifest() in the plugin's main.js. */
+const DATA_DIR = path.join(VAULT, "Bible", "search-data");
+function studyManifest() {
+  const m = { xr: false, bx: false, il: [], cm: [] };
+  if (!fs.existsSync(DATA_DIR)) return m;
+  for (const f of fs.readdirSync(DATA_DIR)) {
+    if (f === "xr.json") { m.xr = layerOn("xrefs"); continue; }
+    if (f === "bx.json") { m.bx = layerOn("bookcontext"); continue; }
+    const il = f.match(/^il-(\d+)\.json$/);
+    if (il && layerOn("interlinear")) { m.il.push(+il[1]); continue; }
+    const cm = f.match(/^cm-(\d+)\.json$/);
+    if (cm && layerOn("commentary")) m.cm.push(+cm[1]);
+  }
+  m.il.sort((a, b) => a - b);
+  m.cm.sort((a, b) => a - b);
+  return m;
+}
+const STUDY = studyManifest();
+console.log(`Study panel: cross-refs ${STUDY.xr ? "yes" : "no"} · context ${STUDY.bx ? "yes" : "no"} · ` +
+  `interlinear ${STUDY.il.length} books · commentary ${STUDY.cm.length} books`);
+
 if (problems.length) {
   console.log(`\n${problems.length} problems:`);
   problems.slice(0, 20).forEach(p => console.log("  - " + p));
@@ -361,7 +399,6 @@ const ledeLayers = presentLayers.length ? " — plus " + andJoin(presentLayers.m
    translations that left the vault are removed. Inline (--inline): embedded as
    bd-* script tags, the fully self-contained page. The template prefers an
    inline tag when present and asks the host for the sidecar otherwise. */
-const DATA_DIR = path.join(VAULT, "Bible", "search-data");
 if (!INLINE) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
   let wrote = 0, kept = 0;
@@ -425,6 +462,7 @@ html = html.replace("__DATA_SCRIPTS__", () => dataScripts)
            .replace(/__TRANS_DOT__/g, () => escHtml(TRANS.join(" · ")))
            .replace("__TRANS_HIDDEN__", () => (TRANS.length > 1 ? "" : " hidden"))
            .replace("__STRUCT__", () => enc(JSON.stringify(STRUCT)))
+           .replace("__STUDY__", () => enc(JSON.stringify(STUDY)))
            .replace("__LEDE_LAYERS__", () => ledeLayers)
            .replace("__CONTENT_SUMMARY__", () => contentSummary)
            .replace("__SELF_CONTAINED__", () => (INLINE
