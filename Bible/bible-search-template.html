@@ -77,7 +77,7 @@
     --fam-lutheran:#5b86d6;    --fam-reformed:#e08a2e;    --fam-anglican:#9b6fc4;
     --fam-radical:#7d9b6f;     --fam-baptist:#4f8fc0;     --fam-methodist:#c0574f;
     --fam-restoration:#8a9a3c; --fam-pentecostal:#d46a9f; --fam-african:#3f9d6f;
-    --fam-nonnicene:#8a8f98;
+    --fam-nonnicene:#8a8f98;   --fam-earlysplit:#b5825e;
   }
   :root[data-theme="light"]{
     --fam-roots:#7f6619;       --fam-cote:#2b7474;        --fam-oriental:#4f733b;
@@ -85,7 +85,7 @@
     --fam-lutheran:#4769a8;    --fam-reformed:#965c1f;    --fam-anglican:#7e5aa0;
     --fam-radical:#596f4f;     --fam-baptist:#3d6e94;     --fam-methodist:#aa4d46;
     --fam-restoration:#636f2b; --fam-pentecostal:#9f4f77; --fam-african:#2f7653;
-    --fam-nonnicene:#666a70;
+    --fam-nonnicene:#666a70;   --fam-earlysplit:#7a4f38;
   }
   *{box-sizing:border-box}
   html{scroll-behavior:smooth}
@@ -238,6 +238,28 @@
   a.bookcard:hover{background:var(--panel-2)}
   a.bookcard strong{color:var(--accent);font-weight:400}
   .hit.article .snip .lead{color:var(--ink)}
+  /* words tab — dictionary hits. The headword carries dir="auto" so a Hebrew
+     lemma lays itself out right-to-left without dragging the Latin around it
+     along; unicode-bidi:isolate is what keeps that reordering inside the span. */
+  .lemma{font-size:19px;unicode-bidi:isolate}
+  .hit.word .ref a{font-size:16px}
+  .lexid{font-size:11.5px;color:var(--muted-2);letter-spacing:.06em;margin-left:2px}
+  .hit.word .ameta{font-style:italic}
+  .studytag{font-size:9.5px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--accent);border:1px solid var(--accent-line);border-radius:5px;padding:2px 6px;margin-left:8px;
+    white-space:nowrap;vertical-align:middle;font-style:normal}
+  .reader-body.word .lexlemma{font-size:38px;line-height:1.3;margin:0 0 2px}
+  .reader-body.word .lexlemma span{unicode-bidi:isolate}
+  .reader-body.word .lexline{color:var(--muted-2);font-size:13.5px;font-weight:300;letter-spacing:.03em;margin:0 0 22px}
+  .reader-body.word dl{margin:0}
+  .reader-body.word dt{font-family:var(--sans);font-size:10.5px;font-weight:500;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--accent-2);margin:20px 0 5px}
+  .reader-body.word dd{margin:0;color:var(--ink);font-weight:300;line-height:1.8}
+  .reader-body.word .lexstudy{display:block;margin:26px 0 0;padding:14px 18px;background:var(--panel);
+    border:1px solid var(--accent-line);border-radius:var(--radius);color:var(--ink);
+    text-decoration:none;font-size:14.5px;font-weight:300}
+  .reader-body.word .lexstudy:hover{background:var(--panel-2)}
+  .reader-body.word .lexstudy strong{color:var(--accent);font-weight:400}
   .morewrap{text-align:center;margin:22px 0}
   button.more{font-family:var(--sans);font-size:13px;font-weight:300;letter-spacing:.02em;color:var(--muted);
     background:none;border:1px solid var(--line);border-radius:999px;padding:9px 22px;cursor:pointer}
@@ -381,6 +403,37 @@
   .ch-from button.lnk:hover{text-decoration:underline}
   .ch-blurb{font-size:13px;font-weight:300;color:var(--muted);line-height:1.55;margin:0}
   .ch-members{font-family:var(--sans);font-size:11px;font-weight:400;color:var(--accent);margin:7px 0 0;letter-spacing:.02em}
+  /* Locus of authority + distinctives, in the branch popup. The label is a block, not
+     an inline run-in, so the eye can scan "Authority rests in" down a column of popups
+     while comparing traditions — which is the only reason to carry the fields at all. */
+  .ch-tax{font-size:12.5px;font-weight:300;color:var(--muted);line-height:1.55;margin:8px 0 0}
+  .ch-taxk{display:block;font-family:var(--sans);font-size:9px;font-weight:400;text-transform:uppercase;
+    letter-spacing:.09em;color:var(--muted-2);margin-bottom:2px}
+  .ch-dist{margin:2px 0 0;padding-left:15px}
+  .ch-dist li{margin:1px 0}
+  /* The seven perspectives, under the chart. Plain page flow — no fixed positioning
+     and no vh units, because in the Obsidian plugin this page is inside an iframe and
+     both resolve against the frame instead of the pane. */
+  .ch-persp{margin:18px 0 4px;max-width:76ch}
+  .ch-persp h2{font-family:var(--sans);font-size:13px;font-weight:400;text-transform:uppercase;
+    letter-spacing:.08em;color:var(--ink);margin:0 0 5px}
+  .ch-perspintro{font-size:13px;font-weight:300;color:var(--muted);line-height:1.6;margin:0 0 9px}
+  .ch-perspitem{border-top:1px solid var(--line);padding:0}
+  .ch-perspitem:last-child{border-bottom:1px solid var(--line)}
+  .ch-perspitem>summary{cursor:pointer;padding:8px 2px;display:flex;flex-wrap:wrap;gap:3px 10px;
+    align-items:baseline;list-style:none}
+  .ch-perspitem>summary::-webkit-details-marker{display:none}
+  /* The disclosure caret is drawn here rather than left to the UA marker, which differs
+     per browser and sits wrong against a flex summary. Rotates on open. */
+  .ch-perspitem>summary::before{content:"▸";color:var(--accent);font-size:11px;
+    transition:transform .15s ease;display:inline-block}
+  .ch-perspitem[open]>summary::before{transform:rotate(90deg)}
+  .ch-perspitem>summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+  .ch-perspname{font-family:var(--sans);font-size:13px;font-weight:400;color:var(--ink)}
+  .ch-perspheld{font-family:var(--sans);font-size:10.5px;font-weight:300;color:var(--muted-2)}
+  .ch-perspbody{padding:0 2px 10px 16px}
+  .ch-perspbody p{font-size:13px;font-weight:300;color:var(--muted);line-height:1.6;margin:0 0 7px}
+  .ch-perspbody p:last-child{margin-bottom:0}
   /* the chart canvas — a map pane: fixed-height window, grab-to-pan, zoomable */
   .chd-frame{position:relative;margin-top:8px}
   /* Height is capped against the pane, not just 72vh: the chart owns its gestures
@@ -853,6 +906,7 @@
   <div class="searchbar">
     <div class="srctabs" role="tablist" aria-label="Search in">
       <button role="tab" data-s="bible" aria-selected="true">📖 Bible</button>
+      <button role="tab" data-s="words" aria-selected="false">🔤 Words</button>
       <button role="tab" data-s="topics" aria-selected="false">🏷️ Topics</button>
       <button role="tab" data-s="faq" aria-selected="false">❓ FAQ</button>
       <button role="tab" data-s="history" aria-selected="false">📜 History</button>
@@ -953,8 +1007,9 @@ __TRANS_MENU__
             <tr><td><code>reformation</code></td><td>filter to branches mentioning the word</td></tr>
             <tr><td><code>pentecostal</code></td><td>find a tradition and everything named for it</td></tr>
             <tr><td><code>chalcedon</code></td><td>find a turning point and the branches it caused</td></tr>
+            <tr><td><code>predestination</code></td><td>search by belief — it finds the tradition that holds it</td></tr>
           </table>
-          <p>A family-tree chart of how the churches branched, apostles to today — it scrolls sideways like a poster. Tap a branch for its story — its ancestry lights up all the way back, and the arrow keys then walk the family line. Pick a family from the dropdown to light up one tradition, and <strong>⛶</strong> opens the chart full screen. The dashed <strong>✦</strong> boxes are turning points — Chalcedon, the Great Schism, Worms, Trent, Vatican II — and they sit in the chain between what came before and the branch they caused, so you can read <em>why</em> a split happened and not only who came from whom.</p>
+          <p>A family-tree chart of how the churches branched, apostles to today — it scrolls sideways like a poster. Tap a branch for its story — its ancestry lights up all the way back, and the arrow keys then walk the family line. Pick a family from the dropdown to light up one tradition, and <strong>⛶</strong> opens the chart full screen. The dashed <strong>✦</strong> boxes are turning points — Chalcedon, the Great Schism, Worms, Trent, Vatican II — and they sit in the chain between what came before and the branch they caused, so you can read <em>why</em> a split happened and not only who came from whom. The head branch of each great tradition also carries <strong>where its authority rests</strong> and <strong>what it holds</strong>, so Rome, Constantinople, Wittenberg and Geneva can be read side by side — and searching a belief rather than a name finds the family that holds it. Below the chart, <strong>Seven ways to read the same history</strong> sets out the rival answers to “which church is <em>the</em> church”, each in its own words.</p>
         </div>
         <div id="help-otd" hidden>
           <table>
@@ -963,6 +1018,16 @@ __TRANS_MENU__
             <tr><td><code>Luther</code></td><td>search every day for a person or event</td></tr>
           </table>
           <p>Births, deaths and turning points across the whole church — Reformation &amp; evangelical first, curated entries lead. Fully offline.</p>
+        </div>
+        <div id="help-words" hidden>
+          <table>
+            <tr><td><code>(nothing)</code></td><td>leave the box empty for the written word studies</td></tr>
+            <tr><td><code>love</code></td><td>every Hebrew and Greek word that means it</td></tr>
+            <tr><td><code>agape</code></td><td>look a word up by how it sounds</td></tr>
+            <tr><td><code>G26</code></td><td>go straight to a Strong's number</td></tr>
+            <tr><td><code>ἀγάπη</code> · <code>חסד</code></td><td>type the Greek or Hebrew itself — accents and vowel points optional</td></tr>
+          </table>
+          <p>The full Strong's dictionary — every Hebrew and Greek word in the Bible, with what it means, what the KJV calls it, and where it came from. Words with a <strong>Study</strong> tag also have a written page showing every verse they appear in.</p>
         </div>
         <div id="help-prayers" hidden>
           <table>
@@ -1064,9 +1129,9 @@ function loadPayload(id){
    [ title, author, date, topics, excerpt, path, url, body, source ], so one loader,
    index, search and reader path serves every non-Bible tab. Each payload is parsed
    from its <script type="application/json"> on first use, exactly like a translation. */
-const NOTE_ID   = { articles: "ad", topics: "td", faq: "fd", prayers: "pd", history: "hd" };
-const NOTE_NOUN = { articles: "article", topics: "topic", faq: "answer", prayers: "prayer", history: "note" };
-const NOTE_ICON = { articles: "📄", topics: "🏷️", faq: "❓", prayers: "🙏", history: "📜" };
+const NOTE_ID   = { articles: "ad", topics: "td", faq: "fd", prayers: "pd", history: "hd", words: "wd" };
+const NOTE_NOUN = { articles: "article", topics: "topic", faq: "answer", prayers: "prayer", history: "note", words: "word study" };
+const NOTE_ICON = { articles: "📄", topics: "🏷️", faq: "❓", prayers: "🙏", history: "📜", words: "🔤" };
 const _noteCache = {}, _noteLC = {};
 function notes(coll){ /* [ title, author, date, topics, excerpt, path, url, body, source ] */
   const id = NOTE_ID[coll];
@@ -1074,6 +1139,102 @@ function notes(coll){ /* [ title, author, date, topics, excerpt, path, url, body
   return _noteCache[id];
 }
 const noteUrl = a => "obsidian://open?vault=" + encodeURIComponent(VAULT) + "&file=" + encodeURIComponent(a[5]);
+
+/* ── the lexicon (Words tab) ──────────────────────────────────────
+   The full Strong's dictionary is ~14k entries / ~3 MB — an order of magnitude
+   past every other layer — so it does NOT ride in the page. It is a sidecar,
+   Bible/search-data/lex.json, pulled through the same host hook the translations
+   use and parsed on first search. What DOES ship inline is the "lx" script: a
+   few counts, whose presence is the signal that the sidecar exists and the tab
+   should show (the same "no payload, no tab" contract every layer uses).
+
+   Row shape is a contract with tools/gen-lexicon.js:
+     [ id, lemma, translit, pron, definition, kjvRenderings, derivation, senses ]
+   `senses` is BDB's list and is Hebrew-only; `id` is "G26" / "H2617". */
+const LEX_ID = 0, LEX_LEMMA = 1, LEX_TRANSLIT = 2, LEX_PRON = 3,
+      LEX_DEF = 4, LEX_KJV = 5, LEX_DERIV = 6, LEX_SENSES = 7;
+let _lex = null, _lexLoading = null, _lexIdx = null;
+function lexMeta(){
+  const el = document.getElementById("lx");
+  if (!el) return null;
+  try { return JSON.parse(el.textContent); } catch (e) { return null; }
+}
+function lex(){ return _lex || []; }
+/* Resolve once the dictionary is parsed and lex() can serve it. A failed read
+   clears the slot so the next keystroke retries — the sidecar may simply still
+   be syncing in from iCloud. */
+function ensureLex(){
+  if (_lex) return Promise.resolve();
+  if (!_lexLoading){
+    const host = window.bibleSearchLoadData;
+    _lexLoading = host
+      ? host("lex").then(txt => { _lex = JSON.parse(txt); })
+      : Promise.reject(new Error("The dictionary loads through the Bible Search plugin — open this page inside Obsidian."));
+    _lexLoading.catch(() => { _lexLoading = null; });
+  }
+  return _lexLoading;
+}
+/* Strip the accents, points and breathing marks off a headword so one typed form
+   finds every written one: "agápē" and "ἀγάπη" both reduce to what someone
+   actually types ("agape", "αγαπη"), and pointed חֵסֵד reduces to bare חסד. NFD
+   splits a letter into base + combining marks, then TWO ranges drop them — the
+   Latin block for transliterations, and the Hebrew block (U+0591-U+05C7) for
+   niqqud and cantillation, which are not in the Latin range and survive it. The
+   modifier apostrophes standing in for aleph and ayin are separate characters,
+   not marks, so they go by hand. Applied to BOTH the index and the query —
+   folding one side only is the bug that makes a search silently miss. */
+const foldRaw = s => String(s).normalize("NFD")
+  .replace(/[\u0300-\u036f\u0591-\u05c7]/g, "")
+  .replace(/[\u02bc\u02bb\u2019']/g, "").toLowerCase();
+/* One further step for the query and the headword. This lexicon writes samekh as
+   ç, so a strict fold of "chêçêd" is "checed" — which nobody types. The word is
+   chesed, which is what the vault's own Word Studies filenames call it too, so
+   the cedilla-c maps to s. Done after NFD so it catches both the composed ç and
+   an already-decomposed c + U+0327. foldRaw keeps the literal c-form alive in
+   the search field, so a strict transliteration still finds the word. */
+const fold = s => foldRaw(String(s).normalize("NFD").replace(/c\u0327/g, "s"));
+/* countIn() anchors on \b, which is ASCII-only — against a Greek or Hebrew term
+   it never matches, because neither the term nor its neighbours are \w. Fields
+   that can hold a headword are counted by substring instead. */
+function countSub(text, w){
+  if (!w) return 0;
+  let n = 0, i = 0;
+  while ((i = text.indexOf(w, i)) !== -1){ n++; i += w.length; }
+  return n;
+}
+function lexIndex(){
+  if (_lexIdx) return _lexIdx;
+  return (_lexIdx = lex().map(r => ({
+    id:       r[LEX_ID].toLowerCase(),
+    lemma:    fold(r[LEX_LEMMA]),
+    translit: fold(r[LEX_TRANSLIT]),
+    // Everything you might type to name the word itself, one field. The strict
+    // c-form of the transliteration rides along beside the s-form so both
+    // spellings of a samekh word ("chesed", "checed") land on the same entry.
+    head:     fold(r[LEX_ID] + " " + r[LEX_LEMMA] + " " + r[LEX_TRANSLIT] + " " + r[LEX_PRON]) +
+              " " + foldRaw(r[LEX_TRANSLIT]),
+    // the English side: definition, KJV renderings, BDB senses
+    body:     (r[LEX_DEF] + " " + r[LEX_KJV] + " " + r[LEX_SENSES]).toLowerCase(),
+    deriv:    fold(r[LEX_DERIV]),
+  })));
+}
+/* Strong's id → index of its written study in the "words" note payload, for the
+   28-odd words that have one. The study's filename LEADS with the id
+   ("Bible/Word Studies/G26 agape"), which is the only place the collected record
+   still carries it. Absent payload (no Word Studies folder) → nothing linked. */
+let _studyBy = null;
+function studyFor(id){
+  if (!_studyBy){
+    _studyBy = {};
+    if (document.getElementById(NOTE_ID.words)){
+      notes("words").forEach((a, i) => {
+        const m = a[5].split("/").pop().match(/^([GH]\d+)\b/);
+        if (m && !(m[1] in _studyBy)) _studyBy[m[1]] = i;
+      });
+    }
+  }
+  return id in _studyBy ? _studyBy[id] : -1;
+}
 
 // Emitted by build-bible-search.js from the folders that actually exist under Bible/.
 const TRANS = __TRANS__;
@@ -1441,6 +1602,134 @@ function renderNotes(coll, input){
   }).join("");
 }
 
+/* ── words tab (the Strong's dictionary) ──────────────────────────
+   Its own renderer rather than another renderNotes() collection: the rows are
+   dictionary entries, not notes — no author, no date, no body to snippet, and a
+   headword that has to be matched in three scripts at once. What it DOES share
+   is the card markup and the data-open contract, so a hit here opens through the
+   same delegate as everything else. */
+const lexScript = id => (id.charAt(0) === "G" ? "Greek" : "Hebrew");
+// A query that IS a Strong's number ("g26", "h2617") — matched exactly, never
+// as a substring of a longer number.
+const STRONGS_RE = /^[gh]\d{1,4}$/;
+// A one-letter query can match thousands of entries; rendering them all locks the
+// page up for nothing, since nobody reads past the first screen of a lookup.
+const WORD_LIMIT = 200;
+// lemma + transliteration, the way the word is named everywhere in this tab
+function lexName(r, terms){
+  return '<span class="lemma" dir="auto">' + highlight(esc(r[LEX_LEMMA]), terms) + '</span> · ' +
+    highlight(esc(r[LEX_TRANSLIT]), terms) + ' <span class="lexid">' + esc(r[LEX_ID]) + '</span>';
+}
+function lexCard(i, r, terms){
+  const study = studyFor(r[LEX_ID]) >= 0;
+  // A dictionary entry has no vault note of its own, so the card's link is the
+  // in-page reader only — href="#" with data-open, never a dead obsidian:// URL.
+  return '<div class="hit article word"><div class="ref"><span class="sbadge">' + lexScript(r[LEX_ID]) + '</span>' +
+    '<a href="#" data-open="word" data-i="' + i + '" title="Open">' + lexName(r, terms) + '</a>' +
+    (study ? '<span class="studytag">Study</span>' : '') + '</div>' +
+    '<p class="snip">' + highlight(esc(r[LEX_DEF] || r[LEX_SENSES] || r[LEX_KJV]), terms) + '</p></div>';
+}
+/* Empty box → the written studies, not 14,197 dictionary entries. They are the
+   way in: someone who doesn't yet know a Greek word can't search for one. */
+function renderWordStudies(){
+  $status.textContent = "";
+  const meta = lexMeta();
+  const has = !!document.getElementById(NOTE_ID.words);
+  const ART = has ? notes("words") : [];
+  const count = meta ? meta.n.toLocaleString() : "";
+  if (!ART.length){
+    $res.innerHTML = '<div class="empty"><div class="big">🔤</div>' +
+      (count ? 'Search ' + esc(count) + ' Hebrew and Greek words — by meaning, by sound, or by Strong\'s number.'
+             : 'No dictionary loaded.') + '</div>';
+    return;
+  }
+  $status.innerHTML = '<strong>' + ART.length + '</strong> written word stud' + (ART.length === 1 ? 'y' : 'ies') +
+    (count ? ' — or search all ' + esc(count) + ' Hebrew and Greek words' : '');
+  $res.innerHTML = ART.map((a, i) =>
+    '<div class="hit article word"><div class="ref"><span class="sbadge">' + esc(a[8]) + '</span>' +
+    '<a href="' + noteUrl(a) + '" data-open="note" data-coll="words" data-i="' + i + '" title="Open">' +
+    '<span class="lemma" dir="auto">' + esc(a[0]) + '</span> ↗</a></div>' +
+    '<p class="snip">' + esc(a[4]) + '</p></div>').join("");
+}
+function renderWords(input){
+  const terms = parseTerms(input);
+  if (!terms.length){ renderWordStudies(); return; }
+  lastTerms = terms;
+  // Both sides folded, or a query in one script silently misses a headword
+  // written in another. The unfolded terms still drive highlight(), which runs
+  // over display text — mostly the English definition, where they match as typed.
+  const fterms = terms.map(fold);
+  const ROWS = lex(), idx = lexIndex(), scored = [];
+  for (let i = 0; i < ROWS.length; i++){
+    const x = idx[i];
+    let score = 0, ok = true;
+    for (const w of fterms){
+      // Naming the word beats mentioning it: an exact id or headword match must
+      // outrank the hundreds of entries whose definition merely contains the term.
+      let s = 0;
+      if (x.id === w) s += 1000;
+      // A typed Strong's number means THAT entry. Left to the substring pass,
+      // "g26" also matches g260, g262, g265… — 134 hits for a lookup with one
+      // right answer. Nothing else can match, so score it and move on.
+      else if (STRONGS_RE.test(w)){ if (s === 0){ ok = false; break; } }
+      if (x.translit === w || x.lemma === w) s += 400;
+      else if (w.length >= 3 && (x.translit.indexOf(w) === 0 || x.lemma.indexOf(w) === 0)) s += 60;
+      s += 40 * countSub(x.head, w) + 2 * countSub(x.deriv, w) + 6 * countIn(x.body, w);
+      if (s === 0){ ok = false; break; }      // every term must appear somewhere
+      score += s;
+    }
+    if (ok) scored.push([i, score]);
+  }
+  const label = terms.map(w => '“' + esc(w) + '”').join(" + ");
+  if (!scored.length){
+    $status.textContent = "No Hebrew or Greek words matching " + terms.map(w => "“" + w + "”").join(" + ") +
+      " — try the English meaning (love, covenant), the sound (agape, chesed), or a Strong's number (G26).";
+    $res.innerHTML = '<div class="empty"><div class="big">🔤</div>No matching words.</div>';
+    return;
+  }
+  // rank: score desc, then payload order (Hebrew H1→, then Greek G1→)
+  scored.sort((a, b) => b[1] - a[1] || a[0] - b[0]);
+  const shown = scored.slice(0, WORD_LIMIT);
+  $status.innerHTML = '<strong>' + scored.length + '</strong> Hebrew and Greek word' +
+    (scored.length === 1 ? '' : 's') + ' matching ' + label +
+    (scored.length > shown.length ? ' — showing the closest ' + shown.length : '');
+  $res.innerHTML = shown.map(s => lexCard(s[0], ROWS[s[0]], terms)).join("");
+}
+function openWord(i){
+  curNav = null;
+  const r = lex()[i];
+  if (!r) return;
+  const rows = [
+    ["Meaning", r[LEX_DEF]],
+    ["Senses", r[LEX_SENSES]],       // BDB's list — Hebrew entries only
+    ["KJV renders", r[LEX_KJV]],
+    ["Root", r[LEX_DERIV]],
+  ].filter(x => x[1]);
+  const head = '<h2>' + esc(r[LEX_ID]) + '</h2><span class="spacer"></span>';
+  let body =
+    // dir="auto" goes on the SPAN, not the <p>: on the block it would set the
+    // paragraph direction too and right-align the whole headword against the
+    // panel edge. Isolated inline, the glyphs order right-to-left inside a
+    // left-aligned line, which is what a dictionary entry should look like.
+    '<p class="lexlemma"><span dir="auto">' + esc(r[LEX_LEMMA]) + '</span></p>' +
+    '<p class="lexline">' + [r[LEX_TRANSLIT], r[LEX_PRON], lexScript(r[LEX_ID]) + " · Strong's " + r[LEX_ID]]
+      .filter(Boolean).map(esc).join(" · ") + '</p>' +
+    '<dl>' + rows.map(x => '<dt>' + x[0] + '</dt><dd>' +
+      highlight(esc(x[1]), lastTerms || []) + '</dd>').join("") + '</dl>';
+  const si = studyFor(r[LEX_ID]);
+  if (si >= 0){
+    const a = notes("words")[si];
+    body += '<a class="lexstudy" href="' + noteUrl(a) + '" data-open="note" data-coll="words" data-i="' + si + '">' +
+      '<strong>Word study →</strong> ' + esc(a[0]) + ' — every verse it appears in.</a>';
+  }
+  const followed = !$reader.hidden;
+  openReader(head, body, "article word");
+  if (followed){
+    $reader.scrollIntoView({ block: "start", behavior: "instant" });
+    window.scrollTo({ top: 0, behavior: "instant" });
+  }
+}
+
 /* ── curated links inside a note body ─────────────────────────────
    A Topics page is a hub — "Related Verses", "Articles", "Related Concepts" rows — and
    those rows arrive as link markers (see LINK_RE). The four functions below turn them back
@@ -1468,7 +1757,7 @@ let _noteTargets = null;
 function noteTargets(){
   if (_noteTargets) return _noteTargets;
   const map = {};
-  ["topics", "articles", "faq", "prayers", "history"].forEach(coll => {
+  ["topics", "articles", "faq", "prayers", "history", "words"].forEach(coll => {
     if (!document.getElementById(NOTE_ID[coll])) return;
     notes(coll).forEach((a, i) => {
       const leaf = a[5].split("/").pop();
@@ -2131,8 +2420,12 @@ const TIMELINE = [
       see: ["Bible History/Sources/Apostolic Fathers"] },
     { when: "c. AD 150", title: "Justin Martyr", note: "An early apologist defends the faith; the Gospels are read in worship.",
       see: ["Bible History/People/Melito of Sardis"] },
+    { when: "c. AD 144", title: "Marcion rejected", note: "Marcion throws out the Old Testament and keeps an edited Luke with ten letters of Paul — the first canon list anyone drew up. Rome expels him, and the church starts naming its own books.",
+      see: ["Bible History/Concepts/Canon (Biblical)"] },
     { when: "c. AD 180", title: "Irenaeus of Lyons", note: "Defends the fourfold Gospel and the church's core teaching against heresies.",
       see: ["Bible History/People/Irenaeus of Lyons"] },
+    { when: "c. AD 170–200", title: "The Muratorian Fragment", note: "The earliest surviving list of New Testament books — most of what we read, with a few still under discussion.",
+      see: ["Bible History/Concepts/Canon (Biblical)"] },
     { when: "AD 313", title: "Edict of Milan", note: "Constantine ends the persecution of Christians across the Roman Empire.",
       see: ["Bible History/Events/Edict of Milan (312)", "Bible History/People/Constantine"] },
     { when: "AD 325", title: "Council of Nicaea", note: "The full deity of Christ is affirmed — the root of the Nicene Creed.",
@@ -2151,6 +2444,8 @@ const TIMELINE = [
       see: ["Bible History/Sources/Latin Vulgate"] },
     { when: "1456", title: "Gutenberg's press", note: "The printing press makes the Bible widely reproducible for the first time.",
       see: ["Bible History/Sources/Complutensian Polyglot"] },
+    { when: "1516", title: "Erasmus' Greek New Testament", note: "The Greek text is printed for the first time — and every Reformation translation, Luther's and Tyndale's included, works straight from it.",
+      see: ["Bible History/Sources/Critical Texts & Modern Translations", "Bible History/Sources/Complutensian Polyglot"] },
     { when: "1517", title: "Luther's 95 Theses", note: "The Reformation begins, recovering salvation by grace through faith and the Bible in the language of the people.",
       see: ["Bible History/People/Martin Luther", "Bible History/Events/Protestant Reformation", "Bible History/Events/Indulgences & Purgatory"],
       refs: ["Romans 1:16-17"] },
@@ -2166,6 +2461,8 @@ const TIMELINE = [
       see: ["Bible History/Canons/Protestant Canon (66)"] },
   ]},
   { era: "The Modern Era", events: [
+    { when: "1826", title: "The Apocrypha dropped", note: "The Bible Society resolves to fund only Bibles without the Apocrypha — which is why a Protestant Bible today has 66 books and a Catholic one 73.",
+      see: ["Bible History/Canons/Protestant Canon (66)", "Bible History/Concepts/Apocrypha"] },
     { when: "1947", title: "Dead Sea Scrolls", note: "Ancient manuscripts push our earliest Hebrew copies back a thousand years and confirm careful transmission.",
       see: ["Bible History/Sources/Dead Sea Scrolls"], refs: ["Isaiah 40:8"] },
     { when: "19th–21st c.", title: "Critical texts & new translations", note: "Careful study of the Greek and Hebrew yields modern translations — ESV, NIV, NLT, and many more.",
@@ -2277,7 +2574,8 @@ const CH_COLOR = {
   lutheran:"var(--fam-lutheran)", reformed:"var(--fam-reformed)", anglican:"var(--fam-anglican)",
   radical:"var(--fam-radical)", baptist:"var(--fam-baptist)", methodist:"var(--fam-methodist)",
   restoration:"var(--fam-restoration)", pentecostal:"var(--fam-pentecostal)",
-  african:"var(--fam-african)", nonnicene:"var(--fam-nonnicene)" };
+  african:"var(--fam-african)", nonnicene:"var(--fam-nonnicene)",
+  earlysplit:"var(--fam-earlysplit)" };
 // hasOwnProperty, not a bare lookup: `fam` comes from the data payload, and a family
 // called "constructor" or "toString" would otherwise resolve up the prototype chain
 // and hand a function back to be interpolated into a style string.
@@ -2378,7 +2676,8 @@ const CH_PILL = {
 // (Orthodox → Oriental → Church of the East) on the right. The common trunk
 // ("roots") is centred over the whole canvas.
 const CH_COLS = ["catholic","forerunner","lutheran","anglican","reformed","radical","baptist",
-  "methodist","restoration","pentecostal","african","nonnicene","orthodox","oriental","cote"];
+  "methodist","restoration","pentecostal","african","nonnicene","orthodox","oriental","cote",
+  "earlysplit"];
 // Node box + spacing. Boxes are big enough to READ at 100% — a branch's FULL name
 // fits without zooming, and the family emblem has a slot — while the pitch stays a
 // touch wider/taller than the box so they never touch. Widening the box widens the
@@ -2502,13 +2801,49 @@ function chData(){
   _ch.H = y;
   return _ch;
 }
+/* Search text for one branch. `authority` and `distinctives` are folded in so the
+   filter answers doctrinal questions and not only names: "filioque", "predestination",
+   "believers' baptism", "transubstantiation" each land on the tradition that holds
+   them, which is the whole point of carrying those fields. Both are optional — most
+   nodes have neither — so they're coerced before joining. */
 const chBlob = n => (n.name + " " + n.when + " " + n.blurb + " " +
+  (n.authority || "") + " " + (n.distinctives || []).join(" ") + " " +
   (_ch.famLabel[n.family] || "") + " " + (_ch.eraLabel[n.era] || "")).toLowerCase();
 function chMatch(n, terms){
   if (chFam && n.family !== chFam) return false;
   if (!terms.length) return true;
   const blob = chBlob(n);
   return terms.every(w => termRe(w, "i").test(blob));
+}
+/* The seven perspectives — the panel under the chart. The tree above is one agreed
+   set of dates; this is the disagreement about what they mean, and without it a
+   family tree quietly implies that descent is the only question worth asking.
+
+   Native <details>, not a hand-rolled accordion: it is keyboard-reachable, screen
+   readers announce its expanded state, and browser find-in-page opens a closed one
+   to reveal the hit. Nothing to wire up, nothing to break. Every entry ships closed
+   so seven long readings don't bury the chart, and each stays independent — this is
+   a comparison, so opening two at once is the point.
+
+   Older packs (and the pack a v1.1.30 vault already downloaded) carry no
+   `perspectives` key at all, so this renders nothing rather than an empty heading. */
+function chPerspectivesHtml(){
+  const ps = (_ch && _ch.perspectives) || [];
+  if (!ps.length) return "";
+  return '<section class="ch-persp"><h2>Seven ways to read the same history</h2>' +
+    '<p class="ch-perspintro">Every branch above agrees on the dates. What they mean is exactly what ' +
+    'the branches disagree about — whether 1054 was a departure or a demotion, whether 1517 rescued ' +
+    'the church or broke it. Six of these are insider readings, each held by people working from the ' +
+    'same sources; the last is the historian\'s, which declines the question instead of answering it. ' +
+    'Each is put here in its own words and at its best, and the page takes no side between them.</p>' +
+    ps.map(p =>
+      '<details class="ch-perspitem"><summary><span class="ch-perspname">' + esc(p.label) + '</span>' +
+        (p.held ? '<span class="ch-perspheld">' + esc(p.held) + '</span>' : '') + '</summary>' +
+      '<div class="ch-perspbody">' +
+        '<p><span class="ch-taxk">The one true church</span>' + esc(p.truechurch) + '</p>' +
+        '<p><span class="ch-taxk">And everyone else</span>' + esc(p.others) + '</p>' +
+      '</div></details>').join("") +
+    '</section>';
 }
 // Build the chart DOM once per visit to the tab ($res is shared across tabs, so a
 // tab switch wipes it); filtering afterwards only toggles .dim classes.
@@ -2628,7 +2963,8 @@ function chBuild(){
     // from is the honest thing when a page carries fifteen other people's emblems.
     (_ch.emblems ? '<p class="chd-hint">Family emblems are public-domain / CC0 artwork from Wikimedia Commons, ' +
       'embedded in the page so it still works offline. Each is the tradition\'s own historic sign, shown to identify ' +
-      'that family — not as any claim of endorsement.</p>' : '');
+      'that family — not as any claim of endorsement.</p>' : '') +
+    chPerspectivesHtml();
   chWirePanZoom();
   // start the view on the trunk, centred
   const wrap = document.getElementById("chdWrap");
@@ -2931,6 +3267,17 @@ function chShowPop(id){
     ? '<div class="ch-from">' + (ev || parentIsEvent ? 'came out of ' : 'grew from ') +
       n.parents.map(p => lnk(p)).join(' + ') + '</div>'
     : '';
+  /* Where authority rests, and what the tradition actually holds — carried only by the
+     head node of a major family (see denominations.js), so most branches render nothing
+     here. A daughter body inherits its parent's answer rather than restating it, which
+     is why tapping the PCA shows no locus of authority and tapping Reformed Churches
+     does. Both fields are independent: either may be present without the other. */
+  const tax =
+    (n.authority ? '<div class="ch-tax"><span class="ch-taxk">Authority rests in</span>' +
+      esc(n.authority) + '</div>' : '') +
+    ((n.distinctives || []).length ? '<div class="ch-tax"><span class="ch-taxk">Distinctives</span>' +
+      '<ul class="ch-dist">' + n.distinctives.map(x => '<li>' + esc(x) + '</li>').join("") +
+      '</ul></div>' : '');
   const kids = d.nodes.filter(k => (k.parents || []).includes(id));
   const into = kids.length
     ? '<div class="ch-from">' + (ev ? 'led to ' : 'branched into ') +
@@ -2943,7 +3290,7 @@ function chShowPop(id){
     '<span class="ch-fam" style="color:' + chColor(n.family) + ';display:inline-flex;align-items:center;gap:5px;' +
     'vertical-align:middle">' + chIcon(n.family) + esc(d.famLabel[n.family] || n.family) + '</span>' +
     '<h3>' + esc(n.name) + badges + '</h3>' +
-    '<p class="pblurb">' + esc(n.blurb) + '</p>' +
+    '<p class="pblurb">' + esc(n.blurb) + '</p>' + tax +
     (n.members ? '<div class="ch-members">' + esc(n.members) + '</div>' : '') + from + into + deeper;
   pop.hidden = false;
   pop.scrollTop = 0;
@@ -3133,6 +3480,24 @@ async function run(){
   if (source === "timeline"){ renderTimeline(input); return; }   // renders even with an empty box
   if (source === "churchhistory"){ renderChurchHistory(input); return; } // ditto — empty box shows the whole tree
   if (source === "onthisday"){ renderOnThisDay(input); return; } // ditto — empty box shows today
+  /* Words renders on an empty box too (the written studies are the way in), and
+     is the one note-ish tab whose payload is a sidecar — so it awaits its data
+     the same way the Bible tab does, guarded by the same staleness token. */
+  if (source === "words"){
+    if (!$q.value.trim()){ renderWordStudies(); return; }
+    const wgen = ++runGen;
+    if (!_lex){
+      $status.textContent = "Loading the dictionary…";
+      try { await ensureLex(); }
+      catch (e){
+        if (wgen === runGen){ $status.textContent = String((e && e.message) || e); $res.innerHTML = ""; }
+        return;
+      }
+      if (wgen !== runGen) return;
+    }
+    renderWords(input);
+    return;
+  }
   if (!input){ $status.textContent = ""; $res.innerHTML = ""; return; }
   if (source !== "bible"){ renderNotes(source, input); return; }
   // Split builds keep verse text on disk until first use — load what the scope
@@ -3207,7 +3572,9 @@ const $tabs = Array.from(document.querySelectorAll(".srctabs [data-s]"));
 // tab whose payload is absent (empty or disabled layer); Timeline renders from
 // the History payload, so it shares "hd". Bible is always present. With nothing
 // but Bible left, the one-tab strip is noise — drop it entirely.
-const TAB_PAYLOAD = { faq: "fd", prayers: "pd", history: "hd", timeline: "hd", churchhistory: "cd", onthisday: "od", topics: "td", articles: "ad" };
+// Words keys on "lx" (the dictionary's counts), not "wd" (the written studies):
+// the dictionary is the tab, and it ships in a vault with no Word Studies folder.
+const TAB_PAYLOAD = { faq: "fd", prayers: "pd", history: "hd", timeline: "hd", churchhistory: "cd", onthisday: "od", topics: "td", articles: "ad", words: "lx" };
 $tabs.forEach(b => { const id = TAB_PAYLOAD[b.dataset.s]; if (id && !document.getElementById(id)) b.hidden = true; });
 const $visTabs = $tabs.filter(b => !b.hidden);
 if ($visTabs.length <= 1) document.querySelector(".srctabs").hidden = true;
@@ -3254,7 +3621,7 @@ SMALL_SCREEN.addEventListener("change", layoutTabs);
 // Crossing the mobile breakpoint also re-evaluates the forced-full width above.
 SMALL_SCREEN.addEventListener("change", applyWidth);
 layoutTabs();
-const HELP_ID = { bible: "help-bible", articles: "help-articles", topics: "help-topics", faq: "help-faq", prayers: "help-prayers", history: "help-history", timeline: "help-timeline", churchhistory: "help-churchhistory", onthisday: "help-otd" };
+const HELP_ID = { bible: "help-bible", articles: "help-articles", topics: "help-topics", faq: "help-faq", prayers: "help-prayers", history: "help-history", timeline: "help-timeline", churchhistory: "help-churchhistory", onthisday: "help-otd", words: "help-words" };
 const PLACEHOLDER = {
   bible:     "John 3:16-18 · Psalm 23 · born again · shepherd…",
   articles:  "baptism · prayer · discipleship · \"spiritual gifts\"…",
@@ -3264,7 +3631,8 @@ const PLACEHOLDER = {
   history:   "canon · Josephus · Dead Sea Scrolls · Vulgate…",
   timeline:  "Filter the timeline… Nicaea · Vulgate · exile…",
   churchhistory: "Filter the tree… Reformation · Orthodox · Baptist…",
-  onthisday: "Search the calendar… Luther · Amazing Grace · martyr…"
+  onthisday: "Search the calendar… Luther · Amazing Grace · martyr…",
+  words:     "love · covenant · agape · chesed · G26 · ἀγάπη…"
 };
 function selectSource(s, focusInput){
   source = s;
@@ -3295,6 +3663,7 @@ document.querySelector(".srctabs").addEventListener("keydown", e => {
 // result clicks → open the in-page reader (links keep their href for right-click / fallback)
 function openFrom(el){
   if (el.dataset.open === "verse") openVerse(el.dataset.t, +el.dataset.bi, +el.dataset.ch, el.dataset.v === "" ? null : +el.dataset.v);
+  else if (el.dataset.open === "word") openWord(+el.dataset.i);
   else openNote(el.dataset.coll, +el.dataset.i);
 }
 $res.addEventListener("click", e => {

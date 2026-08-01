@@ -1,10 +1,4 @@
 // Builds "Bible Search.html" from the vault's full-text chapter notes.
-//
-// Same OUTPUT SHAPE as the plugin's in-app rebuild (README: "same output as the in-app
-// rebuild, for terminal/CI use") — every layer whose folder or pack is present is emitted,
-// and a layer that is absent is omitted so its tab hides. The On This Day and Church
-// History layers read the assembled data/*.json packs rather than the private source
-// modules that generate them.
 // Usage: node build-bible-search.js "<vault root>" "<template path>" "<output path>" [--inline]
 //
 // Default build is SPLIT: the page is a ~2.5 MB shell and each translation's
@@ -80,7 +74,7 @@ for (const t of TRANS) {
 /* ── Articles ─────────────────────────────────────────────────── */
 // [ title, author, date, topics, excerpt, path(vault-relative, no .md), sourceUrl, bodyText, source ]
 // Every .md under Teaching/ is an article except hub/index notes. The source label is the folder
-// directly under Teaching/ ("Example Ministry", "Desiring God", …), so a new ministry becomes
+// directly under Teaching/ ("Four12 Global", "Desiring God", …), so a new ministry becomes
 // searchable by dropping its folder in — no code change here.
 function fmValue(fm, key){
   const m = fm.match(new RegExp("^" + key + ':\\s*"?(.*?)"?\\s*$', "m"));
@@ -190,9 +184,7 @@ function collectNotes(rootAbs, label, sourceOf) {
 
     const tagTopics = fmList(fm, "tags")
       .map(t => (t.startsWith("topic/") ? t.slice(6).replace(/-/g, " ") : t))
-      // Anonymized filter: the private builder also excludes a ministry-specific token and
-      // the Topics-folder tags. Do NOT widen this one to match it — see the plugin twin.
-      .filter(t => !t.includes("/") && !/^(article|hub|devotional|teaching)$/i.test(t));
+      .filter(t => !t.includes("/") && !/^(article|hub|four12|devotional|teaching|topics|concept)$/i.test(t));
     const topics = (fmList(fm, "topics").length ? fmList(fm, "topics") : tagTopics).slice(0, 6).join(", ");
 
     out.push([
@@ -227,7 +219,7 @@ catch { /* no config → all layers on */ }
 const layerOn = k => LAYER_CFG[k] !== false;
 
 // Teaching/ → Articles tab. The badge is the folder directly under Teaching/
-// ("Example Ministry", "Desiring God", …), so a new ministry becomes searchable by
+// ("Four12 Global", "Desiring God", …), so a new ministry becomes searchable by
 // dropping its folder in — no code change here.
 const ARTICLES = layerOn("articles") ? collectNotes(path.join(VAULT, "Teaching"), "Articles",
   rel => rel.split("/")[1] || "Teaching") : [];
@@ -243,42 +235,68 @@ const PRAYERS = layerOn("prayers") ? collectNotes(path.join(VAULT, "Prayers"), "
 // Events, Canons, …); notes sitting at the folder root read "History".
 const HISTORY = layerOn("history") ? collectNotes(path.join(VAULT, "Bible History"), "History",
   rel => { const p = rel.split("/"); return p.length > 2 ? p[1] : "History"; }) : [];
+/* Bible/Word Studies/ → the written half of the Words tab. Filenames lead with
+   the Strong's number ("G26 agape.md"), which is both the badge's source and how
+   the page pairs a study back to its dictionary entry. */
+const WORDS = layerOn("words") ? collectNotes(path.join(VAULT, "Bible", "Word Studies"), "Word studies",
+  rel => (/\/G\d/.test(rel) ? "Greek" : "Hebrew")) : [];
+
+/* ── the Strong's dictionary (Words tab) ───────────────────────────
+   The dictionary itself is Bible/search-data/lex.json — ~3 MB of static public-
+   domain lexicon, generated once by tools/gen-lexicon.js and NOT rebuilt here.
+   It is far too big to inline: the page pulls it as a sidecar on first search,
+   exactly like verse text. What ships in the page is this counts object, whose
+   presence tells the page the sidecar is there and the tab should show.
+   Both halves must be present — meta without the sidecar would advertise a
+   dictionary the page then fails to load. */
+function buildLexiconMeta() {
+  const dir = path.join(VAULT, "Bible", "search-data");
+  const metaPath = path.join(dir, "lex-meta.json");
+  if (!fs.existsSync(metaPath)) return null;   // never generated — Words tab stays off, silently
+  let meta = null;
+  try { meta = JSON.parse(fs.readFileSync(metaPath, "utf8")); }
+  catch { problems.push("lex-meta.json is not valid JSON — Words layer empty"); return null; }
+  if (!meta || !meta.n) { problems.push("lex-meta.json has an unexpected shape — Words layer empty"); return null; }
+  if (!fs.existsSync(path.join(dir, "lex.json"))) {
+    problems.push("lex.json missing from Bible/search-data/ — run tools/gen-lexicon.js; Words layer empty");
+    return null;
+  }
+  return { n: meta.n, hebrew: meta.hebrew, greek: meta.greek };
+}
+const LEXICON = layerOn("words") ? buildLexiconMeta() : null;
+const LEX_N = LEXICON ? LEXICON.n : 0;
+console.log(`Words: ${LEX_N.toLocaleString()} dictionary entries, ${WORDS.length} written studies`);
 
 /* ── On This Day (Christian-year calendar) ─────────────────────────
-   Read from the ASSEMBLED pack — the shape the page renders directly:
-   { "MM-DD": { label, entries[] } }. The private vault generates this pack from a
-   curated source module; here we read the finished JSON, which is byte-identical to
-   what that assembly emits. Same file and same precedence the in-app rebuild uses
-   (a downloaded Bible/ copy wins over the repo copy), parsed as JSON and never
-   executed. Read at BUILD time only — the page never touches the network. */
-function readJsonPack(rels, label) {
-  for (const rel of rels) {
-    const abs = path.join(VAULT, rel);
-    if (!fs.existsSync(abs)) continue;
-    try { return JSON.parse(fs.readFileSync(abs, "utf8")); }
-    catch (e) { problems.push(`${label} pack unreadable at ${rel} — ${e.message}`); return null; }
-  }
-  problems.push(`${label} pack not found (${rels.join(" or ")}) — that layer will be empty`);
-  return null;
-}
+   Assembles the payload the On This Day tab renders from tools/data/on-this-day.js —
+   the hand-curated, all-original set of fixed-date events (Scripture / Christian
+   calendar / Church history). Read at BUILD time only; the page never touches the
+   network. The same file drives the Bible History/On This Day/ day-notes via
+   tools/gen-history-calendar.js. Emits { "MM-DD": { label, entries[] } }. */
+const MONTHS = ["January","February","March","April","May","June","July",
+  "August","September","October","November","December"];
 function buildOnThisDay() {
-  const pack = readJsonPack(["Bible/on-this-day.json", "data/on-this-day.json"], "On This Day");
-  if (!pack || typeof pack !== "object" || Array.isArray(pack)) return {};
-  // Only well-formed MM-DD days with entries reach the page, so a hand-edited pack
-  // degrades that day rather than the whole layer.
   const out = {};
-  for (const mmdd of Object.keys(pack).sort()) {
-    if (!/^\d{2}-\d{2}$/.test(mmdd)) continue;
+  let byDay = {};
+  // require() needs an absolute path — a relative one is read as a module name, not a file.
+  try { byDay = require(path.resolve(VAULT, "tools", "data", "on-this-day.js")); }
+  catch { problems.push("on-this-day.js not found — On This Day layer empty"); return out; }
+  // Blurbs may carry [[wikilinks]] meant for the day-notes; the calendar shows them
+  // as plain text, so reduce [[Target|Alias]] → Alias, [[Target]] → Target.
+  const deWiki = s => (s || "").replace(/\[\[([^\]|]*\|)?([^\]]*)\]\]/g, "$2");
+  const entry = e => ({
+    category: e.category || "Church history",
+    title: e.title,
+    year: e.year ?? null,
+    ref: e.ref || "",
+    blurb: deWiki(e.blurb),
+    link: safeUrl(e.link),
+  });
+  for (const mmdd of Object.keys(byDay).sort()) {
     const m = Number(mmdd.slice(0, 2)), d = Number(mmdd.slice(3, 5));
     if (!(m >= 1 && m <= 12 && d >= 1 && d <= 31)) continue;
-    const day = pack[mmdd];
-    if (!day || !day.label || !Array.isArray(day.entries) || !day.entries.length) continue;
-    /* Re-gate every link through safeUrl even though the template does the same before it
-       becomes an href. The private builder sanitizes while ASSEMBLING the pack; this copy
-       only READS one, and a pack can be hand-edited or downloaded — so keep both layers.
-       A clean pack passes through byte-identical. */
-    out[mmdd] = { label: day.label, entries: day.entries.map(e =>
-      (e && e.link && !safeUrl(e.link)) ? { ...e, link: "" } : e) };
+    const entries = (byDay[mmdd] || []).filter(e => e && e.title).map(entry);
+    if (entries.length) out[mmdd] = { label: `${MONTHS[m - 1]} ${d}`, entries };
   }
   return out;
 }
@@ -294,13 +312,13 @@ console.log(`On This Day: ${OTD_DAYS} calendar days`);
 const chShapeOk = d => !!(d && Array.isArray(d.eras) && Array.isArray(d.families) &&
   Array.isArray(d.nodes) && d.nodes.length);
 function buildChurchHistory() {
-  // The assembled pack, not the private tools/data/denominations.js source module — same
-  // precedence as the in-app rebuild, parsed as JSON, never executed.
-  const tree = readJsonPack(["Bible/church-history.json", "data/church-history.json"], "Church History");
-  if (!tree) return null;
-  // A malformed pack must degrade the layer, not crash the build (the plugin twin does the
-  // same) — so CH_NODES's .nodes.length read below stays safe.
-  if (!chShapeOk(tree)) { problems.push("church-history pack has an unexpected shape — Church History layer empty"); return null; }
+  // require() needs an absolute path — a relative one is read as a module name.
+  let tree = null;
+  try { tree = require(path.resolve(VAULT, "tools", "data", "denominations.js")); }
+  catch { problems.push("denominations.js not found — Church History layer empty"); return null; }
+  // A malformed source must degrade the layer, not crash the whole build (the
+  // plugin twin does the same) — so CH_NODES's .nodes.length read stays safe.
+  if (!chShapeOk(tree)) { problems.push("denominations.js has an unexpected shape — Church History layer empty"); return null; }
   return tree;
 }
 const CHURCHHISTORY = layerOn("churchhistory") ? buildChurchHistory() : null;
@@ -310,22 +328,29 @@ console.log(`Church History: ${CH_NODES} denomination nodes`);
 /* ── Study layers (the reader's per-verse panel) ───────────────────
    Four layers hang off a verse in the reader rather than off a search tab:
    cross-references, the Hebrew/Greek word breakdown, book context and chapter
-   commentary. All four are PRE-GENERATED sidecars in Bible/search-data/, written
-   by tools/gen-search-{xrefs,interlinear,bookcontext,commentary}.js and served to
-   the page on demand by the same host hook that serves verse text.
+   commentary. All four are PRE-GENERATED sidecars in Bible/search-data/, written by
+   tools/gen-search-{xrefs,interlinear,bookcontext,commentary}.js and served to the
+   page on demand by the same host hook that serves verse text.
 
    They are pre-generated rather than assembled here because the interlinear's
    source — the STEP tagged text — is vendored OUTSIDE the vault (~95 MB), so
    neither this script on a fresh machine nor the Obsidian plugin can derive it.
-   Keeping all four in the same sidecar shape means both build paths agree on
-   what exists by simply listing one folder.
-
    What this build DOES do is emit a manifest of which sidecars are actually
-   present, so the page offers a study tab only when it can be filled: a vault
-   without the STEP data shows no Original tab rather than an empty one, and
-   Commentary appears only for the books that have notes. Mirrored by
-   studyManifest() in the plugin's main.js. */
+   present, so the page offers a study tab only when it can be filled: no Original
+   tab in a vault without the STEP data, and Commentary only for the books that
+   have notes. Mirrored by studyManifest() in the plugin's main.js. */
+// Where both the verse sidecars and the study sidecars live. Declared here rather
+// than beside the verse-emission block below because the study manifest reads the
+// directory before that point.
 const DATA_DIR = path.join(VAULT, "Bible", "search-data");
+
+/* Book context is a sidecar (bx.json, written by tools/gen-search-bookcontext.js)
+   rather than an inline payload, even though 35 KB would inline comfortably. The
+   plugin can rebuild this page in-app and cannot require() a Node module out of
+   tools/, so an inline build would silently lose Context on every in-app rebuild.
+   Keeping all four study layers in one sidecar shape means both build paths agree
+   on what exists by listing one folder — the same reason the Words tab keeps its
+   dictionary in lex.json and ships only counts in the page. */
 function studyManifest() {
   const m = { xr: false, bx: false, il: [], cm: [] };
   if (!fs.existsSync(DATA_DIR)) return m;
@@ -378,6 +403,13 @@ const escHtml = s => String(s)
    the wizard can turn layers off. The footer/lede prose is built from the same set,
    so the page never advertises a layer it didn't ship. */
 const LAYERS = [
+  /* Words ships as two payloads. "lx" is the dictionary's counts — tiny, and its
+     presence is what shows the tab, since the dictionary itself is the lex.json
+     sidecar. "wd" is the written studies, which are ordinary notes and optional:
+     a vault with no Word Studies folder still gets the full dictionary. Only "lx"
+     carries the footer prose, so the page never claims studies it didn't ship. */
+  { id: "lx", data: LEXICON,   n: LEX_N,           foot: n => `a Hebrew and Greek dictionary (${n.toLocaleString()} words)`, noun: "a Hebrew and Greek dictionary" },
+  { id: "wd", data: WORDS,     n: WORDS.length,    foot: () => "",                                   noun: "" },
   { id: "ad", data: ARTICLES,  n: ARTICLES.length, foot: n => `${n} teaching articles`,             noun: "teaching articles" },
   { id: "td", data: TOPICS,    n: TOPICS.length,   foot: n => `${n} topics`,                         noun: "topics" },
   { id: "fd", data: FAQ,       n: FAQ.length,      foot: n => `${n} FAQ answers`,                    noun: "FAQ answers" },
@@ -390,8 +422,14 @@ const LAYERS = [
 const presentLayers = LAYERS.filter(l => l.n > 0);
 const andJoin = arr => arr.length <= 1 ? (arr[0] || "")
   : arr.slice(0, -1).join(", ") + " and " + arr[arr.length - 1];
-const contentSummary = presentLayers.length ? ", plus " + andJoin(presentLayers.map(l => l.foot(l.n))) : "";
-const ledeLayers = presentLayers.length ? " — plus " + andJoin(presentLayers.map(l => l.noun)) + "." : ".";
+/* A layer may ship a payload and still say nothing in the prose — the written
+   word studies are part of the Words tab the dictionary already announced, so
+   they'd otherwise read as a second, separate feature. Blank noun = emitted but
+   not advertised; without this filter the empty string lands in the list as a
+   stray ", ,". */
+const spokenLayers = presentLayers.filter(l => l.noun);
+const contentSummary = spokenLayers.length ? ", plus " + andJoin(spokenLayers.map(l => l.foot(l.n))) : "";
+const ledeLayers = spokenLayers.length ? " — plus " + andJoin(spokenLayers.map(l => l.noun)) + "." : ".";
 
 /* Verse-text emission. Split (default): one Bible/search-data/bd-<t>.json per
    translation, written only when its content changed — the text is static, so
@@ -416,6 +454,9 @@ if (!INLINE) {
   console.log(`search-data: ${wrote} sidecar${wrote === 1 ? "" : "s"} written, ${kept} unchanged`);
 }
 
+/* No study-layer payloads here: all four are sidecars in Bible/search-data/, which
+   the page pulls on demand through the host hook. Only the STUDY manifest travels
+   inside the page — see studyManifest() above. */
 const dataScripts = [
   ...(INLINE ? TRANS.map(t => `<script type="application/json" id="bd-${t}">${enc(JSON.stringify(data[t]))}<\/script>`) : []),
   ...presentLayers.map(l => `<script type="application/json" id="${l.id}">${enc(JSON.stringify(l.data))}<\/script>`),
