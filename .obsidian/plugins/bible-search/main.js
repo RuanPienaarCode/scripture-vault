@@ -1934,15 +1934,24 @@ class BibleSearchSettingTab extends PluginSettingTab {
 						aliases: ["terminal", "node", "cli", "command"],
 						visible: () => hasBuilder,
 						render: (setting) => {
+							// Selects the command text rather than writing it to the clipboard.
+							// The plugin deliberately touches NO clipboard API: it never needs to
+							// read one, and writing one made the community-directory scan report
+							// clipboard access for what is a convenience button. Selecting hands
+							// the copy to the OS, where the user is already in control of it — and
+							// it works on Obsidian iOS, where navigator.clipboard is often blocked
+							// in WKWebView and the old button silently failed.
 							setting.addButton((btn) =>
-								btn.setButtonText("Copy command").onClick(async () => {
-									// navigator.clipboard can be missing/blocked in WKWebView (Obsidian iOS).
-									try {
-										await navigator.clipboard.writeText(REBUILD_CMD);
-										new Notice("Rebuild command copied");
-									} catch (e) {
-										new Notice("Couldn't access the clipboard — select the command below and copy it.");
-									}
+								btn.setButtonText("Select command").onClick(() => {
+									const pre = setting.settingEl.parentElement?.querySelector(".bible-search-cmd");
+									if (!pre) return;
+									const sel = window.getSelection();
+									if (!sel) return;
+									const range = document.createRange();
+									range.selectNodeContents(pre);
+									sel.removeAllRanges();
+									sel.addRange(range);
+									new Notice("Rebuild command selected — copy it with your usual shortcut.");
 								})
 							);
 						},
