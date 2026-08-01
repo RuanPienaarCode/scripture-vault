@@ -765,6 +765,7 @@
       <button role="tab" data-s="bible" aria-selected="true">📖 Bible</button>
       <button role="tab" data-s="topics" aria-selected="false">🏷️ Topics</button>
       <button role="tab" data-s="faq" aria-selected="false">❓ FAQ</button>
+      <button role="tab" data-s="prayers" aria-selected="false">🙏 Prayers</button>
       <button role="tab" data-s="history" aria-selected="false">📜 History</button>
       <button role="tab" data-s="timeline" aria-selected="false">🕰️ Timeline</button>
       <button role="tab" data-s="churchhistory" aria-selected="false">⛪ Church History</button>
@@ -840,6 +841,14 @@ __TRANS_MENU__
             <tr><td><code>who wrote hebrews</code></td><td>all the words, ranked by best match</td></tr>
           </table>
           <p>Common Bible questions, answered briefly. Click a question to read the full answer.</p>
+        </div>
+        <div id="help-prayers" hidden>
+          <table>
+            <tr><td><code>mercy</code></td><td>prayers whose title or words mention it</td></tr>
+            <tr><td><code>morning</code></td><td>prayers for a time of day</td></tr>
+            <tr><td><code>augustine</code></td><td>everything prayed by one person</td></tr>
+          </table>
+          <p>Prayers of the church — desert and monastery, Celtic hearth, Reformation and today — each one put into plain modern English. Click a title to pray it right here.</p>
         </div>
         <div id="help-history" hidden>
           <table>
@@ -941,9 +950,9 @@ function ensureData(list){
    [ title, author, date, topics, excerpt, path, url, body, source ], so one loader,
    index, search and reader path serves every non-Bible tab. Each payload is parsed
    from its <script type="application/json"> on first use, exactly like a translation. */
-const NOTE_ID   = { articles: "ad", topics: "td", faq: "fd", history: "hd" };
-const NOTE_NOUN = { articles: "article", topics: "topic", faq: "answer", history: "note" };
-const NOTE_ICON = { articles: "📄", topics: "🏷️", faq: "❓", history: "📜" };
+const NOTE_ID   = { articles: "ad", topics: "td", faq: "fd", prayers: "pd", history: "hd" };
+const NOTE_NOUN = { articles: "article", topics: "topic", faq: "answer", prayers: "prayer", history: "note" };
+const NOTE_ICON = { articles: "📄", topics: "🏷️", faq: "❓", prayers: "🙏", history: "📜" };
 const _noteCache = {}, _noteLC = {};
 function notes(coll){ /* [ title, author, date, topics, excerpt, path, url, body, source ] */
   const id = NOTE_ID[coll];
@@ -1345,7 +1354,7 @@ let _noteTargets = null;
 function noteTargets(){
   if (_noteTargets) return _noteTargets;
   const map = {};
-  ["topics", "articles", "faq", "history"].forEach(coll => {
+  ["topics", "articles", "faq", "prayers", "history"].forEach(coll => {
     if (!document.getElementById(NOTE_ID[coll])) return;
     notes(coll).forEach((a, i) => {
       const leaf = a[5].split("/").pop();
@@ -2754,7 +2763,7 @@ const $tabs = Array.from(document.querySelectorAll(".srctabs [data-s]"));
 // tab whose payload is absent (empty or disabled layer); Timeline renders from
 // the History payload, so it shares "hd". Bible is always present. With nothing
 // but Bible left, the one-tab strip is noise — drop it entirely.
-const TAB_PAYLOAD = { faq: "fd", history: "hd", timeline: "hd", churchhistory: "cd", onthisday: "od", topics: "td", articles: "ad" };
+const TAB_PAYLOAD = { faq: "fd", prayers: "pd", history: "hd", timeline: "hd", churchhistory: "cd", onthisday: "od", topics: "td", articles: "ad" };
 $tabs.forEach(b => { const id = TAB_PAYLOAD[b.dataset.s]; if (id && !document.getElementById(id)) b.hidden = true; });
 const $visTabs = $tabs.filter(b => !b.hidden);
 if ($visTabs.length <= 1) document.querySelector(".srctabs").hidden = true;
@@ -2801,12 +2810,13 @@ SMALL_SCREEN.addEventListener("change", layoutTabs);
 // Crossing the mobile breakpoint also re-evaluates the forced-full width above.
 SMALL_SCREEN.addEventListener("change", applyWidth);
 layoutTabs();
-const HELP_ID = { bible: "help-bible", articles: "help-articles", topics: "help-topics", faq: "help-faq", history: "help-history", timeline: "help-timeline", churchhistory: "help-churchhistory", onthisday: "help-otd" };
+const HELP_ID = { bible: "help-bible", articles: "help-articles", topics: "help-topics", faq: "help-faq", prayers: "help-prayers", history: "help-history", timeline: "help-timeline", churchhistory: "help-churchhistory", onthisday: "help-otd" };
 const PLACEHOLDER = {
   bible:     "John 3:16-18 · Psalm 23 · born again · shepherd…",
   articles:  "baptism · prayer · discipleship · \"spiritual gifts\"…",
   topics:    "faith · suffering · gospel · marriage…",
   faq:       "Who wrote Hebrews? · Is Jesus God? · What is grace?…",
+  prayers:   "mercy · morning · Augustine · \"be still\"…",
   history:   "canon · Josephus · Dead Sea Scrolls · Vulgate…",
   timeline:  "Filter the timeline… Nicaea · Vulgate · exile…",
   churchhistory: "Filter the tree… Reformation · Orthodox · Baptist…",

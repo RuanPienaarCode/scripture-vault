@@ -235,6 +235,10 @@ const ARTICLES = layerOn("articles") ? collectNotes(path.join(VAULT, "Teaching")
 const TOPICS = layerOn("topics") ? collectNotes(path.join(VAULT, "Topics"), "Topics", () => "Topic") : [];
 // FAQ/ → FAQ tab. Flat folder of question-and-answer notes; one constant badge.
 const FAQ = layerOn("faq") ? collectNotes(path.join(VAULT, "FAQ"), "FAQ", () => "FAQ") : [];
+// Prayers/ → Prayers tab. Badge is the sub-folder (Church Fathers, Monastic, Celtic,
+// Reformers, Modern); a prayer sitting at the folder root reads "Prayer".
+const PRAYERS = layerOn("prayers") ? collectNotes(path.join(VAULT, "Prayers"), "Prayers",
+  rel => { const p = rel.split("/"); return p.length > 2 ? p[1] : "Prayer"; }) : [];
 // Bible History/ → History tab. Badge is the sub-folder (People, Concepts, Sources,
 // Events, Canons, …); notes sitting at the folder root read "History".
 const HISTORY = layerOn("history") ? collectNotes(path.join(VAULT, "Bible History"), "History",
@@ -339,6 +343,7 @@ const LAYERS = [
   { id: "ad", data: ARTICLES,  n: ARTICLES.length, foot: n => `${n} teaching articles`,             noun: "teaching articles" },
   { id: "td", data: TOPICS,    n: TOPICS.length,   foot: n => `${n} topics`,                         noun: "topics" },
   { id: "fd", data: FAQ,       n: FAQ.length,      foot: n => `${n} FAQ answers`,                    noun: "FAQ answers" },
+  { id: "pd", data: PRAYERS,   n: PRAYERS.length,  foot: n => `${n} prayers`,                        noun: "prayers" },
   { id: "hd", data: HISTORY,   n: HISTORY.length,  foot: n => `${n} Bible-history notes`,            noun: "Bible history" },
   // cd before od to match the template's tab order (Church History, then On This Day).
   { id: "cd", data: CHURCHHISTORY, n: CH_NODES,    foot: n => `a Church History family tree (${n} branches)`, noun: "a Church History family tree" },
