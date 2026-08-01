@@ -568,7 +568,10 @@
      body.reading hides `main`'s other children; the head sticks to the top of
      whichever box actually scrolls, so Back is always reachable. */
   body.reading main > :not(.reader){display:none}
-  .reader{margin:8px 0 0}
+  /* .reader lays out two cards now — the chapter panel and, when a verse is open,
+     the study card as its SIBLING rather than something nested in the reading
+     column. Stacked by default, side by side above 1120px. */
+  .reader{margin:8px 0 0;display:flex;flex-direction:column;align-items:center;gap:14px}
   .reader-panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
     width:100%;max-width:720px;margin:0 auto;display:flex;flex-direction:column;
     box-shadow:var(--shadow-reader);position:relative}
@@ -646,12 +649,23 @@
      the plugin's iframe, where both resolve against the iframe rather than the
      visible pane — a rail pinned that way lands off-screen. position:sticky works
      in flow and is correct in both. */
-  .study{margin:4px 0 18px;border:1px solid var(--line);border-radius:var(--radius);
+  .study{width:100%;max-width:720px;margin:0;border:1px solid var(--line);border-radius:var(--radius);
     background:var(--code-bg);overflow:hidden;text-indent:0}
-  .study-tabs{display:flex;flex-wrap:wrap;gap:6px;padding:10px 12px;border-bottom:1px solid var(--line)}
-  .study-tabs button{font-family:var(--sans);font-size:11.5px;font-weight:300;letter-spacing:.03em;
+  /* The card no longer sits next to the verse it belongs to, so it has to say
+     which verse that is — and offer the way back to it. */
+  .study-ref{display:flex;align-items:center;gap:10px;padding:10px 14px;
+    border-bottom:1px solid var(--line);background:var(--panel)}
+  .study-ref button{font-family:var(--sans);font-size:12.5px;font-weight:300;letter-spacing:.03em;
+    color:var(--accent);background:none;border:none;padding:0;cursor:pointer;text-align:left}
+  .study-ref button:hover{text-decoration:underline}
+  .study-ref .spacer{flex:1}
+  /* Sized so all four tabs sit on ONE line inside the 340px rail — at 11.5px/11px
+     padding "Commentary" wrapped to a second row, which read as a layout accident.
+     wrap is kept as the safety net for a narrower pane or a larger base font. */
+  .study-tabs{display:flex;flex-wrap:wrap;gap:5px;padding:9px 12px;border-bottom:1px solid var(--line)}
+  .study-tabs button{font-family:var(--sans);font-size:11px;font-weight:300;letter-spacing:.02em;
     color:var(--muted);background:none;border:1px solid transparent;border-radius:999px;
-    padding:5px 11px;cursor:pointer;white-space:nowrap}
+    padding:4px 9px;cursor:pointer;white-space:nowrap}
   .study-tabs button:hover{color:var(--ink)}
   .study-tabs button[aria-selected="true"]{color:var(--accent);border-color:var(--line);background:var(--panel)}
   .study-tabs .spacer{flex:1}
@@ -665,11 +679,17 @@
     color:var(--muted-2);font-size:11.5px;letter-spacing:.02em}
 
   /* cross-references — one tappable reference per row */
-  .xr-list{display:flex;flex-wrap:wrap;gap:7px}
-  .xr-list button{font-family:var(--sans);font-size:12.5px;font-weight:300;color:var(--accent-2);
-    background:var(--panel);border:1px solid var(--line);border-radius:999px;
-    padding:5px 11px;cursor:pointer;white-space:nowrap}
-  .xr-list button:hover{border-color:var(--accent);color:var(--accent)}
+  /* A column of reference + verse text, not a row of bare pills: the point of the
+     tab is to read what the reference SAYS without leaving the chapter. Each row is
+     one button so the whole block is the tap target. */
+  .xr-list{display:flex;flex-direction:column;gap:1px}
+  .xr-list button{display:block;width:100%;text-align:left;font-family:var(--sans);
+    background:none;border:none;border-radius:8px;padding:8px 10px;cursor:pointer}
+  .xr-list button:hover{background:var(--panel)}
+  .xr-list button:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+  .xr-ref{display:block;font-size:12px;font-weight:400;color:var(--accent-2);letter-spacing:.03em}
+  .xr-list button:hover .xr-ref{color:var(--accent)}
+  .xr-text{display:block;font-size:12.5px;font-weight:300;line-height:1.55;color:var(--muted);margin-top:2px}
 
   /* word-by-word breakdown. Each word is its own block so a Hebrew word can be
      RTL while its gloss and parsing stay LTR beneath it. */
@@ -686,6 +706,15 @@
   .il-super{margin:0 0 10px;padding:8px 10px;background:var(--panel);border-radius:6px;
     color:var(--muted);font-size:12px}
 
+  /* commentator picker — only rendered when the chapter has more than one voice */
+  .cm-pick{display:flex;flex-wrap:wrap;gap:5px;margin:0 0 12px}
+  .cm-pick button{font-family:var(--sans);font-size:11px;font-weight:300;letter-spacing:.02em;
+    color:var(--muted);background:var(--panel);border:1px solid var(--line);border-radius:999px;
+    padding:4px 10px;cursor:pointer;white-space:nowrap}
+  .cm-pick button:hover{color:var(--ink);border-color:var(--accent)}
+  .cm-pick button[aria-pressed="true"]{color:var(--accent);border-color:var(--accent-line);
+    background:var(--code-bg)}
+
   /* book context */
   .ctx-row{margin:0 0 9px}
   .ctx-k{color:var(--muted-2);font-size:11px;letter-spacing:.06em;text-transform:uppercase}
@@ -698,21 +727,27 @@
      it. Below that the media query never matches and the panel stays inline,
      which is the correct answer for a phone or a narrow Obsidian side pane —
      squeezing a rail in there would ruin both columns. */
-  @media (min-width:1120px){
-    /* Scoped to .has-study, which only the chapter reader gets. The article reader
-       shares .reader-body, and gridding it would leave a 320px empty column beside
-       every note. */
-    body.reading .reader-panel:has(.reader-body.has-study){max-width:1100px}
-    body.reading .reader-body.has-study{display:grid;grid-template-columns:minmax(0,1fr) 320px;
-      column-gap:30px;align-items:start}
-    body.reading .reader-body.has-study > *{grid-column:1}
-    body.reading .reader-body.has-study > .study{grid-column:2;margin:0;position:sticky;top:18px}
+  @media (min-width:1180px){
+    /* Side by side: the chapter keeps its 720px measure, the card takes a fixed
+       340px beside it. flex rather than auto margins — .reader-panel centres itself
+       with margin:0 auto in the stacked case, which in a row would shove the card
+       to the edge. */
+    /* The row is centred as a WHOLE and the chapter sits at its left, so the card's
+       340px is reserved whether or not a verse is open. Centring the flex items
+       instead would slide the chapter sideways by ~183px every time the card opens
+       or closes — moving the text under the reader's eye, mid-sentence. */
+    .reader{flex-direction:row;justify-content:flex-start;align-items:flex-start;
+      gap:26px;max-width:1126px;margin-left:auto;margin-right:auto}
+    body.reading .reader-panel{margin:0;flex:0 1 720px}
+    /* 380px, not 340: five tabs fit on one line, and commentary — the longest thing
+       the card ever holds — gets a readable measure instead of a gutter. */
+    body.reading .reader > .study{width:380px;flex:none;position:sticky;top:18px;margin:0}
     /* Its own scrollbox so a long Matthew Henry block cannot outgrow the rail and
        drag the whole chapter's scroll height with it. A fixed pixel cap rather
        than vh on purpose: inside the plugin's iframe vh measures the IFRAME, which
        grows with the chapter, so "64vh" on a long chapter is far taller than the
        pane the reader can actually see. */
-    body.reading .reader-body.has-study > .study .study-body{max-height:560px;overflow-y:auto}
+    body.reading .reader > .study .study-body{max-height:560px;overflow-y:auto}
   }
 
   details.help{margin:12px 0 0;color:var(--muted);font-size:14px;font-weight:300}
@@ -2171,6 +2206,7 @@ const parseMorph = (code, lang) => lang === "he" ? parseHebrew(code) : parseGree
 let studyAt = null;        // { t, bi, ch, v } — which verse the panel is showing
 let studyTab = "xr";       // remembered across verses: a reader working through a
                            // chapter in Greek shouldn't re-pick Original every verse
+let studyCommentator = null;   // likewise for the chosen commentary voice
 
 function studyTabsFor(bi){
   const tabs = [];
@@ -2178,6 +2214,8 @@ function studyTabsFor(bi){
   if (STUDY.il && STUDY.il.indexOf(bi) !== -1) tabs.push(["il", "Original"]);
   if (STUDY.bx) tabs.push(["bx", "Context"]);
   if (STUDY.cm && STUDY.cm.indexOf(bi) !== -1) tabs.push(["cm", "Commentary"]);
+  // Always offered, always a placeholder — it has no sidecar to gate it on.
+  tabs.push(["mp", "Map"]);
   return tabs;
 }
 function closeStudy(){
@@ -2187,15 +2225,44 @@ function closeStudy(){
   studyAt = null;
 }
 
-function renderXrefs(box, data, bi, ch, v){
+function renderXrefs(box, data, t, bi, ch, v){
   const refs = data[verseKey(bi, ch, v)] || [];
   if (!refs.length) return '<p class="muted">No cross-references listed for this verse.</p>';
-  const btns = refs.map(p => {
-    const r = unpackRef(p);
+  const targets = refs.map(unpackRef);
+
+  /* Each reference is shown with its verse text, so the panel answers "what does
+     Romans 5:8 say" without a trip out of the chapter. The text comes from the
+     translation already open in the reader, so it matches what is being read.
+
+     One pass over the payload, not one per reference: a verse range means up to
+     ~40 verses to find across 8 references, and D(t) is ~31,000 rows. Collect every
+     wanted key first, then sweep once. (Verse 0 — a Psalm superscription — has no
+     verse of its own, so it simply has no text to find.) */
+  const want = new Map();
+  for (const r of targets){
+    if (!r.v) continue;
+    for (let n = r.v; n < r.v + r.span; n++) want.set(r.bi + "." + r.ch + "." + n, null);
+  }
+  try {
+    for (const row of D(t)){
+      const k = row[0] + "." + row[1] + "." + row[2];
+      if (want.has(k) && want.get(k) === null) want.set(k, row[3]);
+    }
+  } catch (e){ /* translation not loaded — fall back to bare references */ }
+
+  const rows = targets.map(r => {
+    const parts = [];
+    for (let n = r.v; n < r.v + r.span; n++){
+      const s = want.get(r.bi + "." + r.ch + "." + n);
+      if (s) parts.push(s);
+    }
+    const text = parts.join(" ");
     return '<button data-bi="' + r.bi + '" data-ch="' + r.ch + '" data-v="' + (r.v || 1) + '">' +
-      esc(refLabel(r)) + '</button>';
+      '<span class="xr-ref">' + esc(refLabel(r)) + '</span>' +
+      (text ? '<span class="xr-text">' + esc(text) + '</span>' : "") +
+      '</button>';
   }).join("");
-  return '<div class="xr-list">' + btns + '</div>' +
+  return '<div class="xr-list">' + rows + '</div>' +
     '<p class="study-src">Ranked by openbible.info votes · CC-BY</p>';
 }
 
@@ -2239,39 +2306,80 @@ function renderContext(box, data, bi){
     row("Audience", c.audience) + outline + row("Note", c.note);
 }
 
+// Which commentators have anything to say about THIS chapter. Matthew Henry covers
+// 30 books; the Catena's Church Fathers cover 11 chapters — so the choice on offer
+// changes as you move through the Bible, and a chapter with one source shows no
+// picker at all rather than a control with nothing to switch to.
+function commentarySources(data, ch){
+  const src = data.src || {};
+  return Object.keys(src).filter(name => {
+    const s = src[name];
+    if (s.intro && s.intro[ch]) return true;
+    return Object.keys(s.v).some(k => k.slice(0, k.indexOf(".")) === String(ch));
+  });
+}
+
 function renderCommentary(box, data, ch, v){
-  /* Matthew Henry comments in BLOCKS — John 3 has sections at verses 1 and 22, not
-     one per verse — so the covering block is the greatest start ≤ v in this chapter.
-     An exact-match lookup would report "nothing here" for John 3:16 while the
-     commentary sits one key away. The index is derived from the payload's own keys
-     rather than stored, and memoised per book. */
-  if (!data._idx){
+  const names = commentarySources(data, ch);
+  if (!names.length) return '<p class="muted">No commentary for this chapter.</p>';
+  // The choice is remembered across verses and chapters, but falls back whenever the
+  // preferred voice has nothing here — reading Matthew Henry through John and hitting
+  // a chapter he skipped should show the Fathers, not an empty tab.
+  if (!studyCommentator || names.indexOf(studyCommentator) === -1) studyCommentator = names[0];
+  const src = data.src[studyCommentator];
+
+  /* Commentators write in BLOCKS, not per verse — Matthew Henry's John 3 has sections
+     at verses 1 and 22 — so the covering block is the greatest start ≤ v in this
+     chapter. An exact-match lookup would report "nothing here" for John 3:16 while
+     the commentary sits one key away. Derived from each source's own keys rather than
+     stored, and memoised per source. */
+  if (!src._idx){
     const idx = {};
-    for (const key of Object.keys(data.v)){
+    for (const key of Object.keys(src.v)){
       const [c, s] = key.split(".").map(Number);
       (idx[c] || (idx[c] = [])).push(s);
     }
     for (const c of Object.keys(idx)) idx[c].sort((a, b) => a - b);
-    Object.defineProperty(data, "_idx", { value: idx, enumerable: false });
+    Object.defineProperty(src, "_idx", { value: idx, enumerable: false });
   }
-  const starts = data._idx[ch] || [];
+  const starts = src._idx[ch] || [];
   let start = null;
   for (const s of starts){ if (s <= v) start = s; else break; }
-  const intro = data.intro && data.intro[ch]
+
+  const picker = names.length > 1
+    ? '<div class="cm-pick">' + names.map(n =>
+        '<button data-cm="' + esc(n) + '" aria-pressed="' + (n === studyCommentator) + '">' +
+        esc(n) + '</button>').join("") + '</div>'
+    : "";
+  const para = s => s.split("\n").map(p => esc(p)).join("<br><br>");
+  const intro = src.intro && src.intro[ch]
     ? '<div class="ctx-row"><div class="ctx-k">Chapter</div><div class="ctx-v">' +
-      data.intro[ch].split("\n").map(p => esc(p)).join("<br><br>") + '</div></div>'
+      para(src.intro[ch]) + '</div></div>'
     : "";
   const body = start !== null
     ? '<div class="ctx-row"><div class="ctx-k">On verse ' + start +
       (starts.indexOf(start) + 1 < starts.length ? "–" + (starts[starts.indexOf(start) + 1] - 1) : " onward") +
-      '</div><div class="ctx-v">' + data.v[ch + "." + start].split("\n").map(p => esc(p)).join("<br><br>") +
-      '</div></div>'
+      '</div><div class="ctx-v">' + para(src.v[ch + "." + start]) + '</div></div>'
     : "";
-  if (!intro && !body) return '<p class="muted">No commentary for this chapter.</p>';
-  return intro + body + '<p class="study-src">' + esc(data.by || "Commentary") + ' · public domain</p>';
+  if (!intro && !body) return picker + '<p class="muted">Nothing on this chapter from ' +
+    esc(studyCommentator) + '.</p>';
+  return picker + intro + body +
+    '<p class="study-src">' + esc(studyCommentator) + ' · public domain</p>';
+}
+
+/* The Places notes and openbible's geocoding are already in the vault, so this tab
+   is a real plan rather than a slot — but nothing is generated for it yet, and an
+   unannounced empty tab reads as a bug. Say so plainly instead. */
+function renderMapSoon(){
+  return '<p class="muted">Coming soon — the places named in this verse, plotted.</p>' +
+    '<p class="muted">The vault already has the Places notes and openbible.info’s ' +
+    'geocoding; what is missing is the verse-to-place index behind them.</p>';
 }
 
 async function renderStudyBody(box, tab, t, bi, ch, v){
+  // The Map tab has no payload to wait for — render it and stop, rather than asking
+  // the host for an "mp-<book>" sidecar that does not exist.
+  if (tab === "mp"){ box.innerHTML = renderMapSoon(); return; }
   box.innerHTML = '<p class="muted">Loading…</p>';
   const id = tab === "xr" ? "xr" : tab === "bx" ? "bx" : tab + "-" + bi;
   let data;
@@ -2284,12 +2392,18 @@ async function renderStudyBody(box, tab, t, bi, ch, v){
   // then would drop another verse's content into the open panel.
   if (!studyAt || studyAt.tab !== tab || studyAt.bi !== bi || studyAt.ch !== ch || studyAt.v !== v) return;
   box.innerHTML =
-    tab === "xr" ? renderXrefs(box, data, bi, ch, v) :
+    tab === "xr" ? renderXrefs(box, data, t, bi, ch, v) :
     tab === "il" ? renderInterlinear(box, data, ch, v) :
     tab === "bx" ? renderContext(box, data, bi) :
                    renderCommentary(box, data, ch, v);
   box.querySelectorAll(".xr-list button").forEach(b =>
     b.addEventListener("click", () => openVerse(t, +b.dataset.bi, +b.dataset.ch, +b.dataset.v)));
+  // Switching commentator re-renders this same tab in place.
+  box.querySelectorAll(".cm-pick button").forEach(b =>
+    b.addEventListener("click", () => {
+      studyCommentator = b.dataset.cm;
+      renderStudyBody(box, tab, t, bi, ch, v);
+    }));
 }
 
 function openStudy(t, bi, ch, v, verseEl){
@@ -2306,14 +2420,29 @@ function openStudy(t, bi, ch, v, verseEl){
   const panel = document.createElement("div");
   panel.className = "study";
   panel.innerHTML =
+    '<div class="study-ref"><button class="study-back">' +
+      esc(BOOKS[bi] + " " + ch + ":" + v) + ' ↑</button><span class="spacer"></span>' +
+      '<button class="study-close" aria-label="Close study panel">✕</button></div>' +
     '<div class="study-tabs" role="tablist">' +
     tabs.map(([k, label]) =>
       '<button role="tab" data-tab="' + k + '" aria-selected="' + (k === studyTab) + '">' +
       esc(label) + '</button>').join("") +
-    '<span class="spacer"></span>' +
-    '<button class="study-close" aria-label="Close study panel">✕</button>' +
     '</div><div class="study-body"></div>';
-  verseEl.insertAdjacentElement("afterend", panel);
+  /* Appended to .reader, so the card is a SIBLING of .reader-panel rather than a
+     child of the reading column. openReader() replaces .reader's innerHTML on every
+     chapter change, so the card cannot outlive the chapter it describes. */
+  $reader.appendChild(panel);
+
+  panel.querySelector(".study-back").addEventListener("click", () => {
+    verseEl.scrollIntoView({ block: "center", behavior: "instant" });
+  });
+  /* Stacked layout puts the card below the whole chapter, which for Psalm 119 is a
+     long way down — bring it into view. Not done in the side-by-side case, where it
+     is already visible and scrolling would only drag the reader away from the verse. */
+  // Must match the side-by-side breakpoint in the stylesheet, or the card scrolls
+  // itself into view in the very layout where it was already visible.
+  const sideBySide = window.matchMedia && matchMedia("(min-width:1180px)").matches;
+  if (!sideBySide) panel.scrollIntoView({ block: "nearest", behavior: "instant" });
 
   const box = panel.querySelector(".study-body");
   panel.querySelectorAll('.study-tabs button[role="tab"]').forEach(b =>
