@@ -847,7 +847,14 @@
      not a <foreignObject> inside it — that keeps the card's chips ordinary
      anchors the page's existing click delegates already understand. */
   .mapwrap{position:relative;margin:0 0 12px}
-  .mapwrap .mp-svg{margin:0}
+  /* touch-action:none is what lets a finger pan and pinch the map instead of
+     scrolling the page under it. Scoped to the SVG, so the block around the map
+     still scrolls normally — only the map itself claims the gesture. */
+  .mapwrap .mp-svg{margin:0;touch-action:none;cursor:grab}
+  .mapwrap.grabbing .mp-svg{cursor:grabbing}
+  .mapwrap.grabbing .mp-pin,.mapwrap.grabbing .mh-pin{pointer-events:none}
+  .map-hint{font-family:var(--sans);font-size:11px;font-weight:300;color:var(--muted-2);
+    margin:6px 2px 0;letter-spacing:.02em}
   .map-tools{position:absolute;top:8px;right:8px;display:flex;gap:4px}
   .map-btn{width:26px;height:26px;display:flex;align-items:center;justify-content:center;
     font-family:var(--sans);font-size:13px;line-height:1;color:var(--muted);
@@ -865,6 +872,7 @@
     background:var(--bg);display:flex;flex-direction:column;justify-content:center}
   .mapwrap.full .mp-svg{max-height:100%;width:auto;max-width:100%;margin:0 auto}
   .mapwrap.full .map-tools{top:16px;right:16px}
+  .mapwrap.full .map-hint{position:absolute;left:16px;bottom:14px;margin:0}
   /* The card. Placed in page pixels by mapPopup(), which is why it carries no
      position of its own beyond `absolute` — left/top are written by the JS after
      it measures, so the card can flip sides rather than run off the frame. */
@@ -2602,6 +2610,7 @@ async function mountReaderMap(t, bi, ch, scope){
   const old = body.querySelector(":scope > .chmap");
   if (old) old.remove();
   body.insertAdjacentHTML("afterbegin", html);
+  bindMaps();
 }
 
 async function openVerse(t, bi, ch, v, dir){
@@ -3220,9 +3229,12 @@ function mapView(o){
        there is nothing to undo reads as broken. ⛶ is full screen, matching the
        Church History chart, because that is what the icon promises. */
     '<div class="map-tools">' +
+      '<button class="map-btn" data-mzoom="in" aria-label="Zoom in">+</button>' +
       '<button class="map-btn" data-mzoom="out" aria-label="Zoom out" disabled>–</button>' +
+      '<button class="map-btn" data-mzoom="home" aria-label="Show the whole map" disabled>⤢</button>' +
       '<button class="map-btn" data-mfull="1" aria-pressed="false" aria-label="Expand the map to full screen">⛶</button>' +
     '</div>' +
+    '<p class="map-hint">Drag to pan · pinch or ⌘/Ctrl-scroll to zoom · tap a pin for its story</p>' +
     '<div class="map-pop" hidden></div></div>';
 }
 
@@ -3320,6 +3332,13 @@ function mapZoomTo(id, i){
    chips stay ordinary anchors — the page already has delegates that turn those
    into a chapter reader or a note. Flipped to the other side of the pin when it
    would otherwise run off the frame. */
+/* Bind every map on the page that hasn't been bound yet. Called after each render
+   rather than from mapView(), because mapView() returns a STRING — the wrapper does
+   not exist until a caller has put it in the document. */
+function bindMaps(){
+  document.querySelectorAll("[data-map]").forEach(mapBindGestures);
+}
+
 function mapPopup(id, i){
   const wrap = document.querySelector('[data-map="' + id + '"]');
   const m = _maps[id];
@@ -3377,6 +3396,199 @@ function mapZoomOut(id){
   ]);
 }
 
+/* ── pan, and zoom by gesture ───────────────────────────────────────────────
+   The same convention the Church History chart uses, because a reader shouldn't
+   have to learn two: a plain wheel or two-finger swipe MOVES the map, and zoom is
+   the deliberate gesture — pinch, ctrl/⌘+wheel, or the −/+ buttons. It needs no
+   guessing about what kind of device sent the event, which matters because a wheel
+   notch and a trackpad swipe arrive as the same event.
+
+   Unlike the chart, panning here cannot be the browser's job: an SVG viewBox is not
+   a scroll container. So the gesture drives the viewBox directly — and only the
+   viewBox, live. Re-culling the basemap, re-sizing the pins and re-placing the
+   labels on every pointermove would be a re-render per frame; instead the attribute
+   moves during the gesture and the map is redrawn once it settles, which is also
+   when the new window's shapes are needed. */
+// Units. Past this the basemap has nothing left to show, so zoom stops here.
+// (Comment above rather than trailing: tools/page-js.test.js slices declarations by
+// reading to the first line ending in ";", and a trailing comment swallows the next.)
+const MAP_MIN_SPAN = 18;
+
+// The live view: attribute only, no re-render. Used during a gesture.
+function mapSetBox(id, box){
+  const m = _maps[id];
+  const wrap = document.querySelector('[data-map="' + id + '"]');
+  if (!m || !wrap) return;
+  const svg = wrap.querySelector("svg");
+  m.box = box;
+  if (svg) svg.setAttribute("viewBox", box.map(n => Math.round(n * 10) / 10).join(" "));
+}
+// Settle: re-emit for the window we ended on, and put the controls back in step.
+function mapRedraw(id){
+  const wrap = document.querySelector('[data-map="' + id + '"]');
+  if (!wrap || !_maps[id]) return;
+  const svg = wrap.querySelector("svg");
+  if (!svg) return;
+  const holder = document.createElement("div");
+  holder.innerHTML = mapSvg(id);
+  svg.replaceWith(holder.firstChild);
+  syncMapTools(id);
+}
+// Keep a window inside the basemap. Every pan and zoom ends here, so the frame can
+// never run off the edge of the world we shipped.
+function mapClamp(m, box){
+  const w = Math.min(Math.max(box[2], MAP_MIN_SPAN), m.bm.w);
+  const h = Math.min(Math.max(box[3], MAP_MIN_SPAN), m.bm.h);
+  return [
+    Math.min(Math.max(box[0], 0), m.bm.w - w),
+    Math.min(Math.max(box[1], 0), m.bm.h - h), w, h,
+  ];
+}
+/* Zoom about a point: the map coordinate under the cursor stays under the cursor,
+   which is what makes pinch and ctrl+wheel feel like they are zooming the thing you
+   are pointing at rather than the middle of the frame. cx/cy are pixels within the
+   svg; omit them to zoom about the centre (what the −/+ buttons do). */
+function mapZoomBy(id, factor, cx, cy, live){
+  const m = _maps[id];
+  const wrap = document.querySelector('[data-map="' + id + '"]');
+  if (!m || !wrap) return;
+  const svg = wrap.querySelector("svg");
+  if (!svg) return;
+  const r = svg.getBoundingClientRect();
+  const [bx, by, bw, bh] = m.box;
+  const fx = r.width ? (cx == null ? 0.5 : cx / r.width) : 0.5;
+  const fy = r.height ? (cy == null ? 0.5 : cy / r.height) : 0.5;
+  const px = bx + fx * bw, py = by + fy * bh;
+  const box = mapClamp(m, [0, 0, bw / factor, bh / factor]);
+  const next = mapClamp(m, [px - fx * box[2], py - fy * box[3], box[2], box[3]]);
+  if (live) mapSetBox(id, next); else { mapSetBox(id, next); mapRedraw(id); }
+}
+
+/* One pan/pinch driver per map. Bound once, on the wrapper, when the map is first
+   drawn — _maps holds the state, so a re-render of the SVG inside does not need the
+   listeners rebound. */
+function mapBindGestures(wrap){
+  if (wrap.dataset.bound) return;
+  wrap.dataset.bound = "1";
+  const id = wrap.dataset.map;
+  const pts = new Map();
+  let down = false, sx = 0, sy = 0, start = null, pinch = null, moved = false;
+  const svgRect = () => {
+    const svg = wrap.querySelector("svg");
+    return svg ? svg.getBoundingClientRect() : null;
+  };
+  const two = () => { const a = [...pts.values()]; return [a[0], a[1]]; };
+  const beginPinch = () => {
+    const [a, b] = two();
+    const m = _maps[id];
+    if (!a || !b || !m) return;
+    pinch = { dist: Math.max(1, Math.hypot(a.x - b.x, a.y - b.y)), box: m.box.slice() };
+    for (const pid of pts.keys()){ try { wrap.setPointerCapture(pid); } catch (_) {} }
+    // A pinch must never end up tapping the pin under it, and it is not a pan.
+    down = false; moved = true; wrap.classList.remove("grabbing");
+    mapClose(id);
+  };
+  wrap.addEventListener("pointerdown", e => {
+    if (e.target.closest(".map-tools") || e.target.closest(".map-pop")) return;
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    /* Do NOT capture here. A captured pointer retargets the resulting CLICK to the
+       capturing element, so capturing every press would send every tap to the
+       wrapper and no pin would ever open. Capture is taken only once a gesture is
+       really a gesture — past the 4px threshold below, and in beginPinch. */
+    pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pts.size === 2){ beginPinch(); return; }
+    if (pts.size > 2) return;
+    const m = _maps[id];
+    if (!m) return;
+    down = true; moved = false;
+    sx = e.clientX; sy = e.clientY; start = m.box.slice();
+  });
+  wrap.addEventListener("pointermove", e => {
+    if (!pts.has(e.pointerId)) return;
+    pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    const m = _maps[id];
+    if (!m) return;
+    if (pinch && pts.size >= 2){
+      const [a, b] = two();
+      const r = svgRect();
+      if (!r) return;
+      const dist = Math.max(1, Math.hypot(a.x - b.x, a.y - b.y));
+      // Measured from where the pinch STARTED, so the zoom tracks the fingers
+      // instead of compounding a rounding error every frame.
+      m.box = pinch.box.slice();
+      mapZoomBy(id, dist / pinch.dist, (a.x + b.x) / 2 - r.left, (a.y + b.y) / 2 - r.top, true);
+      return;
+    }
+    if (!down || !start) return;
+    const dx = e.clientX - sx, dy = e.clientY - sy;
+    if (!moved && Math.hypot(dx, dy) > 4){
+      moved = true;
+      wrap.classList.add("grabbing");
+      mapClose(id);
+      // now it IS a drag — capture so it survives leaving the map, and let the
+      // retargeted click be swallowed by the moved guard rather than tap a pin
+      try { wrap.setPointerCapture(e.pointerId); } catch (_) {}
+    }
+    if (!moved) return;
+    const r = svgRect();
+    if (!r || !r.width) return;
+    // Screen pixels → map units, so the map keeps pace with the finger exactly.
+    mapSetBox(id, mapClamp(_maps[id], [
+      start[0] - (dx / r.width) * start[2],
+      start[1] - (dy / r.height) * start[3], start[2], start[3],
+    ]));
+  });
+  const end = e => {
+    const had = pts.delete(e.pointerId);
+    try { wrap.releasePointerCapture(e.pointerId); } catch (_) {}
+    if (!had) return;
+    /* Lifting one finger out of a pinch does NOT resume a pan with the other — the
+       remaining finger is wherever the pinch left it, and panning from there jumps.
+       The gesture is over; a fresh press starts the next one. */
+    if (pinch){ if (pts.size < 2){ pinch = null; down = false; mapRedraw(id); } else beginPinch(); }
+    else if (down){ down = false; if (moved) mapRedraw(id); }
+    wrap.classList.remove("grabbing");
+    // A drag may or may not be followed by a synthetic click. If it is, the click
+    // handler consumes it (moved true) and clears the flag; if it isn't, clear it on
+    // the next tick so it can never swallow a later, unrelated click.
+    if (moved && !pts.size) setTimeout(() => { moved = false; }, 0);
+  };
+  wrap.addEventListener("pointerup", end);
+  wrap.addEventListener("pointercancel", end);
+  wrap.mapMoved = () => moved;
+  /* Plain wheel or two-finger swipe pans; ctrl/⌘+wheel — which is also what a
+     trackpad pinch sends — zooms about the cursor. One rate for both devices,
+     because the clamp reconciles them: a trackpad pinch sends ±1–10px and eases,
+     while a mouse notch sends 100 and saturates at exactly ×1.25, the same step the
+     buttons take. Redrawn on a short idle rather than per event, so a long scroll is
+     one re-cull instead of forty. */
+  let settle = null;
+  const later = () => { clearTimeout(settle); settle = setTimeout(() => mapRedraw(id), 140); };
+  wrap.addEventListener("wheel", e => {
+    const m = _maps[id];
+    if (!m) return;
+    e.preventDefault();
+    let dx = e.deltaX, dy = e.deltaY;
+    if (e.deltaMode === 1){ dx *= 16; dy *= 16; }
+    else if (e.deltaMode === 2){ const r = svgRect(); dx *= r ? r.width : 400; dy *= r ? r.height : 400; }
+    if (e.ctrlKey || e.metaKey){
+      const step = Math.max(-0.25, Math.min(0.25, -dy * 0.01));
+      const r = svgRect();
+      mapClose(id);
+      mapZoomBy(id, 1 + step, r ? e.clientX - r.left : null, r ? e.clientY - r.top : null, true);
+      later();
+      return;
+    }
+    const r = svgRect();
+    if (!r || !r.width) return;
+    mapSetBox(id, mapClamp(m, [
+      m.box[0] + (dx / r.width) * m.box[2],
+      m.box[1] + (dy / r.height) * m.box[3], m.box[2], m.box[3],
+    ]));
+    later();
+  }, { passive: false });
+}
+
 /* Full screen, the same way the Church History chart does it: requestFullscreen is
    attempted, but the page normally runs inside the plugin's pane where the host
    iframe has no allowfullscreen and the promise rejects — so the class does the
@@ -3414,8 +3626,15 @@ function syncMapTools(id){
   const wrap = document.querySelector('[data-map="' + id + '"]');
   const m = _maps[id];
   if (!wrap || !m) return;
-  const btn = wrap.querySelector('[data-mzoom="out"]');
-  if (btn) btn.disabled = m.box[2] >= m.home[2] - 0.5 && m.box[3] >= m.home[3] - 0.5;
+  const atHome = m.box[2] >= m.home[2] - 0.5 && m.box[3] >= m.home[3] - 0.5;
+  const set = (k, off) => {
+    const b = wrap.querySelector('[data-mzoom="' + k + '"]');
+    if (b) b.disabled = off;
+  };
+  set("out", atHome);
+  set("home", atHome);
+  // Nothing left to magnify once the window is at the basemap's floor.
+  set("in", Math.min(m.box[2], m.box[3]) <= MAP_MIN_SPAN + 0.5);
 }
 
 /* One delegate for every map on the page, bound to the document because maps now
@@ -3427,9 +3646,17 @@ document.addEventListener("click", e => {
   const id = wrap.dataset.map;
   if (e.target.closest("[data-open]")) return;        // a chip inside the card wins
   if (e.target.closest("[data-mclose]")){ mapClose(id); return; }
+  // A pan ends in a click. Swallow it, or every drag taps whatever it finished on.
+  if (wrap.mapMoved && wrap.mapMoved()) return;
   if (e.target.closest("[data-mfull]")){ mapFull(id); return; }
   const zb = e.target.closest("[data-mzoom]");
-  if (zb){ zb.dataset.mzoom === "home" ? mapHome(id) : mapZoomOut(id); return; }
+  if (zb){
+    const k = zb.dataset.mzoom;
+    if (k === "home") mapHome(id);
+    else if (k === "in"){ mapClose(id); mapZoomBy(id, 1.6); }
+    else mapZoomOut(id);
+    return;
+  }
   const pin = e.target.closest("[data-mi]");
   if (pin){
     const i = +pin.dataset.mi;
@@ -3519,6 +3746,7 @@ async function renderStudyBody(box, tab, t, bi, ch, v){
     tab === "bx" ? renderContext(box, data, bi) :
     tab === "mp" ? renderMap(data, bi, ch, v) :
                    renderCommentary(box, data, ch, v);
+  bindMaps();
   box.querySelectorAll(".xr-list button").forEach(b =>
     b.addEventListener("click", () => openVerse(t, +b.dataset.bi, +b.dataset.ch, +b.dataset.v)));
   // Switching commentator re-renders this same tab in place.
@@ -3905,6 +4133,7 @@ function renderPlacesMap(filter, mp){
   $res.innerHTML = mapsPicker() + '<div class="mh">' + map + '</div>' +
     '<p class="study-src">Identified locations from openbible.info · CC-BY · ' +
     'coastlines from Natural Earth (public domain)</p>';
+  bindMaps();
   applyMapsFocus();
 }
 // The verses that name a place — the first few, as chips into the reader.
@@ -4025,6 +4254,7 @@ function renderChurchMap(filter, data){
   $res.innerHTML = mapsPicker() + '<div class="mh">' + map + '</div>' +
     '<p class="study-src">Branches with no single place of origin are not pinned · ' +
     'coastlines from Natural Earth (public domain)</p>';
+  bindMaps();
   applyMapsFocus();
 }
 
@@ -4058,6 +4288,7 @@ function renderOtdMap(filter, data){
   $res.innerHTML = mapsPicker() + '<div class="mh">' + map + '</div>' +
     '<p class="study-src">The fixed feasts are kept everywhere at once and are not pinned · ' +
     'coastlines from Natural Earth (public domain)</p>';
+  bindMaps();
   applyMapsFocus();
 }
 
@@ -4141,6 +4372,7 @@ function renderMaps(filter){
   $res.innerHTML = mapsPicker() + open + '<div class="mh">' + map + '<div class="mh-list">' + rows + '</div>' + rest + '</div>' +
     '<p class="study-src">Coastlines from Natural Earth (public domain) · ' +
     'places are the traditional sites, and the early dates are debated</p>';
+  bindMaps();
   applyMapsFocus();
 }
 
