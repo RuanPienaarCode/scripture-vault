@@ -33,6 +33,10 @@
        sat under 3:1 on the cream panel; the light block below darkens each one. */
     --otd-prot:#5fae76; --otd-evang:#c08a1f; --otd-miss:#5b86d6;
     --otd-early:#a06fc4; --otd-orth:#c96f6f;
+    /* Map ground. Deliberately quiet — the pins and their labels are the content,
+       and a basemap with any saturation of its own competes with them. Sea is a
+       shade off --bg so the frame reads as a panel rather than a hole in the page. */
+    --map-sea:#0a1220; --map-land:#1a2135; --map-coast:#39415e; --map-river:#3d5f86;
     --badge-nn:#b06fa6; --badge-sa:#5b86d6;
     --shadow-tab:0 1px 3px rgba(0,0,0,.4);
     --shadow-pop:0 22px 55px rgba(0,0,0,.55);
@@ -60,6 +64,9 @@
     --otd-prot:#2f7a49; --otd-evang:#8a6114; --otd-miss:#2f5fb0;
     --otd-early:#7d4fa3; --otd-orth:#a94a4a;
     --badge-nn:#8c5884; --badge-sa:#4769a8;
+    /* Map ground on paper. Land stays the lighter of the two so the figure/ground
+       reads the same way round as in dark mode — sea recedes, land holds the pins. */
+    --map-sea:#e7e2d4; --map-land:#fffdf8; --map-coast:#c2b8a2; --map-river:#8aa6c4;
     --shadow-tab:0 1px 3px rgba(60,50,20,.16);
     --shadow-pop:0 18px 45px rgba(60,50,20,.16);
     --shadow-reader:0 24px 70px rgba(60,50,20,.2);
@@ -110,7 +117,31 @@
   .eyebrow{font-size:10.5px;letter-spacing:.42em;text-transform:uppercase;color:var(--accent);font-weight:400}
   h1{font-size:46px;line-height:1.08;margin:14px 0 10px;letter-spacing:.01em;font-weight:200}
   h1 .accent{color:var(--accent);font-style:italic;font-weight:200}
-  .lede{color:var(--muted);font-size:15px;font-weight:300;max-width:62ch;margin:0}
+  /* The lede — what this page can search — used to sit under the title as three
+     lines of prose. It is orientation you need once, so it now folds behind the (i)
+     beside the title and the page opens straight onto the search box.
+     Anchored absolutely to the hero, NOT fixed: this page runs inside the plugin's
+     iframe, where position:fixed resolves against the iframe rather than the pane
+     and would land the bubble off-screen. */
+  h1 .ledeinfo{display:inline-flex;align-items:center;justify-content:center;
+    width:22px;height:22px;margin-left:12px;padding:0;vertical-align:middle;
+    font-family:var(--sans);font-size:12px;font-weight:400;font-style:italic;
+    color:var(--muted-2);background:none;border:1px solid var(--line);border-radius:999px;
+    cursor:pointer;position:relative;top:-4px}
+  h1 .ledeinfo:hover,h1 .ledeinfo[aria-expanded="true"]{color:var(--accent);border-color:var(--accent)}
+  h1 .ledeinfo:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  header.hero{position:relative}
+  .lede{position:absolute;left:0;top:100%;z-index:7;margin:6px 0 0;max-width:min(62ch,100%);
+    color:var(--muted);font-size:14px;font-weight:300;line-height:1.6;
+    background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+    padding:12px 15px;box-shadow:var(--shadow-tab);
+    opacity:0;visibility:hidden;transition:opacity .12s ease}
+  /* One class, set by JS for hover, keyboard focus and tap alike. Deliberately not
+     :has(.ledeinfo:hover) — the release preflight guards this file against older
+     WebKit, and a single class costs nothing and works everywhere. A hover-only
+     tooltip would be unreachable by keyboard and unopenable on a phone anyway, so
+     the JS path has to exist regardless. */
+  .hero.lede-open .lede{opacity:1;visibility:visible}
 
   /* command bar — one row owns the whole region; filters are chips with popovers */
   .searchbar{position:sticky;top:0;z-index:5;background:var(--bar-bg);
@@ -151,8 +182,8 @@
   /* A tab that isn't in the chosen group is out of the strip entirely. Separate from
      [hidden] (payload absent) so the two can't clobber one another. */
   .srctabs button.tab-off{display:none}
-  /* Reading Plan is announced, not built. It sits in the strip greyed out so the
-     shape of what's coming is visible, and refuses focus and clicks. */
+  /* Reading Plan and Maps are announced, not built. They sit in the strip greyed
+     out so the shape of what's coming is visible, and refuse focus and clicks. */
   .srctabs button[disabled]{color:var(--muted-2);cursor:default;opacity:.55}
   .srctabs button[disabled]:hover{color:var(--muted-2)}
   .srctabs .soon{font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted-2)}
@@ -677,8 +708,19 @@
   button.rnav:hover{border-color:var(--accent);color:var(--ink)}
   .reader-body .rv{margin:10px 0;padding-left:2em;text-indent:-2em;font-weight:300;line-height:1.8}
   .reader-body .rvn{font-family:var(--mono);font-size:11px;color:var(--muted-2);font-weight:500;margin-right:10px}
+  /* The two highlighted states — the verse you searched for (.target) and the verse
+     you tapped to open the study card (.studying) — share their geometry.
+     A plain .rv hangs its number in 2em of padding against a matching -2em indent,
+     which lands the digits exactly on the border-box edge. That is invisible while
+     nothing is painted behind them, but the moment a highlight has a background the
+     number sits hard against its left edge — and .studying's 2px inset rule draws
+     straight over the digits, clipping them. Both states therefore re-cut the box:
+     2.3em of padding against a shallower -1.3em indent leaves the number 1em clear
+     of the edge. One rule for both so the pair cannot drift apart again. */
+  .reader-body .rv.target,.reader-body .rv.studying{
+    padding:11px 14px 11px 2.3em;text-indent:-1.3em;margin:10px 0}
   .reader-body .rv.target{background:var(--target-bg);border-left:2px solid var(--accent);
-    border-radius:0 6px 6px 0;padding:11px 14px 11px 2.3em;text-indent:-1.3em;margin:10px 0;scroll-margin-top:20px}
+    border-radius:0 6px 6px 0;scroll-margin-top:20px}
   .reader-body .rv.target .rvn{color:var(--accent)}
   /* Only advertise the tap when there is actually a study layer behind it —
      openVerse adds .has-study only when this book has one. */
@@ -777,6 +819,64 @@
   .cm-pick button:hover{color:var(--ink);border-color:var(--accent)}
   .cm-pick button[aria-pressed="true"]{color:var(--accent);border-color:var(--accent-line);
     background:var(--code-bg)}
+
+  /* the map itself. Every colour is a page variable, which is the whole reason the
+     basemap is inline SVG and not an image: it themes light/dark with the page and
+     costs nothing at read time. vector-effect keeps hairlines hairline-thin however
+     far the viewBox is zoomed in — without it a tight window paints fat coastlines. */
+  .mp-svg{display:block;width:100%;height:auto;margin:0 0 12px;border-radius:8px;
+    background:var(--map-sea);border:1px solid var(--line)}
+  .mp-svg path{vector-effect:non-scaling-stroke}
+  .bm-land path{fill:var(--map-land);stroke:var(--map-coast);stroke-width:.7}
+  .bm-lake path{fill:var(--map-sea);stroke:var(--map-coast);stroke-width:.5}
+  .bm-river path{fill:none;stroke:var(--map-river);stroke-width:.8}
+  .mp-pin circle{fill:var(--accent);stroke:var(--map-sea);stroke-width:.5;vector-effect:none}
+  /* A pin pushed off its true point keeps a thread back to it — see spreadPins(). */
+  .mp-leader{stroke:var(--accent);stroke-width:1;opacity:.5;vector-effect:non-scaling-stroke}
+  .mp-pin text{fill:var(--ink);font-family:var(--sans);font-weight:400;paint-order:stroke;
+    stroke:var(--map-sea);stroke-width:2.5px;stroke-linejoin:round}
+
+  /* ── Maps tab (History group) — the timeline, put where it happened ──────
+     The map is the header of the view, not a thumbnail beside it: this tab exists
+     to show distance, and distance needs the width. */
+  .mh .mp-svg{margin:0 0 16px}
+  .mh-pin circle{fill:var(--panel);stroke:var(--accent);stroke-width:1.2;vector-effect:none;cursor:pointer}
+  .mh-pin text{fill:var(--accent);font-family:var(--mono);text-anchor:middle;cursor:pointer;
+    paint-order:stroke;stroke:var(--panel);stroke-width:1.5px;stroke-linejoin:round}
+  .mh-pin:hover circle,.mh-pin:focus-visible circle{fill:var(--accent)}
+  .mh-pin:hover text,.mh-pin:focus-visible text{fill:var(--on-accent);stroke:var(--accent)}
+  .mh-pin:focus-visible{outline:none}
+  .mh-pin.on circle{fill:var(--accent)}
+  .mh-pin.on text{fill:var(--on-accent);stroke:var(--accent)}
+  /* The number column ties a pin to its entry; it is the only thing carrying that
+     relationship, so it keeps the mono face and the accent the pin uses. */
+  .mh-row{display:flex;gap:12px;padding:11px 12px;border-radius:10px;scroll-margin-top:80px}
+  .mh-row.on{background:var(--target-bg)}
+  .mh-n{flex:0 0 auto;width:22px;height:22px;display:flex;align-items:center;justify-content:center;
+    font-family:var(--mono);font-size:11px;color:var(--accent);border:1px solid var(--accent-line);
+    border-radius:999px}
+  .mh-n-off{color:var(--muted-2);border-color:var(--line)}
+  .mh-body{min-width:0}
+  .mh-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:10px}
+  .mh-when{font-family:var(--mono);font-size:11px;color:var(--muted-2);letter-spacing:.04em}
+  .mh-where{font-size:11px;color:var(--accent-2);letter-spacing:.06em;text-transform:uppercase}
+  .mh-rest{margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
+  .mh-resth{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted-2);
+    margin:0 0 6px;padding-left:12px}
+
+  /* places named in the verse. Same row geometry as the cross-reference list — a
+     column of tap targets, not a row of pills — so the two tabs read as siblings.
+     A place with a note in the vault is an <a>, one without is a <div>: same shape,
+     but only the linked one lifts on hover, so "this opens something" stays honest. */
+  .mp-list{display:flex;flex-direction:column;gap:1px}
+  .mp-row{display:block;border-radius:8px;padding:8px 10px;text-decoration:none}
+  a.mp-row:hover{background:var(--panel)}
+  a.mp-row:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+  .mp-name{display:block;font-size:12.5px;font-weight:400;color:var(--muted);letter-spacing:.03em}
+  a.mp-row .mp-name{color:var(--accent-2)}
+  a.mp-row:hover .mp-name{color:var(--accent)}
+  .mp-meta{display:inline-block;font-size:11.5px;font-weight:300;color:var(--muted);margin-top:2px}
+  .mp-geo{display:inline-block;font-family:var(--mono);font-size:10.5px;color:var(--muted-2);margin-left:8px}
 
   /* book context */
   .ctx-row{margin:0 0 9px}
@@ -936,6 +1036,10 @@
     /* …but the three page-tool chips carry a single glyph each (? / ▯ / ☾), so they
        compute to ~30–33px wide. min-height alone leaves them a tall thin sliver. */
     #chipHelp,#chipWidth,#chipTheme{min-width:44px}
+    /* The (i) sits inside the h1's line box, so growing the button itself would
+       push the title around. Expand the hit area with a transparent overlay
+       instead — 22px + 11px each side = the 44px minimum, layout untouched. */
+    h1 .ledeinfo::after{content:"";position:absolute;inset:-11px}
     .browsegrid select{min-height:44px;padding:10px 12px}
     button.go{min-height:46px}
     .pop button[role="menuitemradio"]{padding:10px}
@@ -1000,8 +1104,9 @@
 <main>
   <header class="hero">
     <div class="eyebrow">Bible Study Tool</div>
-    <h1>Bible <span class="accent">Search</span></h1>
-    <p class="lede">Search __TRANS_LIST____LEDE_LAYERS__ Every result links straight into Obsidian.</p>
+    <h1>Bible <span class="accent">Search</span><button class="ledeinfo" id="ledeInfo"
+      aria-expanded="false" aria-controls="lede" aria-label="What you can search here">i</button></h1>
+    <p class="lede" id="lede" role="note">Search __TRANS_LIST____LEDE_LAYERS__ Every result links straight into Obsidian.</p>
   </header>
 
   <div class="pagetools">
@@ -1019,14 +1124,15 @@
     </div>
     <div class="srctabs" role="tablist" aria-label="Search in">
       <button role="tab" data-s="bible" aria-selected="true">📖 Bible</button>
-      <button role="tab" data-s="commentary" data-g="study" aria-selected="false">📚 Commentary</button>
       <button role="tab" data-s="words" data-g="study" aria-selected="false">🔤 Words</button>
       <button role="tab" data-s="topics" data-g="study" aria-selected="false">🏷️ Topics</button>
       <button role="tab" data-s="faq" data-g="study" aria-selected="false">❓ FAQ</button>
+      <button role="tab" data-s="commentary" data-g="study" aria-selected="false">📚 Commentary</button>
+      <button role="tab" data-s="timeline" data-g="history" aria-selected="false">🕰️ Timeline</button>
       <button role="tab" data-s="history" data-g="history" aria-selected="false">📜 History</button>
       <button role="tab" data-s="churchhistory" data-g="history" aria-selected="false">⛪ Church History</button>
-      <button role="tab" data-s="timeline" data-g="history" aria-selected="false">🕰️ Timeline</button>
       <button role="tab" data-s="onthisday" data-g="history" aria-selected="false">📅 On This Day</button>
+      <button role="tab" data-s="maps" data-g="history" aria-selected="false">🗺️ Maps</button>
       <button role="tab" data-s="prayers" data-g="devotion" aria-selected="false">🙏 Prayers</button>
       <button data-g="devotion" disabled>📆 Reading Plan <span class="soon">soon</span></button>
       <button role="tab" data-s="articles" data-g="reading" aria-selected="false">📄 Articles</button>
@@ -1119,6 +1225,14 @@ __TRANS_MENU__
             <tr><td><code>predestination</code></td><td>search by belief — it finds the tradition that holds it</td></tr>
           </table>
           <p>A family-tree chart of how the churches branched, apostles to today — it scrolls sideways like a poster. Tap a branch for its story — its ancestry lights up all the way back, and the arrow keys then walk the family line. Pick a family from the dropdown to light up one tradition, and <strong>⛶</strong> opens the chart full screen. The dashed <strong>✦</strong> boxes are turning points — Chalcedon, the Great Schism, Worms, Trent, Vatican II — and they sit in the chain between what came before and the branch they caused, so you can read <em>why</em> a split happened and not only who came from whom. The head branch of each great tradition also carries <strong>where its authority rests</strong> and <strong>what it holds</strong>, so Rome, Constantinople, Wittenberg and Geneva can be read side by side — and searching a belief rather than a name finds the family that holds it. Below the chart, <strong>Seven ways to read the same history</strong> sets out the rival answers to “which church is <em>the</em> church”, each in its own words.</p>
+        </div>
+        <div id="help-maps" hidden>
+          <table>
+            <tr><td><code>(nothing)</code></td><td>leave the box empty to see the whole sweep</td></tr>
+            <tr><td><code>council</code></td><td>filter to the moments mentioning the word</td></tr>
+            <tr><td><code>luther</code></td><td>follow one person across the map</td></tr>
+          </table>
+          <p>The same moments the Timeline tab lists, put where they happened — Haran to Wittenberg. The map zooms to whatever survives the filter, so searching narrows the geography as well as the list. Numbers run in time order; tap a pin to jump to its entry, and the 📜 and 📖 chips open the note or the passage. Two moments have no single place and sit under the map instead.</p>
         </div>
         <div id="help-otd" hidden>
           <table>
@@ -1255,7 +1369,10 @@ function notes(coll){ /* [ title, author, date, topics, excerpt, path, url, body
   if (!_noteCache[id]) _noteCache[id] = JSON.parse(document.getElementById(id).textContent);
   return _noteCache[id];
 }
-const noteUrl = a => "obsidian://open?vault=" + encodeURIComponent(VAULT) + "&file=" + encodeURIComponent(a[5]);
+// Any vault path → the obsidian:// URL that opens it. encodeURIComponent is what
+// keeps a path with a quote in it from breaking out of the href it lands in.
+const vaultUrl = file => "obsidian://open?vault=" + encodeURIComponent(VAULT) + "&file=" + encodeURIComponent(file);
+const noteUrl = a => vaultUrl(a[5]);
 
 /* ── the lexicon (Words tab) ──────────────────────────────────────
    The full Strong's dictionary is ~14k entries / ~3 MB — an order of magnitude
@@ -1429,6 +1546,36 @@ $width.addEventListener("click", () => {
   if (wrap && _ch) wrap.scrollLeft = (_ch.W * chZ - wrap.clientWidth) / 2;
 });
 applyWidth();
+
+/* The (i) beside the title reveals the lede — the orientation text that used to sit
+   under the title as three lines of prose. Three ways in, because no one of them
+   covers everyone: hover for a mouse, focus for a keyboard, and tap for a phone,
+   which has no hover at all and fires no :focus-visible. A tap latches it open so it
+   can be read; hover does not, or it would stick after the pointer left. Clicking
+   again, clicking away, or Esc closes it. */
+const $hero = document.querySelector("header.hero");
+const $ledeInfo = document.getElementById("ledeInfo");
+let ledeLatched = false;
+const showLede = (on) => {
+  $hero.classList.toggle("lede-open", on || ledeLatched);
+  $ledeInfo.setAttribute("aria-expanded", ledeLatched ? "true" : "false");
+};
+$ledeInfo.addEventListener("mouseenter", () => showLede(true));
+$ledeInfo.addEventListener("mouseleave", () => showLede(false));
+$ledeInfo.addEventListener("focus", () => showLede(true));
+$ledeInfo.addEventListener("blur", () => { ledeLatched = false; showLede(false); });
+$ledeInfo.addEventListener("click", (e) => {
+  e.stopPropagation();                       // else the document handler closes it again
+  ledeLatched = !ledeLatched;
+  showLede(ledeLatched);
+});
+document.addEventListener("click", (e) => {
+  if (e.target !== $ledeInfo && !e.target.closest(".lede")) { ledeLatched = false; showLede(false); }
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && ledeLatched) { ledeLatched = false; showLede(false); }
+});
+
 // The plugin calls this once after mount, off the critical path — warms the
 // translation(s) the current scope needs so the first search hits parsed data
 // instead of a disk read. Failures are ignored; the search path retries itself.
@@ -2501,8 +2648,8 @@ function studyTabsFor(bi){
   if (STUDY.il && STUDY.il.indexOf(bi) !== -1) tabs.push(["il", "Original"]);
   if (STUDY.bx) tabs.push(["bx", "Context"]);
   if (STUDY.cm && STUDY.cm.indexOf(bi) !== -1) tabs.push(["cm", "Commentary"]);
-  // Always offered, always a placeholder — it has no sidecar to gate it on.
-  tabs.push(["mp", "Map"]);
+  // Whole-Bible like xr and bx, not per-book: one sidecar covers every verse.
+  if (STUDY.mp) tabs.push(["mp", "Map"]);
   return tabs;
 }
 function closeStudy(){
@@ -2654,27 +2801,194 @@ function renderCommentary(box, data, ch, v){
     '<p class="study-src">' + esc(studyCommentator) + ' · public domain</p>';
 }
 
-/* The Places notes and openbible's geocoding are already in the vault, so this tab
-   is a real plan rather than a slot — but nothing is generated for it yet, and an
-   unannounced empty tab reads as a bug. Say so plainly instead. */
-function renderMapSoon(){
-  return '<p class="muted">Coming soon — the places named in this verse, plotted.</p>' +
-    '<p class="muted">The vault already has the Places notes and openbible.info’s ' +
-    'geocoding; what is missing is the verse-to-place index behind them.</p>';
+/* The places a verse names, from the mp.json sidecar (tools/gen-places-map.js).
+   Payload shape is a contract with that script:
+     { p: [ [ name, lat, lon, type, note ], … ], v: { "<verseKey>": [ placeIdx, … ] } }
+   `note` is a vault path or "" — a place openbible geocodes but Bible/Places/ has
+   no note for still gets its pin, it just isn't a link.
+
+   No basemap yet, so this lists rather than plots. Every pin is openbible's own
+   best identification of an ancient site, not a survey point: the footer says so
+   once rather than hedging each row, since about half the dataset carries more
+   than one candidate location and a caveat on every line would just be noise. */
+const degree = (n, pos, neg) => Math.abs(n).toFixed(4) + "° " + (n >= 0 ? pos : neg);
+
+/* ── the basemap ───────────────────────────────────────────────────────────
+   bm.json (tools/gen-basemap.js) is land, lakes and rivers of the biblical world
+   as SVG paths, already projected — no tiles, no mapping library, nothing fetched
+   at read time. `bm.p` carries the three constants of the Mercator projection the
+   generator used; project() below MUST reproduce it exactly or a pin lands in the
+   sea. That is the contract between the two files — change it in both or neither.
+
+   Held in a module-level slot rather than passed around because both map surfaces
+   (this panel and the History tab's Maps view) draw on the same basemap, and it is
+   loaded once for the life of the page. */
+let _basemap = null;
+async function ensureBasemap(){
+  try { _basemap = await loadPayload("bm"); }
+  catch (e){ _basemap = null; }        // the caller draws its list instead
+  return _basemap;
+}
+const RAD = Math.PI / 180;
+function project(lat, lon){
+  const [x0, yTop, k] = _basemap.p;
+  return [lon * RAD * k - x0, yTop - Math.log(Math.tan(Math.PI / 4 + lat * RAD / 2)) * k];
+}
+/* The window the pins deserve, not the window the data covers. A verse in Judah
+   wants Judah; drawing it on the full Spain-to-India frame would put every pin in
+   one pixel. So: fit the box to the pins, never tighter than MIN (a single place
+   would otherwise zoom to infinity), then nudge it back inside the basemap so the
+   frame can't run off the edge of the world we shipped. */
+function fitBox(pts, min, padRatio){
+  const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]);
+  const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+  const pad = Math.max(x1 - x0, y1 - y0, min) * padRatio;
+  /* The window takes the shape of the pins, not a fixed square. It costs nothing:
+     an SVG with a viewBox and `height:auto` derives its aspect ratio FROM the
+     viewBox, so a wide box renders as a wide map rather than a stretched one. A
+     square would letterbox the Reformation map with half a frame of empty Sahara. */
+  let w = Math.min(Math.max(x1 - x0 + pad * 2, min), _basemap.w);
+  let h = Math.min(Math.max(y1 - y0 + pad * 2, min), _basemap.h);
+  // Nothing thinner than 1:2.2 either way — past that the map stops reading as a
+  // map and becomes a strip with some coastline in it.
+  w = Math.min(Math.max(w, h / 2.2), _basemap.w);
+  h = Math.min(Math.max(h, w / 2.2), _basemap.h);
+  const x = Math.min(Math.max((x0 + x1) / 2 - w / 2, 0), _basemap.w - w);
+  const y = Math.min(Math.max((y0 + y1) / 2 - h / 2, 0), _basemap.h - h);
+  return [x, y, w, h];
+}
+
+/* Pins that would sit on top of one another, pushed apart. Two things force this:
+   the data resolves different places to one point (Jerusalem and Judea share a
+   coordinate), and history piles up — eight of the timeline's moments happen in
+   Jerusalem, so eight pins land on one dot and seven of them are unreachable.
+   Each pin keeps its true position unless something is already there, and then
+   walks outward on a golden-angle spiral: successive attempts never repeat a
+   direction, so a cluster opens into a ring instead of a line. Displaced pins are
+   drawn with a hairline back to where they actually belong — the map must not
+   quietly claim Qumran is in the Mediterranean. */
+function spreadPins(pts, r){
+  const out = [], min = r * 2.05;
+  for (const [x, y] of pts){
+    let px = x, py = y;
+    for (let k = 1; k <= 48; k++){
+      if (!out.some(q => Math.hypot(q[0] - px, q[1] - py) < min)) break;
+      const a = k * 2.39996323;                        // golden angle, in radians
+      const d = min * (1 + Math.floor((k - 1) / 8) * 0.55);
+      px = x + Math.cos(a) * d; py = y + Math.sin(a) * d;
+    }
+    out.push([px, py]);
+  }
+  return out;
+}
+// The hairline from a pin to its true location, drawn only when it actually moved.
+const pinLeader = (from, to) =>
+  Math.hypot(from[0] - to[0], from[1] - to[1]) < 0.5 ? ""
+    : '<line class="mp-leader" x1="' + from[0].toFixed(1) + '" y1="' + from[1].toFixed(1) +
+      '" x2="' + to[0].toFixed(1) + '" y2="' + to[1].toFixed(1) + '"/>';
+/* The basemap layers, in painting order, culled to the window being drawn. Each
+   shape is [ d, x0, y0, x1, y1 ] — the bounding box is why a panel zoomed to Judah
+   emits a few coastlines rather than the whole Mediterranean on every verse tap.
+   The path data is generated, not user input, but it still reaches innerHTML: the
+   filter keeps it to the alphabet an SVG path can be made of, so a corrupted or
+   hand-edited sidecar cannot close the attribute and open a tag. */
+function basemapSvg(box, extra, label){
+  const [bx, by, bw, bh] = box;
+  const g = (cls, shapes) => {
+    const inside = shapes.filter(s => s[1] <= bx + bw && s[3] >= bx && s[2] <= by + bh && s[4] >= by);
+    return inside.length
+      ? '<g class="' + cls + '">' +
+        inside.map(s => '<path d="' + s[0].replace(/[^0-9MLZ .,-]/g, "") + '"/>').join("") + '</g>'
+      : "";
+  };
+  return '<svg class="mp-svg" viewBox="' + box.map(n => Math.round(n * 10) / 10).join(" ") +
+    '" role="img" aria-label="' + esc(label) + '">' +
+    g("bm-land", _basemap.land) + g("bm-lake", _basemap.lakes) + g("bm-river", _basemap.rivers) +
+    extra + '</svg>';
+}
+
+/* Labels that don't sit on top of one another. Two places genuinely share a point
+   in this data — openbible resolves both "Jerusalem" and "Judea" to the same
+   coordinate — so nudging by position alone can never separate them; the labels
+   have to stack. Each one is tried to the right of its dot first, then a line down,
+   a line up, two lines down, and so on, taking the first slot that collides with
+   nothing already placed. Width is estimated from the character count rather than
+   measured: measuring means laying the SVG out first, and being a few percent wrong
+   about a label's width costs nothing here, while a reflow per verse tap would. */
+function placeLabels(pts, names, r, fs){
+  const placed = [], out = [];
+  const hits = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+  pts.forEach(([x, y], i) => {
+    const w = names[i].length * fs * 0.54, h = fs * 1.1;
+    const bx = x + r * 1.8;
+    let slot = null;
+    for (let k = 0; k < 12 && !slot; k++){
+      // 0, +1, -1, +2, -2 … lines away from the dot's own baseline
+      const step = Math.ceil(k / 2) * (k % 2 ? 1 : -1);
+      const by = y + fs * 0.35 + step * h;
+      const rect = { x: bx, y: by - h * 0.8, w, h };
+      if (!placed.some(p => hits(rect, p))) slot = rect;
+    }
+    if (!slot) slot = { x: bx, y: y + fs * 0.35 - h * 0.8, w, h };
+    placed.push(slot);
+    out.push({ x: slot.x, y: slot.y + h * 0.8 });
+  });
+  return out;
+}
+
+function renderMap(data, bi, ch, v){
+  const idx = data.v[verseKey(bi, ch, v)] || [];
+  if (!idx.length) return '<p class="muted">No places named in this verse.</p>';
+  const places = idx.map(i => data.p[i]).filter(Boolean);
+  const rows = places.map(p => {
+    const inner = '<span class="mp-name">' + esc(p[0]) + '</span>' +
+      '<span class="mp-meta">' + esc(p[3]) + '</span>' +
+      '<span class="mp-geo">' + degree(p[1], "N", "S") + " · " + degree(p[2], "E", "W") + '</span>';
+    return p[4]
+      ? '<a class="mp-row" href="' + vaultUrl(p[4]) + '">' + inner + '</a>'
+      : '<div class="mp-row">' + inner + '</div>';
+  }).join("");
+
+  /* No basemap payload — the panel still answers the question, it just answers it
+     as a list. Worth keeping: bm.json is the one study sidecar a vault can be
+     missing while every other map input is present. */
+  let map = "";
+  if (_basemap){
+    const truth = places.map(p => project(p[1], p[2]));
+    // Scale the furniture with the window, or a tight box paints boulders and a
+    // wide one paints dust. Text is drawn at a size, not scaled by the viewBox.
+    // Sized off the first fit, then the box is re-fitted around the spread pins so
+    // one pushed outward can't end up outside the frame it was measured in.
+    const box0 = fitBox(truth, 60, 0.35);
+    const r = Math.max(box0[2], box0[3]) / 90, fs = Math.max(box0[2], box0[3]) / 26;
+    const pts = spreadPins(truth, r);
+    const box = fitBox(pts, 60, 0.35);
+    const labels = placeLabels(pts, places.map(p => p[0]), r, fs);
+    const pins = pts.map(([x, y], i) =>
+      '<g class="mp-pin">' + pinLeader([x, y], truth[i]) +
+      '<circle cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="' + r.toFixed(2) + '"/>' +
+      '<text x="' + labels[i].x.toFixed(1) + '" y="' + labels[i].y.toFixed(1) +
+      '" style="font-size:' + fs.toFixed(2) + 'px">' + esc(places[i][0]) + '</text></g>').join("");
+    map = basemapSvg(box, pins, "Map of " + places.map(p => p[0]).join(", "));
+  }
+  return map + '<div class="mp-list">' + rows + '</div>' +
+    '<p class="study-src">Identified locations from openbible.info · CC-BY · ' +
+    'coastlines from Natural Earth (public domain)</p>';
 }
 
 async function renderStudyBody(box, tab, t, bi, ch, v){
-  // The Map tab has no payload to wait for — render it and stop, rather than asking
-  // the host for an "mp-<book>" sidecar that does not exist.
-  if (tab === "mp"){ box.innerHTML = renderMapSoon(); return; }
   box.innerHTML = '<p class="muted">Loading…</p>';
-  const id = tab === "xr" ? "xr" : tab === "bx" ? "bx" : tab + "-" + bi;
+  // xr, bx and mp are whole-Bible sidecars; il and cm are one per book.
+  const id = tab === "xr" || tab === "bx" || tab === "mp" ? tab : tab + "-" + bi;
   let data;
   try { data = await loadPayload(id); }
   catch (e){
     box.innerHTML = '<p class="muted">' + esc(String((e && e.message) || e)) + '</p>';
     return;
   }
+  // The basemap is a second payload and a soft one: the Map tab degrades to its
+  // list without it, so a failure here must not take the tab down with it.
+  if (tab === "mp" && STUDY.bm && !_basemap) await ensureBasemap();
   // The reader may have moved on while this payload was being read — rendering
   // then would drop another verse's content into the open panel.
   if (!studyAt || studyAt.tab !== tab || studyAt.bi !== bi || studyAt.ch !== ch || studyAt.v !== v) return;
@@ -2682,6 +2996,7 @@ async function renderStudyBody(box, tab, t, bi, ch, v){
     tab === "xr" ? renderXrefs(box, data, t, bi, ch, v) :
     tab === "il" ? renderInterlinear(box, data, ch, v) :
     tab === "bx" ? renderContext(box, data, bi) :
+    tab === "mp" ? renderMap(data, bi, ch, v) :
                    renderCommentary(box, data, ch, v);
   box.querySelectorAll(".xr-list button").forEach(b =>
     b.addEventListener("click", () => openVerse(t, +b.dataset.bi, +b.dataset.ch, +b.dataset.v)));
@@ -2792,94 +3107,94 @@ $go.addEventListener("click", () => {
    layer off, and its chip simply stops being drawn. */
 const TIMELINE = [
   { era: "Patriarchs & Exodus", approx: true, events: [
-    { when: "c. 2000 BC", title: "Abraham", note: "God calls Abraham and makes a covenant — the family that becomes Israel begins.",
+    { when: "c. 2000 BC", title: "Abraham", where: [36.865, 39.0317, "Haran"], note: "God calls Abraham and makes a covenant — the family that becomes Israel begins.",
       refs: ["Genesis 12:1-3", "Genesis 15:5-6"] },
-    { when: "c. 1500–1250 BC", title: "The Exodus & Moses", note: "Israel is led out of Egypt and given the Law at Sinai. Scholars debate the date by centuries.",
+    { when: "c. 1500–1250 BC", title: "The Exodus & Moses", where: [28.5392, 33.975, "Mount Sinai"], note: "Israel is led out of Egypt and given the Law at Sinai. Scholars debate the date by centuries.",
       refs: ["Exodus 14:21-22", "Exodus 20:1-3"] },
-    { when: "c. 1000 BC", title: "King David", note: "David reigns from Jerusalem; many of the Psalms come from this era.",
+    { when: "c. 1000 BC", title: "King David", where: [31.7767, 35.2342, "Jerusalem"], note: "David reigns from Jerusalem; many of the Psalms come from this era.",
       refs: ["2 Samuel 5:4-5", "Psalms 51:1-2"] },
-    { when: "c. 960 BC", title: "Solomon's Temple", note: "The First Temple is built in Jerusalem.",
+    { when: "c. 960 BC", title: "Solomon's Temple", where: [31.7781, 35.2354, "Jerusalem"], note: "The First Temple is built in Jerusalem.",
       refs: ["1 Kings 6:1", "1 Kings 8:10-11"] },
   ]},
   { era: "Prophets & Exile", events: [
-    { when: "722 BC", title: "Fall of the North", note: "Assyria destroys the northern kingdom of Israel.",
+    { when: "722 BC", title: "Fall of the North", where: [32.2806, 35.195, "Samaria"], note: "Assyria destroys the northern kingdom of Israel.",
       refs: ["2 Kings 17:6-7"] },
-    { when: "586 BC", title: "Fall of Jerusalem", note: "Babylon destroys the city and Temple; the exile begins.",
+    { when: "586 BC", title: "Fall of Jerusalem", where: [31.7767, 35.2342, "Jerusalem"], note: "Babylon destroys the city and Temple; the exile begins.",
       refs: ["2 Kings 25:8-10", "Lamentations 1:1"] },
-    { when: "538 BC", title: "The Return", note: "Persia lets the exiles return; the Second Temple is rebuilt by 516 BC.",
+    { when: "538 BC", title: "The Return", where: [31.7767, 35.2342, "Jerusalem"], note: "Persia lets the exiles return; the Second Temple is rebuilt by 516 BC.",
       refs: ["Ezra 1:1-4", "Ezra 6:15"] },
   ]},
   { era: "Between the Testaments", events: [
-    { when: "c. 250–100 BC", title: "The Septuagint", note: "The Hebrew Scriptures are translated into Greek (the LXX) for the wider Jewish world.",
+    { when: "c. 250–100 BC", title: "The Septuagint", where: [31.2001, 29.9187, "Alexandria"], note: "The Hebrew Scriptures are translated into Greek (the LXX) for the wider Jewish world.",
       see: ["Bible History/Sources/Prologue of Sirach", "Bible History/Concepts/Deuterocanon"] },
-    { when: "167–160 BC", title: "Maccabean revolt", note: "Judea revolts against Greek rule (remembered at Hanukkah); the Dead Sea Scrolls community forms.",
+    { when: "167–160 BC", title: "Maccabean revolt", where: [31.9309, 35.0119, "Modein"], note: "Judea revolts against Greek rule (remembered at Hanukkah); the Dead Sea Scrolls community forms.",
       see: ["Bible History/Sources/Dead Sea Scrolls"], refs: ["John 10:22-23"] },
-    { when: "63 BC", title: "Rome takes Judea", note: "Roman control begins over the land of the Gospels.",
+    { when: "63 BC", title: "Rome takes Judea", where: [31.7767, 35.2342, "Jerusalem"], note: "Roman control begins over the land of the Gospels.",
       see: ["Bible History/People/Josephus"], refs: ["Luke 3:1-2"] },
   ]},
   { era: "Jesus & the Apostles", events: [
-    { when: "c. 4 BC", title: "Birth of Jesus", note: "Jesus is born in Bethlehem (our calendar is a few years off).",
+    { when: "c. 4 BC", title: "Birth of Jesus", where: [31.7043, 35.2076, "Bethlehem"], note: "Jesus is born in Bethlehem (our calendar is a few years off).",
       refs: ["Luke 2:1-7", "Matthew 2:1"] },
-    { when: "c. AD 30–33", title: "Death & resurrection", note: "Jesus' public ministry, crucifixion under Pilate, and resurrection — the centre of the Christian faith.",
+    { when: "c. AD 30–33", title: "Death & resurrection", where: [31.7784, 35.2296, "Jerusalem"], note: "Jesus' public ministry, crucifixion under Pilate, and resurrection — the centre of the Christian faith.",
       refs: ["Luke 23:44-46", "Luke 24:1-7", "1 Corinthians 15:3-8"] },
-    { when: "c. AD 34", title: "Conversion of Paul", note: "A fierce opponent becomes the movement's greatest missionary.",
+    { when: "c. AD 34", title: "Conversion of Paul", where: [33.5138, 36.2765, "Damascus"], note: "A fierce opponent becomes the movement's greatest missionary.",
       refs: ["Acts 9:1-9", "Galatians 1:13-16"] },
-    { when: "c. AD 48–65", title: "Paul's letters", note: "Paul writes to young churches — the earliest New Testament books to be written.",
+    { when: "c. AD 48–65", title: "Paul's letters", where: [37.9061, 22.8797, "Corinth"], note: "Paul writes to young churches — the earliest New Testament books to be written.",
       see: ["Bible History/Sources/Paul's Letters"], refs: ["1 Thessalonians 1:1", "Colossians 4:16"] },
-    { when: "c. AD 65–95", title: "The Gospels & Revelation", note: "Matthew, Mark, Luke, John, and the rest of the New Testament are written.",
+    { when: "c. AD 65–95", title: "The Gospels & Revelation", where: [37.9395, 27.3417, "Ephesus"], note: "Matthew, Mark, Luke, John, and the rest of the New Testament are written.",
       see: ["Bible History/Sources/The Writing of the New Testament"], refs: ["Luke 1:1-4", "John 20:30-31", "Revelation 1:9"] },
-    { when: "AD 70", title: "The Temple destroyed", note: "Rome razes the Second Temple; Judaism and the church are reshaped.",
+    { when: "AD 70", title: "The Temple destroyed", where: [31.7781, 35.2354, "Jerusalem"], note: "Rome razes the Second Temple; Judaism and the church are reshaped.",
       see: ["Bible History/People/Josephus"], refs: ["Matthew 24:1-2"] },
   ]},
   { era: "The Early Church & Fathers", events: [
-    { when: "c. AD 95–110", title: "Apostolic Fathers", note: "Clement of Rome, Ignatius of Antioch, and Polycarp — the first generation after the apostles.",
+    { when: "c. AD 95–110", title: "Apostolic Fathers", where: [36.2021, 36.1604, "Antioch"], note: "Clement of Rome, Ignatius of Antioch, and Polycarp — the first generation after the apostles.",
       see: ["Bible History/Sources/Apostolic Fathers"] },
-    { when: "c. AD 150", title: "Justin Martyr", note: "An early apologist defends the faith; the Gospels are read in worship.",
+    { when: "c. AD 150", title: "Justin Martyr", where: [41.8931, 12.4828, "Rome"], note: "An early apologist defends the faith; the Gospels are read in worship.",
       see: ["Bible History/People/Melito of Sardis"] },
-    { when: "c. AD 144", title: "Marcion rejected", note: "Marcion throws out the Old Testament and keeps an edited Luke with ten letters of Paul — the first canon list anyone drew up. Rome expels him, and the church starts naming its own books.",
+    { when: "c. AD 144", title: "Marcion rejected", where: [41.8931, 12.4828, "Rome"], note: "Marcion throws out the Old Testament and keeps an edited Luke with ten letters of Paul — the first canon list anyone drew up. Rome expels him, and the church starts naming its own books.",
       see: ["Bible History/Concepts/Canon (Biblical)"] },
-    { when: "c. AD 180", title: "Irenaeus of Lyons", note: "Defends the fourfold Gospel and the church's core teaching against heresies.",
+    { when: "c. AD 180", title: "Irenaeus of Lyons", where: [45.764, 4.8357, "Lyons"], note: "Defends the fourfold Gospel and the church's core teaching against heresies.",
       see: ["Bible History/People/Irenaeus of Lyons"] },
-    { when: "c. AD 170–200", title: "The Muratorian Fragment", note: "The earliest surviving list of New Testament books — most of what we read, with a few still under discussion.",
+    { when: "c. AD 170–200", title: "The Muratorian Fragment", where: [41.8931, 12.4828, "Rome"], note: "The earliest surviving list of New Testament books — most of what we read, with a few still under discussion.",
       see: ["Bible History/Concepts/Canon (Biblical)"] },
-    { when: "AD 313", title: "Edict of Milan", note: "Constantine ends the persecution of Christians across the Roman Empire.",
+    { when: "AD 313", title: "Edict of Milan", where: [45.4642, 9.19, "Milan"], note: "Constantine ends the persecution of Christians across the Roman Empire.",
       see: ["Bible History/Events/Edict of Milan (312)", "Bible History/People/Constantine"] },
-    { when: "AD 325", title: "Council of Nicaea", note: "The full deity of Christ is affirmed — the root of the Nicene Creed.",
+    { when: "AD 325", title: "Council of Nicaea", where: [40.4297, 29.7194, "Nicaea"], note: "The full deity of Christ is affirmed — the root of the Nicene Creed.",
       see: ["Bible History/People/Constantine", "Bible History/People/Athanasius of Alexandria"] },
-    { when: "AD 367", title: "Athanasius' list", note: "Athanasius names the exact 27 New Testament books we use today.",
+    { when: "AD 367", title: "Athanasius' list", where: [31.2001, 29.9187, "Alexandria"], note: "Athanasius names the exact 27 New Testament books we use today.",
       see: ["Bible History/People/Athanasius of Alexandria", "Bible History/Concepts/Canon (Biblical)"] },
-    { when: "AD 382–405", title: "Jerome's Vulgate", note: "Jerome translates the Bible into Latin — the West's Bible for a thousand years.",
+    { when: "AD 382–405", title: "Jerome's Vulgate", where: [31.7043, 35.2076, "Bethlehem"], note: "Jerome translates the Bible into Latin — the West's Bible for a thousand years.",
       see: ["Bible History/People/Jerome", "Bible History/Sources/Latin Vulgate"] },
-    { when: "AD 397", title: "Council of Carthage", note: "A church council confirms the New Testament canon.",
+    { when: "AD 397", title: "Council of Carthage", where: [36.8528, 10.3233, "Carthage"], note: "A church council confirms the New Testament canon.",
       see: ["Bible History/People/Augustine of Hippo", "Bible History/Concepts/Canon (Biblical)", "Bible History/Concepts/Deuterocanon"] },
-    { when: "AD 451", title: "Council of Chalcedon", note: "Affirms that Christ is fully God and fully man in one person.",
+    { when: "AD 451", title: "Council of Chalcedon", where: [40.9903, 29.0275, "Chalcedon"], note: "Affirms that Christ is fully God and fully man in one person.",
       see: ["Bible History/Events/Council of Chalcedon (451)"] },
   ]},
   { era: "Middle Ages to Reformation", events: [
-    { when: "1382", title: "Wycliffe's Bible", note: "The first complete English Bible, translated from the Latin by hand.",
+    { when: "1382", title: "Wycliffe's Bible", where: [52.4564, -1.2003, "Lutterworth"], note: "The first complete English Bible, translated from the Latin by hand.",
       see: ["Bible History/Sources/Latin Vulgate"] },
-    { when: "1456", title: "Gutenberg's press", note: "The printing press makes the Bible widely reproducible for the first time.",
+    { when: "1456", title: "Gutenberg's press", where: [49.9929, 8.2473, "Mainz"], note: "The printing press makes the Bible widely reproducible for the first time.",
       see: ["Bible History/Sources/Complutensian Polyglot"] },
-    { when: "1516", title: "Erasmus' Greek New Testament", note: "The Greek text is printed for the first time — and every Reformation translation, Luther's and Tyndale's included, works straight from it.",
+    { when: "1516", title: "Erasmus' Greek New Testament", where: [47.5596, 7.5886, "Basel"], note: "The Greek text is printed for the first time — and every Reformation translation, Luther's and Tyndale's included, works straight from it.",
       see: ["Bible History/Sources/Critical Texts & Modern Translations", "Bible History/Sources/Complutensian Polyglot"] },
-    { when: "1517", title: "Luther's 95 Theses", note: "The Reformation begins, recovering salvation by grace through faith and the Bible in the language of the people.",
+    { when: "1517", title: "Luther's 95 Theses", where: [51.8667, 12.65, "Wittenberg"], note: "The Reformation begins, recovering salvation by grace through faith and the Bible in the language of the people.",
       see: ["Bible History/People/Martin Luther", "Bible History/Events/Protestant Reformation", "Bible History/Events/Indulgences & Purgatory"],
       refs: ["Romans 1:16-17"] },
-    { when: "1518", title: "Cajetan confronts Luther", note: "Rome sends its sharpest theologian to argue Luther down — and Cajetan turns out to agree with him that the disputed books can't settle doctrine.",
+    { when: "1518", title: "Cajetan confronts Luther", where: [48.3705, 10.8978, "Augsburg"], note: "Rome sends its sharpest theologian to argue Luther down — and Cajetan turns out to agree with him that the disputed books can't settle doctrine.",
       see: ["Bible History/People/Cardinal Cajetan", "Bible History/Concepts/Deuterocanon"] },
-    { when: "1519", title: "Leipzig Disputation", note: "Luther argues that purgatory has no scriptural basis, because its one proof-text sits in a book he does not count as canon.",
+    { when: "1519", title: "Leipzig Disputation", where: [51.3397, 12.3731, "Leipzig"], note: "Luther argues that purgatory has no scriptural basis, because its one proof-text sits in a book he does not count as canon.",
       see: ["Bible History/Events/Leipzig Disputation", "Bible History/People/Martin Luther"] },
-    { when: "1526", title: "Tyndale's New Testament", note: "The first English New Testament translated from the Greek; it shapes English for centuries.",
+    { when: "1526", title: "Tyndale's New Testament", where: [49.634, 8.3597, "Worms"], note: "The first English New Testament translated from the Greek; it shapes English for centuries.",
       see: ["Bible History/Sources/Tyndale's New Testament"] },
-    { when: "1546", title: "Council of Trent", note: "Rome fixes its 73-book canon and, for the first time in canon history, attaches an anathema to dissent.",
+    { when: "1546", title: "Council of Trent", where: [46.0679, 11.1211, "Trent"], note: "Rome fixes its 73-book canon and, for the first time in canon history, attaches an anathema to dissent.",
       see: ["Bible History/Events/Council of Trent (1546)", "Bible History/Canons/Roman Catholic Canon (73)", "Bible History/Concepts/Deuterocanon"] },
-    { when: "1611", title: "The King James Version", note: "The KJV is published and becomes the most widely read English Bible for generations.",
+    { when: "1611", title: "The King James Version", where: [51.5074, -0.1278, "London"], note: "The KJV is published and becomes the most widely read English Bible for generations.",
       see: ["Bible History/Canons/Protestant Canon (66)"] },
   ]},
   { era: "The Modern Era", events: [
-    { when: "1826", title: "The Apocrypha dropped", note: "The Bible Society resolves to fund only Bibles without the Apocrypha — which is why a Protestant Bible today has 66 books and a Catholic one 73.",
+    { when: "1826", title: "The Apocrypha dropped", where: [51.5074, -0.1278, "London"], note: "The Bible Society resolves to fund only Bibles without the Apocrypha — which is why a Protestant Bible today has 66 books and a Catholic one 73.",
       see: ["Bible History/Canons/Protestant Canon (66)", "Bible History/Concepts/Apocrypha"] },
-    { when: "1947", title: "Dead Sea Scrolls", note: "Ancient manuscripts push our earliest Hebrew copies back a thousand years and confirm careful transmission.",
+    { when: "1947", title: "Dead Sea Scrolls", where: [31.7411, 35.4586, "Qumran"], note: "Ancient manuscripts push our earliest Hebrew copies back a thousand years and confirm careful transmission.",
       see: ["Bible History/Sources/Dead Sea Scrolls"], refs: ["Isaiah 40:8"] },
     { when: "19th–21st c.", title: "Critical texts & new translations", note: "Careful study of the Greek and Hebrew yields modern translations — ESV, NIV, NLT, and many more.",
       see: ["Bible History/Sources/Critical Texts & Modern Translations"] },
@@ -2966,6 +3281,85 @@ function renderTimeline(filter){
     ).join("") + '</div>'
   ).join("");
   $res.innerHTML = open + '<div class="tl">' + body + '</div>';
+}
+
+/* ── the Maps tab ──────────────────────────────────────────────────────────
+   The same moments the Timeline tab lists, put where they happened. It is the one
+   view that answers a question the timeline cannot: how far the story travelled.
+   Haran to Wittenberg is 3,000 km and 3,500 years, and seeing Nicaea, Chalcedon and
+   Carthage ring the same sea says something a vertical list of dates does not.
+
+   Two moments carry no `where` — "critical texts & new translations" and "the Bible
+   for the world" happen everywhere and nowhere. They are listed under the map with
+   the reason rather than pinned to an arbitrary city or silently dropped. */
+const eraTerms = (era, e) =>
+  (era + " " + e.when + " " + e.title + " " + e.note + " " + (e.refs || []).join(" ") +
+   " " + (e.where ? e.where[2] : "")).toLowerCase();
+
+function renderMaps(filter){
+  lastTerms = [];
+  const terms = filter ? parseTerms(filter) : [];
+  const keep = ev => terms.every(w => termRe(w, "i").test(ev.blob));
+  // Flat and in time order: the map numbers moments 1..n across the whole sweep,
+  // because a pin's number is only useful if it means the same thing everywhere.
+  const all = [];
+  TIMELINE.forEach(g => g.events.forEach(e => {
+    const ev = { ...e, era: g.era, approx: g.approx, blob: eraTerms(g.era, e) };
+    if (!terms.length || keep(ev)) all.push(ev);
+  }));
+  const open = '<a class="tl-open" href="' + vaultUrl(TIMELINE_NOTE) +
+    '">📄 Open the full timeline note in Obsidian ↗</a>';
+  if (!all.length){
+    $status.innerHTML = 'No moments matching “' + esc(filter) + '”.';
+    $res.innerHTML = open + '<div class="empty"><div class="big">🗺️</div>Nothing on the map matches — clear the box to see all of it.</div>';
+    return;
+  }
+  const pinned = all.filter(e => e.where);
+  const unplaced = all.filter(e => !e.where);
+
+  let map = "";
+  if (pinned.length){
+    const truth = pinned.map(e => project(e.where[0], e.where[1]));
+    // A tighter pad than the study panel's: these pins carry a number rather than a
+    // name, so they need no room beside them for a label to run into.
+    const box0 = fitBox(truth, 90, 0.12);
+    const span = Math.max(box0[2], box0[3]);
+    const r = span / 55, fs = span / 60;
+    // Eight moments happen in Jerusalem. Without this the map shows one pin and
+    // silently drops seven of the events it exists to display.
+    const pts = spreadPins(truth, r);
+    const box = fitBox(pts, 90, 0.12);
+    const pins = pts.map(([x, y], i) =>
+      '<g class="mh-pin" data-mi="' + i + '" tabindex="0" role="button" aria-label="' +
+        esc(pinned[i].title + " — " + pinned[i].where[2]) + '">' + pinLeader([x, y], truth[i]) +
+      '<circle cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="' + r.toFixed(2) + '"/>' +
+      '<text x="' + x.toFixed(1) + '" y="' + (y + fs * 0.36).toFixed(1) +
+        '" style="font-size:' + fs.toFixed(2) + 'px">' + (i + 1) + '</text></g>').join("");
+    map = basemapSvg(box, pins, "Map of " + pinned.length + " moments in Bible and church history");
+  }
+
+  $status.innerHTML = terms.length
+    ? '<strong>' + all.length + '</strong> moment' + (all.length === 1 ? '' : 's') + ' matching “' + esc(filter) + '”'
+    : 'Where it happened — <strong>' + pinned.length + '</strong> moments of Bible &amp; church history, Haran to Wittenberg';
+
+  const rows = pinned.map((e, i) =>
+    '<div class="mh-row" id="mh-' + i + '" data-mi="' + i + '">' +
+    '<div class="mh-n">' + (i + 1) + '</div>' +
+    '<div class="mh-body"><div class="mh-head"><span class="mh-when">' + esc(e.when) + '</span>' +
+      '<span class="mh-where">' + esc(e.where[2]) + '</span></div>' +
+    '<div class="tl-title">' + highlight(esc(e.title), terms) + '</div>' +
+    '<p class="tl-note">' + highlight(esc(e.note), terms) + '</p>' + tlLinks(e) + '</div></div>').join("");
+  const rest = unplaced.length
+    ? '<div class="mh-rest"><div class="mh-resth">Everywhere and nowhere — no single place to pin</div>' +
+      unplaced.map(e => '<div class="mh-row"><div class="mh-n mh-n-off">·</div><div class="mh-body">' +
+        '<div class="mh-head"><span class="mh-when">' + esc(e.when) + '</span></div>' +
+        '<div class="tl-title">' + highlight(esc(e.title), terms) + '</div>' +
+        '<p class="tl-note">' + highlight(esc(e.note), terms) + '</p>' + tlLinks(e) + '</div></div>').join("") +
+      '</div>'
+    : "";
+  $res.innerHTML = open + '<div class="mh">' + map + '<div class="mh-list">' + rows + '</div>' + rest + '</div>' +
+    '<p class="study-src">Coastlines from Natural Earth (public domain) · ' +
+    'places are the traditional sites, and the early dates are debated</p>';
 }
 
 /* ── Church History (denominational family tree) ──────────────────
@@ -3917,6 +4311,24 @@ async function run(){
   if (source === "timeline"){ renderTimeline(input); return; }   // renders even with an empty box
   if (source === "churchhistory"){ renderChurchHistory(input); return; } // ditto — empty box shows the whole tree
   if (source === "onthisday"){ renderOnThisDay(input); return; } // ditto — empty box shows today
+  /* Maps renders on an empty box too, but its basemap is a sidecar — so it awaits
+     its payload the way the Bible and Words tabs do, guarded by the same staleness
+     token, and says why rather than drawing an empty frame if it never arrives. */
+  if (source === "maps"){
+    const mgen = ++runGen;
+    if (!_basemap){
+      $status.textContent = "Loading the map…";
+      await ensureBasemap();
+      if (mgen !== runGen) return;
+      if (!_basemap){
+        $status.textContent = "The map outlines could not be loaded.";
+        $res.innerHTML = '<div class="empty"><div class="big">🗺️</div>This tab draws on Bible/search-data/bm.json — rebuild it with tools/gen-basemap.js.</div>';
+        return;
+      }
+    }
+    renderMaps(input);
+    return;
+  }
   /* Words renders on an empty box too (the written studies are the way in), and
      is the one note-ish tab whose payload is a sidecar — so it awaits its data
      the same way the Bible tab does, guarded by the same staleness token. */
@@ -4034,6 +4446,10 @@ const $tabs = Array.from(document.querySelectorAll(".srctabs [data-s]"));
 // index is the tab, exactly as the dictionary is the Words tab.
 const TAB_PAYLOAD = { faq: "fd", prayers: "pd", history: "hd", timeline: "hd", churchhistory: "cd", onthisday: "od", topics: "td", articles: "ad", words: "lx", commentary: "cx" };
 $tabs.forEach(b => { const id = TAB_PAYLOAD[b.dataset.s]; if (id && !document.getElementById(id)) b.hidden = true; });
+/* Maps is the one tab gated on a SIDECAR rather than an inline payload: what it
+   needs is the basemap, which never rides in the page. TAB_PAYLOAD can't express
+   that — there is no <script id="bm"> to look for — so the manifest answers it. */
+$tabs.forEach(b => { if (b.dataset.s === "maps" && !STUDY.bm) b.hidden = true; });
 const $visTabs = $tabs.filter(b => !b.hidden);
 
 const SMALL_SCREEN = window.matchMedia("(max-width: 640px)");
@@ -4046,8 +4462,8 @@ SMALL_SCREEN.addEventListener("change", applyWidth);
 // strip, always first, one click away from wherever you are.
 //
 // A group is only offered if at least one of its real tabs survived the payload
-// check above — the Reading Plan placeholder is announcement, not content, so it
-// never keeps an otherwise-empty group alive.
+// check above — the Reading Plan and Maps placeholders are announcement, not
+// content, so they never keep an otherwise-empty group alive.
 const $groups = Array.from(document.querySelectorAll(".srcgroups [data-g]"));
 const $groupTabs = Array.from(document.querySelectorAll('.srctabs [data-g]'));
 const groupTabsOf = g => $groupTabs.filter(b => b.dataset.g === g);
@@ -4080,7 +4496,7 @@ function selectGroup(g, focusInput){
 }
 $groups.forEach(g => g.addEventListener("click", () => selectGroup(g.dataset.g, true)));
 layoutTabs();
-const HELP_ID = { bible: "help-bible", articles: "help-articles", topics: "help-topics", faq: "help-faq", prayers: "help-prayers", history: "help-history", timeline: "help-timeline", churchhistory: "help-churchhistory", onthisday: "help-otd", words: "help-words", commentary: "help-commentary" };
+const HELP_ID = { bible: "help-bible", articles: "help-articles", topics: "help-topics", faq: "help-faq", prayers: "help-prayers", history: "help-history", timeline: "help-timeline", churchhistory: "help-churchhistory", onthisday: "help-otd", maps: "help-maps", words: "help-words", commentary: "help-commentary" };
 const PLACEHOLDER = {
   bible:     "John 3:16-18 · Psalm 23 · born again · shepherd…",
   articles:  "baptism · prayer · discipleship · \"spiritual gifts\"…",
@@ -4160,6 +4576,27 @@ $reader.addEventListener("click", e => {
   e.preventDefault();
   openFrom(el);
 });
+/* Maps tab — a pin and its entry are the same moment, so tapping either lights
+   both. Delegated on $res, which survives every re-render of the tab. */
+$res.addEventListener("click", e => {
+  const el = e.target.closest("[data-mi]");
+  if (!el || e.target.closest("[data-open]")) return;   // a chip inside a row wins
+  const row = $res.querySelector('.mh-row[data-mi="' + el.dataset.mi + '"]');
+  if (!row) return;
+  $res.querySelectorAll(".mh-row.on, .mh-pin.on").forEach(x => x.classList.remove("on"));
+  row.classList.add("on");
+  const pin = $res.querySelector('.mh-pin[data-mi="' + el.dataset.mi + '"]');
+  if (pin) pin.classList.add("on");
+  // Only chase the row when the pin was the thing tapped — scrolling the page out
+  // from under a reader who just clicked the row they were already looking at is
+  // the kind of "help" that loses their place.
+  if (el.classList.contains("mh-pin")) row.scrollIntoView({ block: "center", behavior: "smooth" });
+});
+$res.addEventListener("keydown", e => {
+  const pin = e.target.closest && e.target.closest(".mh-pin");
+  if (pin && (e.key === "Enter" || e.key === " ")){ e.preventDefault(); pin.dispatchEvent(new MouseEvent("click", { bubbles: true })); }
+});
+
 // Church History tab — node taps tell the story, lineage links jump the chart,
 // legend chips toggle the family spotlight, the toolbar zooms.
 $res.addEventListener("click", e => {
