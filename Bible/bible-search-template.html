@@ -120,6 +120,21 @@
     border-radius:var(--radius);background:var(--panel);padding:6px 8px 6px 14px;position:relative;flex-wrap:wrap}
   .cmd:focus-within{border-color:var(--accent)}
   .cmd .glyph{color:var(--muted-2);font-size:15px}
+  /* group tabs — the eleven source tabs are too many for one strip, so they sit in
+     four named groups (Study / History / Devotion / Reading) picked from this row.
+     It sits above the source strip and shares its left edge, so the eye runs down
+     one line from group to tabs to search box rather than jumping the width of the
+     page. Only the chosen group's tabs show below. Bible is not in any group: it is
+     always in the strip, always first. */
+  .srcgroups{display:flex;flex-wrap:wrap;justify-content:flex-start;gap:14px;margin:0 4px 7px}
+  .srcgroups[hidden]{display:none}
+  .srcgroups button{background:none;border:none;cursor:pointer;padding:2px 1px 4px;
+    color:var(--muted-2);font-family:var(--sans);font-size:12px;font-weight:300;
+    letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;
+    border-bottom:1.5px solid transparent}
+  .srcgroups button[hidden]{display:none}
+  .srcgroups button:hover{color:var(--ink)}
+  .srcgroups button[aria-selected="true"]{color:var(--accent);border-bottom-color:var(--accent)}
   /* source tabs — segmented control above the command bar, so the input owns its full row */
   .srctabs{display:flex;flex-wrap:wrap;max-width:100%;width:fit-content;gap:2px;background:var(--panel-2);border:1px solid var(--line);
     border-radius:9px;padding:2px;margin:0 0 9px}
@@ -133,14 +148,14 @@
   .srctabs button:hover{color:var(--ink)}
   .srctabs button[aria-selected="true"]{background:var(--panel);color:var(--accent);font-weight:400;
     box-shadow:var(--shadow-tab)}
-  /* Mobile source picker: the eight-tab strip wraps to three rows on a phone. There
-     it keeps the first few tabs inline and folds the rest behind a "More" button that
-     opens them as a bottom sheet. The More button is styled like a tab and lives in
-     the strip; on desktop it's hidden (every tab fits) and the overflow tabs show. */
-  .srctabs .tabmore{display:none;color:var(--muted)}
-  .srctabs .tabmore .chev{color:var(--muted-2);margin-left:1px}
-  .srctabs .tabmore[aria-selected="true"]{background:var(--panel);color:var(--accent);
-    box-shadow:var(--shadow-tab)}
+  /* A tab that isn't in the chosen group is out of the strip entirely. Separate from
+     [hidden] (payload absent) so the two can't clobber one another. */
+  .srctabs button.tab-off{display:none}
+  /* Reading Plan is announced, not built. It sits in the strip greyed out so the
+     shape of what's coming is visible, and refuses focus and clicks. */
+  .srctabs button[disabled]{color:var(--muted-2);cursor:default;opacity:.55}
+  .srctabs button[disabled]:hover{color:var(--muted-2)}
+  .srctabs .soon{font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted-2)}
   /* appearance:none — type="search" otherwise gets the engine's own chrome: Chromium
      and WebKit paint a native cancel ✕ that draws in the platform's grey and ignores
      the palette entirely (a light glyph on the dark theme, and vice versa). We have
@@ -489,7 +504,7 @@
   .chd-pop .pblurb{font-size:15.5px;font-weight:300;color:var(--muted);line-height:1.65;margin:11px 0 0}
   .chd-pop .ch-from{font-size:13px;margin-top:11px}
   .chd-pop .ch-members{font-size:12.5px;margin-top:11px}
-  .chd-eralabel{position:absolute;font-family:var(--sans);font-size:calc(12px * var(--lodk,1));
+  .chd-eralabel{position:absolute;font-family:var(--sans);font-size:calc(12px * var(--lodl,1));
     font-weight:400;color:var(--accent);white-space:nowrap;letter-spacing:.02em}
   .chd-eralabel .ch-span{margin-left:8px}
   .chd-rule{position:absolute;left:0;right:0;height:1px;background:var(--line);opacity:.55}
@@ -533,9 +548,57 @@
      would start to clip. Family pills are hidden rather than scaled, because their
      anti-overlap spread is computed once at build time in canvas px and scaling the
      text would make them collide. */
-  .chd-wrap.z-far .chd-nhead,.chd-wrap.z-far .chd-tag,.chd-wrap.z-far .chd-pill{display:none}
-  .chd-wrap.z-far .chd-node{justify-content:center;padding:5px 7px}
-  .chd-wrap.z-far .chd-nname{-webkit-line-clamp:4}
+  /* Tier one — .z-mid, below 72%. The year, the SA/✦ tag and the family pills go,
+     and the name counter-scales into the room they leave. The EMBLEM stays: it used
+     to be dropped along with the whole header row, which threw away the one mark
+     still recognisable at four pixels. It costs the name nothing now because it
+     leaves the flex flow entirely — absolute, centred, behind the type — and it
+     counter-scales on --lodz rather than --lodk, so it holds a true constant size on
+     screen instead of being pinned to the name's clip-safe 1.5× cap. */
+  .chd-wrap.z-mid .chd-nyr,.chd-wrap.z-mid .chd-tag,.chd-wrap.z-mid .chd-pill{display:none}
+  .chd-wrap.z-mid .chd-nhead{position:absolute;inset:0;min-height:0;justify-content:center;
+    opacity:.3;pointer-events:none;z-index:0}
+  .chd-wrap.z-mid .chd-node{justify-content:center;padding:5px 7px}
+  .chd-wrap.z-mid .chd-nname{-webkit-line-clamp:4;position:relative;z-index:1}
+  .chd-wrap.z-mid .chd-node .ch-ico{width:calc(21px * var(--lodz,1));height:calc(21px * var(--lodz,1))}
+  /* Tier two — .z-far, below 55%, which is where "Fit" lands in any normal pane.
+     The box keeps BOTH the name and the emblem here, but stops stacking them: the
+     row turns sideways, emblem left at full strength, name filling the rest. Side
+     by side rather than under, because width is the dimension this box has spare —
+     168px against 88px — and a name set beneath a legible emblem has barely two
+     lines left to live in. Turned sideways the name keeps three.
+     What this tier cannot do is make the name big. The limit is not the layout, it
+     is box area against character count: at the 35% floor a node is 59×31 CSS px on
+     screen, and no arrangement of a 38-character name inside that is readable. So
+     the emblem and the family-coloured border carry recognition at a constant size,
+     and the name stays as the label you confirm against once you have found the
+     branch by its colour. The era labels are the text that stays properly legible —
+     they sit in the band padding with nothing to clip against, so they counter-scale
+     freely on --lodl all the way out. */
+  .chd-wrap.z-far .chd-node{flex-direction:row;align-items:center;gap:3px;padding:2px 3px}
+  .chd-wrap.z-far .chd-nhead{position:static;inset:auto;opacity:1;flex:none;z-index:1}
+  /* 17px/1.18 over four lines is the measured ceiling: swept against all 132 names
+     with the emblem beside them, it is the largest type that leaves every name
+     uncut. Padding and gap are down to 2/3px for the same reason — every pixel of
+     width taken here comes off all four of the name's lines. Flat, not on --lodk:
+     the cap binds across this whole tier anyway, so the counter-scale has nothing
+     left to give. */
+  .chd-wrap.z-far .chd-nname{-webkit-line-clamp:4;line-height:1.18;font-size:17px;
+    flex:1 1 auto;min-width:0}
+  /* Longhands, not the `border-color` shorthand: the base rule and the inline
+     border-top-color already put this element's border through shorthand
+     substitution, and a var() shorthand layered on top of that silently lost to
+     --line. `:not(.kin)` keeps lineage lighting — which is a (0,2,0) selector —
+     from being outranked here, so selecting a branch still lights its ancestry at
+     any zoom. The top border is left alone: it is the family tint already. */
+  .chd-wrap.z-far .chd-node:not(.kin){border-right-color:var(--fam,var(--line));
+    border-bottom-color:var(--fam,var(--line));border-left-color:var(--fam,var(--line))}
+  /* Flat 24px of canvas, not counter-scaled: --lodz would put the emblem at 74px of
+     a 168px box at the 35% floor, and the name shares this row now. 24px is the
+     widest that leaves every name uncut beside it, and because the emblem no longer
+     shrinks with the poster it still grows on screen as you zoom out — 8.4px at the
+     floor up to 13px at the tier's top edge, against nothing at all before. */
+  .chd-wrap.z-far .chd-node .ch-ico{width:24px;height:24px}
   .chd-tag{position:absolute;top:4px;right:6px;font-size:9px;font-weight:400;letter-spacing:.04em;color:var(--badge-sa)}
   /* Lineage lighting — selecting a branch marks its whole ancestry (and its direct
      children) plus the lines between them, so "where did this come from" is a
@@ -723,11 +786,18 @@
   .ctx-outline li{margin:3px 0;color:var(--muted)}
 
   /* ── wide panes: the panel becomes a sticky rail ──────────────────────────
-     Only when there is genuinely room for 720px of text AND a 320px rail beside
-     it. Below that the media query never matches and the panel stays inline,
-     which is the correct answer for a phone or a narrow Obsidian side pane —
-     squeezing a rail in there would ruin both columns. */
-  @media (min-width:1180px){
+     Below this the media query never matches and the panel stays inline, which is
+     the correct answer for a phone or a narrow Obsidian side pane — squeezing a
+     rail in there would ruin both columns.
+
+     1075px, not the 1180px this started at. 1180 came from the two columns at
+     their PREFERRED widths (720 + 26 + 380 = 1126, plus main's 48px of padding),
+     but the chapter was always free to shrink and the rail never needed those
+     720px to sit beside it — so an ordinary 1100px desktop dropped the card under
+     the chapter for no reason. At 1075 the pair still fits with ~570px of chapter
+     beside the full-width rail, which is a fair measure; much below that and the
+     text column is the one that suffers, so that is where stacking takes over. */
+  @media (min-width:1075px){
     /* Side by side: the chapter keeps its 720px measure, the card takes a fixed
        340px beside it. flex rather than auto margins — .reader-panel centres itself
        with margin:0 auto in the stacked case, which in a row would shove the card
@@ -740,7 +810,9 @@
       gap:26px;max-width:1126px;margin-left:auto;margin-right:auto}
     body.reading .reader-panel{margin:0;flex:0 1 720px}
     /* 380px, not 340: five tabs fit on one line, and commentary — the longest thing
-       the card ever holds — gets a readable measure instead of a gutter. */
+       the card ever holds — gets a readable measure instead of a gutter. Held at a
+       fixed width on purpose: the chapter carries the whole flex-shrink, so the rail
+       reads the same at every window size and only the text column breathes. */
     body.reading .reader > .study{width:380px;flex:none;position:sticky;top:18px;margin:0}
     /* Its own scrollbox so a long Matthew Henry block cannot outgrow the rail and
        drag the whole chapter's scroll height with it. A fixed pixel cap rather
@@ -791,10 +863,10 @@
        one, which is also cheaper to composite on a phone.
        The min-width overrides need the specificity of the rules they beat. */
     .searchbar{backdrop-filter:none;-webkit-backdrop-filter:none;background:var(--bg)}
-    /* Keep the first few tabs inline; JS tags the overflow tabs .tab-of and moves
-       them into the More sheet, so the strip stays one row. */
-    .srctabs button.tab-of{display:none}
-    .srctabs .tabmore:not([hidden]){display:inline-flex;align-items:center}
+    /* Grouping already cuts the strip to Bible + at most four tabs, which wraps to
+       two tidy rows here. The group row loses its uppercase tracking to stay on one. */
+    .srcgroups{gap:10px}
+    .srcgroups button{font-size:11px;letter-spacing:.04em}
     /* The top-right tool cluster follows main's tighter mobile padding. */
     .pagetools{top:22px;right:16px}
     /* Keep each example intact — the narrow first column otherwise breaks them
@@ -855,7 +927,7 @@
   @media (pointer:coarse){
     /* min-height rather than padding alone — padding tuned to one font-size
        drifts under another, and these all already center their content. */
-    .srctabs button,button.chip,button.more,button.rnav,
+    .srctabs button,.srcgroups button,button.chip,button.more,button.rnav,
     .pop button[role="menuitemradio"]{min-height:44px}
     /* Chips deliberately keep their own horizontal padding (see the narrow-screen
        block, which trims it to fit five chips on one row) — only the vertical
@@ -939,20 +1011,25 @@
   </div>
 
   <div class="searchbar">
+    <div class="srcgroups" role="tablist" aria-label="Tab groups">
+      <button role="tab" data-g="study" aria-selected="true">Study</button>
+      <button role="tab" data-g="history" aria-selected="false">History</button>
+      <button role="tab" data-g="devotion" aria-selected="false">Devotion</button>
+      <button role="tab" data-g="reading" aria-selected="false">Reading</button>
+    </div>
     <div class="srctabs" role="tablist" aria-label="Search in">
       <button role="tab" data-s="bible" aria-selected="true">📖 Bible</button>
-      <button role="tab" data-s="words" aria-selected="false">🔤 Words</button>
-      <button role="tab" data-s="topics" aria-selected="false">🏷️ Topics</button>
-      <button role="tab" data-s="faq" aria-selected="false">❓ FAQ</button>
-      <button role="tab" data-s="history" aria-selected="false">📜 History</button>
-      <button role="tab" data-s="timeline" aria-selected="false">🕰️ Timeline</button>
-      <button role="tab" data-s="churchhistory" aria-selected="false">⛪ Church History</button>
-      <button role="tab" data-s="onthisday" aria-selected="false">📅 On This Day</button>
-      <button role="tab" data-s="prayers" aria-selected="false">🙏 Prayers</button>
-      <button role="tab" data-s="articles" aria-selected="false">📄 Articles</button>
-      <button class="tabmore" id="srcMore" aria-haspopup="true" aria-expanded="false" hidden>
-        <span class="tabmore-lbl">More</span> <span class="chev" aria-hidden="true">▾</span>
-      </button>
+      <button role="tab" data-s="commentary" data-g="study" aria-selected="false">📚 Commentary</button>
+      <button role="tab" data-s="words" data-g="study" aria-selected="false">🔤 Words</button>
+      <button role="tab" data-s="topics" data-g="study" aria-selected="false">🏷️ Topics</button>
+      <button role="tab" data-s="faq" data-g="study" aria-selected="false">❓ FAQ</button>
+      <button role="tab" data-s="history" data-g="history" aria-selected="false">📜 History</button>
+      <button role="tab" data-s="churchhistory" data-g="history" aria-selected="false">⛪ Church History</button>
+      <button role="tab" data-s="timeline" data-g="history" aria-selected="false">🕰️ Timeline</button>
+      <button role="tab" data-s="onthisday" data-g="history" aria-selected="false">📅 On This Day</button>
+      <button role="tab" data-s="prayers" data-g="devotion" aria-selected="false">🙏 Prayers</button>
+      <button data-g="devotion" disabled>📆 Reading Plan <span class="soon">soon</span></button>
+      <button role="tab" data-s="articles" data-g="reading" aria-selected="false">📄 Articles</button>
     </div>
     <div class="cmd">
       <span class="glyph" aria-hidden="true">🔍</span>
@@ -964,9 +1041,6 @@
         <button class="chip" id="chipBrowse" aria-haspopup="true" aria-expanded="false">Browse <span class="chev" aria-hidden="true">▾</span></button>
       </div>
 
-      <div class="pop" id="popSource" role="menu" aria-label="Search in" hidden>
-        <div class="ptitle">Search in</div>
-      </div>
       <div class="pop" id="popTrans" role="menu" aria-label="Translation" hidden>
         <div class="ptitle">Translation</div>
 __TRANS_MENU__
@@ -1063,6 +1137,14 @@ __TRANS_MENU__
             <tr><td><code>ἀγάπη</code> · <code>חסד</code></td><td>type the Greek or Hebrew itself — accents and vowel points optional</td></tr>
           </table>
           <p>The full Strong's dictionary — every Hebrew and Greek word in the Bible, with what it means, what the KJV calls it, and where it came from. Words with a <strong>Study</strong> tag also have a written page showing every verse they appear in.</p>
+        </div>
+        <div id="help-commentary" hidden>
+          <table>
+            <tr><td><code>propitiation</code></td><td>every passage of commentary that discusses it</td></tr>
+            <tr><td><code>leaven kingdom</code></td><td>passages discussing <em>all</em> the words</td></tr>
+            <tr><td><code>shepherd</code></td><td>also finds <em>shepherds</em>, <em>shepherding</em></td></tr>
+          </table>
+          <p>Verse-by-verse commentary — Matthew Henry and the Church Fathers — searched by what it <em>says</em>, not by where it sits. Click a result to read it beside the chapter. Very common words (<em>the</em>, <em>of</em>, <em>and</em>) are ignored, and this tab matches words rather than exact phrases.</p>
         </div>
         <div id="help-prayers" hidden>
           <table>
@@ -1763,6 +1845,211 @@ function openWord(i){
     $reader.scrollIntoView({ block: "start", behavior: "instant" });
     window.scrollTo({ top: 0, behavior: "instant" });
   }
+}
+
+/* ── commentary search (the Commentary tab) ───────────────────────
+   The commentary is ~16 MB across 30 books and, until this tab, was reachable only
+   through the study panel of a chapter you had already found — you could not ask
+   where a word is discussed. Loading 16 MB to answer that is not an option on a
+   phone, so what the page loads is an INDEX: Bible/search-data/cmx.json, ~2.8 MB,
+   written by tools/gen-search-commentary-index.js. It maps a word to the blocks
+   containing it; the block TEXT is fetched only for results actually on screen,
+   out of the same per-book cm-<bookIdx>.json sidecars the study panel already
+   caches — so opening a hit costs nothing the reader wasn't about to spend anyway.
+
+   What ships inside the page is "cx", the counts, whose presence is the single
+   signal that this tab should show — the same "meta in the page, data in a
+   sidecar" contract the Words tab uses for lex.json.
+
+     who  [ commentator name, … ]                    — indexed by blk[3]
+     blk  [ [bookIdx, chapter, verseStart, whoIdx, headline], … ]  — id = position
+     stop [ function words the index deliberately omits ]
+     idx  { token: [packed, …] }                     — see cmxPostings() */
+let _cmx = null, _cmxLoading = null, _cmxKeys = null;
+function cmxMeta(){
+  const el = document.getElementById("cx");
+  if (!el) return null;
+  try { return JSON.parse(el.textContent); } catch (e) { return null; }
+}
+/* Resolve once the index is parsed. A failed read clears the slot so the next
+   keystroke retries — the sidecar may simply still be syncing in from iCloud. */
+function ensureCmx(){
+  if (_cmx) return Promise.resolve();
+  if (!_cmxLoading){
+    const host = window.bibleSearchLoadData;
+    _cmxLoading = host
+      ? host("cmx").then(txt => { _cmx = JSON.parse(txt); })
+      : Promise.reject(new Error("The commentary index loads through the Bible Search plugin — open this page inside Obsidian."));
+    _cmxLoading.catch(() => { _cmxLoading = null; });
+  }
+  return _cmxLoading;
+}
+/* Tokenising is a CONTRACT with tools/gen-search-commentary-index.js — the same
+   split built the keys we are about to look up. Diverge and a word that was one
+   token at build time becomes two here, which finds nothing while the index looks
+   perfectly healthy. */
+const cmxTokens = s => s.toLowerCase().replace(/’/g, "'").split(/[^a-z0-9']+/).filter(w => w.length >= 2);
+/* Postings are delta-encoded with a coarse term count in the low two bits:
+   packed = (blockId - previousBlockId) * 4 + min(count - 1, 3). Written by the
+   generator; change the shift in one place and you must change it in both. */
+function cmxPostings(list){
+  const out = [];
+  let b = 0;
+  for (const p of list){ b += p >> 2; out.push([b, (p & 3) + 1]); }
+  return out;
+}
+/* One typed term → every indexed token that starts with it, so the tab matches
+   words the way the Bible tab does: "shepherd" also finds "shepherds", "covenant"
+   also finds "covenanted". The key list is walked once and cached; 25k startsWith
+   checks are cheaper than they look and this only runs per term, not per block. */
+function cmxExpand(term){
+  if (!_cmxKeys) _cmxKeys = Object.keys(_cmx.idx);
+  const exact = _cmx.idx[term];
+  const lists = exact ? [exact] : [];
+  for (const k of _cmxKeys) if (k !== term && k.startsWith(term)) lists.push(_cmx.idx[k]);
+  return lists;
+}
+const CMX_PAGE = 40;
+/* Named …Search, not renderCommentary: the study panel already owns that name for
+   drawing one chapter's commentary into the reader (see below). Two function
+   declarations with one name is not an error in JS — the later simply wins — so
+   the collision would be silent and this tab would quietly render nothing. */
+function renderCommentarySearch(input){
+  const raw = cmxTokens(input.replace(/^"(.+)"$/, "$1"));
+  if (!raw.length){ $status.textContent = ""; $res.innerHTML = ""; return; }
+  lastTerms = raw;
+  /* A function word is INDEXED NOWHERE by design, so ANDing it would empty every
+     result. Dropping it is what makes "image of God" behave like "image God"
+     rather than like a typo — but if the query is nothing BUT function words there
+     is no search left to run, and saying so is better than showing zero hits. */
+  const stop = new Set(_cmx.stop);
+  const terms = raw.filter(w => !stop.has(w));
+  if (!terms.length){
+    $status.innerHTML = 'Every word there is too common to index — try a word like ' +
+      '<em>covenant</em>, <em>propitiation</em> or <em>shepherd</em>.';
+    $res.innerHTML = "";
+    return;
+  }
+  // score per block, but a block only survives if EVERY term reached it
+  const score = new Map(), seen = new Map();
+  for (const w of terms){
+    const hit = new Map();
+    for (const list of cmxExpand(w)){
+      for (const [b, c] of cmxPostings(list)){
+        if (!hit.has(b) || hit.get(b) < c) hit.set(b, c);
+      }
+    }
+    for (const [b, c] of hit){
+      seen.set(b, (seen.get(b) || 0) + 1);
+      score.set(b, (score.get(b) || 0) + c);
+    }
+  }
+  const hits = [];
+  for (const [b, n] of seen) if (n === terms.length) hits.push(b);
+  // heaviest discussion first; ties fall back to canonical order, which is the
+  // block id — the generator emits books, chapters and verses in order.
+  hits.sort((a, b) => score.get(b) - score.get(a) || a - b);
+
+  // deduped: "the fear of the Lord" drops "the" twice, and saying so twice reads
+  // like two different words were thrown away
+  const dropped = [...new Set(raw.filter(w => stop.has(w)))];
+  const label = terms.map(w => '“' + esc(w) + '”').join(" + ");
+  $status.innerHTML = hits.length
+    ? '<strong>' + hits.length.toLocaleString() + '</strong> passage' + (hits.length === 1 ? '' : 's') +
+      ' of commentary on ' + label +
+      (dropped.length ? ' <span class="muted">(ignored ' + dropped.map(esc).join(", ") + ')</span>' : '')
+    : 'No commentary mentions ' + label + ' — try a different or shorter word.';
+  if (!hits.length){
+    $res.innerHTML = '<div class="empty"><div class="big">📚</div>Nothing in the commentary.</div>';
+    return;
+  }
+  let shown = 0;
+  const showMore = () => {
+    const end = Math.min(shown + CMX_PAGE, hits.length);
+    const page = hits.slice(shown, end);
+    const frag = page.map(b => {
+      const r = _cmx.blk[b], book = BOOKS[r[0]];
+      const where = book + " " + r[1] + (r[2] ? ":" + r[2] + " onward" : " · introduction");
+      // The reader opens through openVerse(), which needs a real verse — a chapter
+      // introduction has none, so it opens at verse 1.
+      return '<div class="hit article" id="cmx-' + b + '" data-open="cm" data-b="' + b + '">' +
+        '<div class="ref"><span class="sbadge">' + esc(_cmx.who[r[3]]) + '</span>' +
+        '<a href="' + obsUrl(chosenTrans(), book, r[1], r[2] || 1) + '" data-open="cm" data-b="' + b + '"' +
+        ' title="Read this commentary">' + esc(where) + ' ↗</a></div>' +
+        '<p class="snip">' + highlight(esc(r[4]), terms) + '</p></div>';
+    }).join("");
+    const wrap = document.getElementById("morewrap");
+    if (wrap) wrap.remove();
+    $res.insertAdjacentHTML("beforeend", frag);
+    cmxSnippets(page, terms);
+    shown = end;
+    if (shown < hits.length){
+      $res.insertAdjacentHTML("beforeend",
+        '<div id="morewrap" class="morewrap"><button class="more" id="moreBtn">Show more (' +
+        (hits.length - shown).toLocaleString() + ' left)</button></div>');
+      document.getElementById("moreBtn").addEventListener("click", showMore);
+    }
+  };
+  $res.innerHTML = "";
+  showMore();
+}
+/* The card ships with the block's opening words, which are all the index knows.
+   That is enough to recognise a passage but not to see WHY it matched — a block is
+   a whole section of exposition, and the term may be a page in. So once a page of
+   cards is on screen, the per-book sidecars behind them are pulled (the same ones
+   the study panel caches, usually a handful of books for 40 cards) and each card's
+   text is swapped for a real snippet around its first match. Failures are silent by
+   design: the headline is already a correct, useful card, and a reader who cannot
+   reach a sidecar should still get a working result list. */
+function cmxSnippets(page, terms){
+  const byBook = new Map();
+  for (const b of page){
+    const bi = _cmx.blk[b][0];
+    if (!byBook.has(bi)) byBook.set(bi, []);
+    byBook.get(bi).push(b);
+  }
+  for (const [bi, list] of byBook){
+    loadPayload("cm-" + bi).then(data => {
+      for (const b of list){
+        const r = _cmx.blk[b];
+        const src = data && data.src && data.src[_cmx.who[r[3]]];
+        if (!src) continue;
+        const text = r[2] ? (src.v || {})[r[1] + "." + r[2]] : (src.intro || {})[r[1]];
+        if (!text) continue;
+        const card = document.getElementById("cmx-" + b);
+        if (!card) continue;                       // results moved on while we loaded
+        const p = card.querySelector(".snip");
+        if (p) p.innerHTML = noteSnippetFrom(String(text).replace(/\n/g, " "), terms);
+      }
+    }).catch(() => {});
+  }
+}
+/* noteSnippet() reads a note record; this is the same window-around-the-first-hit
+   on a plain string, so a commentary block and an article snippet look alike. */
+function noteSnippetFrom(body, terms){
+  const low = body.toLowerCase();
+  let pos = -1;
+  for (const w of terms){
+    const m = new RegExp("\\b" + escRe(w), "i").exec(low);
+    if (m && (pos === -1 || m.index < pos)) pos = m.index;
+  }
+  if (pos === -1) return highlight(esc(body.slice(0, 220).trim()), terms) + " …";
+  const start = Math.max(0, pos - 90), end = Math.min(body.length, pos + 180);
+  return (start > 0 ? "… " : "") +
+    highlight(esc(body.slice(start, end).trim()), terms) +
+    (end < body.length ? " …" : "");
+}
+// Which translation a commentary hit should open the chapter in. The tab has no
+// translation chip of its own, so it follows the Bible tab's current choice.
+function chosenTrans(){ return scope === "ALL" ? TRANS[0] : scope; }
+/* Opening a hit puts the reader in the chapter with the study panel already on the
+   Commentary tab and this block's commentator selected — the two bits of state the
+   panel remembers across verses, so setting them here is all it takes. */
+function openCommentary(b){
+  const r = _cmx.blk[b];
+  studyTab = "cm";
+  studyCommentator = _cmx.who[r[3]];
+  openVerse(chosenTrans(), r[0], r[1], r[2] || 1);
 }
 
 /* ── curated links inside a note body ─────────────────────────────
@@ -3059,9 +3346,14 @@ function chBuild(){
     // shape and glyph, not colour alone, so it survives a colour-blind reader and the
     // family tint stays free to say which stream it belongs to.
     const ev = n.kind === "event";
+    // aria-label rather than letting the name text speak for itself: at the far zoom
+    // tier the name is display:none, which takes it out of the accessibility tree too,
+    // and a poster of 132 unnamed buttons is worse than the blurry one. The label is
+    // set at every zoom so the accessible name never changes as you zoom.
     return '<button class="chd-node' + (ev ? ' ev' : '') + '" id="ch-' + esc(n.id) + '" data-node="' + esc(n.id) + '"' +
+      ' aria-label="' + esc(n.name + (n.when ? ", " + n.when : "")) + '"' +
       ' style="left:' + p.x + 'px;top:' + p.y + 'px;width:' + CH_NW + 'px;height:' + CH_NH + 'px;' +
-      'border-top-color:' + chColor(n.family) + '">' +
+      '--fam:' + chColor(n.family) + ';border-top-color:' + chColor(n.family) + '">' +
       (ev ? '<span class="chd-tag chd-ev">✦</span>'
           : (n.sa ? '<span class="chd-tag">SA</span>' : (n.nonNicene ? '<span class="chd-tag" style="color:var(--fam-nonnicene)">✳</span>' : ''))) +
       '<span class="chd-nhead">' + chIcon(n.family) + '<span class="chd-nyr">' + esc(n.when) + '</span></span>' +
@@ -3085,6 +3377,7 @@ function chBuild(){
     bandsHtml + nodesHtml + '</div></div></div>' +
     '<div class="chd-pop" id="chdPop" role="dialog" aria-label="Branch details" hidden></div></div>' +
     '<p class="chd-hint">Drag or swipe to pan · pinch (or ⌘/Ctrl-scroll) to zoom · −/+ or Fit above · ⛶ for full screen · tap a branch for its story. ' +
+    'Zoomed right out each branch turns sideways — its family emblem and colour beside the name — so you can still tell the streams apart when the type gets small. ' +
     'With a branch selected, <strong>↑</strong> walks up to its parent, <strong>↓</strong> down into what came out of it, ' +
     '<strong>←</strong>/<strong>→</strong> step sideways across the same row — and its whole ancestry lights up. ' +
     'Dashed ✦ boxes are turning points — the councils, edicts and revivals that caused the branch below.</p>' +
@@ -3212,14 +3505,29 @@ let chZ = 1, chPanned = false, chApplyZoom = null;
    starts BELOW the far threshold, once the year and emblem have gone: while the header
    is still there the name has no spare room, so a bigger font there would clip rather
    than reveal. That makes the full-detail tier byte-identical to what it always was. */
-const CH_LOD_TARGET = 10.5, CH_LOD_MAXK = 1.5, CH_LOD_FAR = 0.72;
+/* Two tiers, not one. MID is the old behaviour; FAR is where counter-scaling has
+   provably run out — 12.5px × the 1.5 cap × the 0.35 zoom floor is 6.6px on screen,
+   and "Fit" in a normal pane lands exactly there, so the tier that used to carry the
+   whole zoomed-out view was the unreadable one. Below FAR the names give way to the
+   emblems (see the .z-far block). --lodz and --lodl are the UNCAPPED counter-scales,
+   for the two things that have no box to clip against: the emblem, which is absolute
+   inside the node, and the era labels, which sit in the band padding. Both therefore
+   hold a constant size on screen at any zoom, which --lodk cannot do — it is pinned
+   to whatever keeps a name uncut. All three sit at 1 above MID, so the full-detail
+   tier is byte-identical to what it always was. */
+const CH_LOD_TARGET = 10.5, CH_LOD_MAXK = 1.5, CH_LOD_MID = 0.72, CH_LOD_FAR = 0.55;
 function chLod(z){
   const wrap = document.getElementById("chdWrap");
   const canvas = document.getElementById("chdCanvas");
   if (!wrap || !canvas) return;
-  const far = z < CH_LOD_FAR;
-  const k = far ? Math.min(CH_LOD_MAXK, Math.max(1, CH_LOD_TARGET / (z * 12.5))) : 1;
+  const mid = z < CH_LOD_MID, far = z < CH_LOD_FAR;
+  const k = mid ? Math.min(CH_LOD_MAXK, Math.max(1, CH_LOD_TARGET / (z * 12.5))) : 1;
   canvas.style.setProperty("--lodk", k.toFixed(3));
+  canvas.style.setProperty("--lodz", mid ? (1 / z).toFixed(3) : "1");
+  // era labels: aim for ~13px on screen, capped at 3× so a long era label can't grow
+  // wide enough to run into the band beside it.
+  canvas.style.setProperty("--lodl", mid ? Math.min(3, Math.max(1, 13 / (z * 12))).toFixed(3) : "1");
+  wrap.classList.toggle("z-mid", mid);
   wrap.classList.toggle("z-far", far);
 }
 function chWirePanZoom(){
@@ -3627,6 +3935,25 @@ async function run(){
     renderWords(input);
     return;
   }
+  /* Commentary is the other sidecar-backed tab, and awaits its index the same way
+     the Words tab awaits the dictionary — same staleness token, same retry on a
+     failed read. It has nothing to show on an empty box: the index is a way in to
+     16 MB of prose, not a browsable list. */
+  if (source === "commentary"){
+    if (!$q.value.trim()){ $status.textContent = ""; $res.innerHTML = ""; return; }
+    const cgen = ++runGen;
+    if (!_cmx){
+      $status.textContent = "Loading the commentary index…";
+      try { await ensureCmx(); }
+      catch (e){
+        if (cgen === runGen){ $status.textContent = String((e && e.message) || e); $res.innerHTML = ""; }
+        return;
+      }
+      if (cgen !== runGen) return;
+    }
+    renderCommentarySearch(input);
+    return;
+  }
   if (!input){ $status.textContent = ""; $res.innerHTML = ""; return; }
   if (source !== "bible"){ renderNotes(source, input); return; }
   // Split builds keep verse text on disk until first use — load what the scope
@@ -3650,7 +3977,7 @@ $q.addEventListener("input", () => { clearTimeout(pending); pending = setTimeout
 $q.addEventListener("keydown", e => { if (e.key === "Enter"){ clearTimeout(pending); run(); } });
 
 /* ── command-bar chips + popovers ────────────────────────────── */
-const CHIP_POP = { srcMore: "popSource", chipTrans: "popTrans", chipTest: "popTest", chipBrowse: "popBrowse", chipHelp: "popHelp" };
+const CHIP_POP = { chipTrans: "popTrans", chipTest: "popTest", chipBrowse: "popBrowse", chipHelp: "popHelp" };
 function closePops(){
   Object.values(CHIP_POP).forEach(id => { document.getElementById(id).hidden = true; });
   Object.keys(CHIP_POP).forEach(id => { document.getElementById(id).setAttribute("aria-expanded", "false"); });
@@ -3703,54 +4030,57 @@ const $tabs = Array.from(document.querySelectorAll(".srctabs [data-s]"));
 // but Bible left, the one-tab strip is noise — drop it entirely.
 // Words keys on "lx" (the dictionary's counts), not "wd" (the written studies):
 // the dictionary is the tab, and it ships in a vault with no Word Studies folder.
-const TAB_PAYLOAD = { faq: "fd", prayers: "pd", history: "hd", timeline: "hd", churchhistory: "cd", onthisday: "od", topics: "td", articles: "ad", words: "lx" };
+// Commentary keys on "cx" (the index's counts), not on any per-book sidecar: the
+// index is the tab, exactly as the dictionary is the Words tab.
+const TAB_PAYLOAD = { faq: "fd", prayers: "pd", history: "hd", timeline: "hd", churchhistory: "cd", onthisday: "od", topics: "td", articles: "ad", words: "lx", commentary: "cx" };
 $tabs.forEach(b => { const id = TAB_PAYLOAD[b.dataset.s]; if (id && !document.getElementById(id)) b.hidden = true; });
 const $visTabs = $tabs.filter(b => !b.hidden);
-if ($visTabs.length <= 1) document.querySelector(".srctabs").hidden = true;
 
-// Mobile source picker: keep the first few tabs inline and fold the rest into the
-// #srcMore "More" button, which opens them as the #popSource bottom sheet. The
-// overflow tabs are tagged .tab-of (hidden on mobile via CSS); the More button is
-// tagged active whenever the current source lives in the overflow.
-//
-// Below the 640px mobile breakpoint we keep a hard 3 tabs inline (one tidy row)
-// and fold everything else into "More"; above it every tab shows inline and the
-// CSS hides the More button anyway. matchMedia re-runs layoutTabs() when that
-// boundary is crossed, rebuilding the sheet so its contents match what's inline.
 const SMALL_SCREEN = window.matchMedia("(max-width: 640px)");
-const $srcMore = document.getElementById("srcMore");
-const $srcMoreLbl = $srcMore.querySelector(".tabmore-lbl");
-const $popSource = document.getElementById("popSource");
-let $ofTabs = [];                    // the tabs currently folded under "More"
-function layoutTabs(){
-  const inlineCount = SMALL_SCREEN.matches ? 3 : 99;
-  $tabs.forEach(b => b.classList.remove("tab-of"));
-  $popSource.querySelectorAll('[role="menuitemradio"]').forEach(b => b.remove());
-  $ofTabs = $visTabs.slice(inlineCount);
-  $srcMore.hidden = $ofTabs.length === 0;
-  $ofTabs.forEach(tab => {
-    tab.classList.add("tab-of");
-    const b = document.createElement("button");
-    b.setAttribute("role", "menuitemradio");
-    b.dataset.s = tab.dataset.s;
-    b.textContent = tab.textContent.trim();
-    b.addEventListener("click", () => selectSource(tab.dataset.s, true));
-    $popSource.appendChild(b);
-  });
-  syncSrcMore();
-}
-function syncSrcMore(){
-  const of = $ofTabs.find(b => b.dataset.s === source);
-  $srcMore.setAttribute("aria-selected", of ? "true" : "false");
-  $srcMoreLbl.textContent = of ? of.textContent.trim() : "More";
-  $popSource.querySelectorAll('[role="menuitemradio"]').forEach(
-    b => b.setAttribute("aria-checked", b.dataset.s === source ? "true" : "false"));
-}
-SMALL_SCREEN.addEventListener("change", layoutTabs);
-// Crossing the mobile breakpoint also re-evaluates the forced-full width above.
+// Crossing the mobile breakpoint re-evaluates the forced-full width above.
 SMALL_SCREEN.addEventListener("change", applyWidth);
+
+// Tab groups. Eleven tabs is more than one strip can carry, so each tab (except
+// Bible) declares a data-g group and the right-aligned .srcgroups row above the
+// strip picks which group is showing. Bible carries no group: it is always in the
+// strip, always first, one click away from wherever you are.
+//
+// A group is only offered if at least one of its real tabs survived the payload
+// check above — the Reading Plan placeholder is announcement, not content, so it
+// never keeps an otherwise-empty group alive.
+const $groups = Array.from(document.querySelectorAll(".srcgroups [data-g]"));
+const $groupTabs = Array.from(document.querySelectorAll('.srctabs [data-g]'));
+const groupTabsOf = g => $groupTabs.filter(b => b.dataset.g === g);
+$groups.forEach(g => {
+  g.hidden = !groupTabsOf(g.dataset.g).some(b => b.dataset.s && !b.hidden);
+});
+const $visGroups = $groups.filter(g => !g.hidden);
+// Nothing but Bible left: both rows are noise, so drop them.
+if ($visGroups.length === 0){
+  document.querySelector(".srcgroups").hidden = true;
+  document.querySelector(".srctabs").hidden = true;
+}
+let group = $visGroups.length ? $visGroups[0].dataset.g : null;
+
+// Show one group's tabs and hide the rest. Payload-hidden tabs stay hidden either
+// way — .tab-off is a separate axis from [hidden] so neither can clobber the other.
+function layoutTabs(){
+  $groups.forEach(g => g.setAttribute("aria-selected", g.dataset.g === group ? "true" : "false"));
+  $groupTabs.forEach(b => b.classList.toggle("tab-off", b.dataset.g !== group));
+}
+// The tabs currently in the strip: Bible plus the open group's, in DOM order.
+const stripTabs = () => $visTabs.filter(b => !b.dataset.g || b.dataset.g === group);
+// Picking a group reveals its tabs AND moves to the first of them, so the strip
+// never shows a selection that isn't there. Bible remains one click away.
+function selectGroup(g, focusInput){
+  group = g;
+  layoutTabs();
+  const first = groupTabsOf(g).find(b => b.dataset.s && !b.hidden);
+  if (first) selectSource(first.dataset.s, focusInput);
+}
+$groups.forEach(g => g.addEventListener("click", () => selectGroup(g.dataset.g, true)));
 layoutTabs();
-const HELP_ID = { bible: "help-bible", articles: "help-articles", topics: "help-topics", faq: "help-faq", prayers: "help-prayers", history: "help-history", timeline: "help-timeline", churchhistory: "help-churchhistory", onthisday: "help-otd", words: "help-words" };
+const HELP_ID = { bible: "help-bible", articles: "help-articles", topics: "help-topics", faq: "help-faq", prayers: "help-prayers", history: "help-history", timeline: "help-timeline", churchhistory: "help-churchhistory", onthisday: "help-otd", words: "help-words", commentary: "help-commentary" };
 const PLACEHOLDER = {
   bible:     "John 3:16-18 · Psalm 23 · born again · shepherd…",
   articles:  "baptism · prayer · discipleship · \"spiritual gifts\"…",
@@ -3761,13 +4091,20 @@ const PLACEHOLDER = {
   timeline:  "Filter the timeline… Nicaea · Vulgate · exile…",
   churchhistory: "Filter the tree… Reformation · Orthodox · Baptist…",
   onthisday: "Search the calendar… Luther · Amazing Grace · martyr…",
-  words:     "love · covenant · agape · chesed · G26 · ἀγάπη…"
+  words:     "love · covenant · agape · chesed · G26 · ἀγάπη…",
+  // No phrase example here: the index stores words, not their order, so quoting a
+  // phrase would search its words separately — advertising it would promise
+  // precision this tab cannot keep.
+  commentary: "propitiation · leaven · Melchizedek · covenant blood…"
 };
 function selectSource(s, focusInput){
   source = s;
   const bible = source === "bible";
   $tabs.forEach(b => b.setAttribute("aria-selected", b.dataset.s === s ? "true" : "false"));
-  syncSrcMore();
+  // A source can also be chosen from outside the strip; open its group so the
+  // selected tab is actually on screen. Bible belongs to none and changes nothing.
+  const home = $tabs.find(b => b.dataset.s === s);
+  if (home && home.dataset.g && home.dataset.g !== group){ group = home.dataset.g; layoutTabs(); }
   document.getElementById("chipTrans").hidden = !bible;
   document.getElementById("chipTest").hidden = !bible;
   document.getElementById("chipBrowse").hidden = !bible;
@@ -3779,13 +4116,24 @@ function selectSource(s, focusInput){
   run();
 }
 $tabs.forEach(btn => btn.addEventListener("click", () => selectSource(btn.dataset.s, true)));
-// ← / → cycle tabs while the tablist has focus, per the WAI-ARIA tabs pattern
+// ← / → cycle tabs while the tablist has focus, per the WAI-ARIA tabs pattern.
+// Within the strip that means Bible plus the open group; on the group row it steps
+// between groups, which drags the strip along with it.
 document.querySelector(".srctabs").addEventListener("keydown", e => {
   if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
   e.preventDefault();
-  const i = $visTabs.findIndex(b => b.dataset.s === source);
-  const next = $visTabs[(i + (e.key === "ArrowRight" ? 1 : $visTabs.length - 1)) % $visTabs.length];
+  const strip = stripTabs();
+  const i = strip.findIndex(b => b.dataset.s === source);
+  const next = strip[(i + (e.key === "ArrowRight" ? 1 : strip.length - 1)) % strip.length];
   selectSource(next.dataset.s, false);
+  next.focus();
+});
+document.querySelector(".srcgroups").addEventListener("keydown", e => {
+  if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+  e.preventDefault();
+  const i = $visGroups.findIndex(g => g.dataset.g === group);
+  const next = $visGroups[(i + (e.key === "ArrowRight" ? 1 : $visGroups.length - 1)) % $visGroups.length];
+  selectGroup(next.dataset.g, false);
   next.focus();
 });
 
@@ -3793,6 +4141,7 @@ document.querySelector(".srctabs").addEventListener("keydown", e => {
 function openFrom(el){
   if (el.dataset.open === "verse") openVerse(el.dataset.t, +el.dataset.bi, +el.dataset.ch, el.dataset.v === "" ? null : +el.dataset.v);
   else if (el.dataset.open === "word") openWord(+el.dataset.i);
+  else if (el.dataset.open === "cm") openCommentary(+el.dataset.b);
   else openNote(el.dataset.coll, +el.dataset.i);
 }
 $res.addEventListener("click", e => {
