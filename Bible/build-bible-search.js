@@ -332,9 +332,10 @@ const CH_NODES = CHURCHHISTORY ? CHURCHHISTORY.nodes.length : 0;
 console.log(`Church History: ${CH_NODES} denomination nodes`);
 
 /* ── Study layers (the reader's per-verse panel) ───────────────────
-   Four layers hang off a verse in the reader rather than off a search tab:
-   cross-references, the Hebrew/Greek word breakdown, book context and chapter
-   commentary. All four are PRE-GENERATED sidecars in Bible/search-data/, written by
+   Five layers hang off a verse in the reader rather than off a search tab:
+   cross-references, the Hebrew/Greek word breakdown, book context, chapter
+   commentary and the places the verse names. All five are PRE-GENERATED sidecars
+   in Bible/search-data/, written by tools/gen-places-map.js and
    tools/gen-search-{xrefs,interlinear,bookcontext,commentary}.js and served to the
    page on demand by the same host hook that serves verse text.
 
@@ -358,11 +359,16 @@ const DATA_DIR = path.join(VAULT, "Bible", "search-data");
    on what exists by listing one folder — the same reason the Words tab keeps its
    dictionary in lex.json and ships only counts in the page. */
 function studyManifest() {
-  const m = { xr: false, bx: false, il: [], cm: [] };
+  const m = { xr: false, bx: false, mp: false, bm: false, bw: false, jr: false, hm: false, il: [], cm: [] };
   if (!fs.existsSync(DATA_DIR)) return m;
   for (const f of fs.readdirSync(DATA_DIR)) {
     if (f === "xr.json") { m.xr = layerOn("xrefs"); continue; }
     if (f === "bx.json") { m.bx = layerOn("bookcontext"); continue; }
+    if (f === "mp.json") { m.mp = layerOn("places"); continue; }
+    if (f === "bm.json") { m.bm = layerOn("places"); continue; }
+    if (f === "bw.json") { m.bw = layerOn("places"); continue; }
+    if (f === "jr.json") { m.jr = layerOn("places"); continue; }
+    if (f === "hm.json") { m.hm = layerOn("places"); continue; }
     const il = f.match(/^il-(\d+)\.json$/);
     if (il && layerOn("interlinear")) { m.il.push(+il[1]); continue; }
     const cm = f.match(/^cm-(\d+)\.json$/);
@@ -374,6 +380,8 @@ function studyManifest() {
 }
 const STUDY = studyManifest();
 console.log(`Study panel: cross-refs ${STUDY.xr ? "yes" : "no"} · context ${STUDY.bx ? "yes" : "no"} · ` +
+  `places ${STUDY.mp ? "yes" : "no"} · basemap ${STUDY.bm ? "yes" : "no"}${STUDY.bw ? "+world" : ""} · ` +
+  `journeys ${STUDY.jr ? "yes" : "no"} · history maps ${STUDY.hm ? "yes" : "no"} · ` +
   `interlinear ${STUDY.il.length} books · commentary ${STUDY.cm.length} books`);
 
 if (problems.length) {
