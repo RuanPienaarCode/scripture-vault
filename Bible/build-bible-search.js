@@ -107,8 +107,14 @@ const stripLinks = s => String(s).replace(/\u0001([^\u0001\u0002\u0003]*)\u0002(
 function toParagraphs(body){
   // A wikilink with an empty alias ("[[Faith|]]") carries no display text — drop it
   // rather than emit a marker whose anchor would render as nothing to click.
+  // Inside a markdown TABLE the pipe must be escaped ("[[Genesis 9 (ESV)#^11\|Genesis 9:11]]")
+  // or the cell splits early — correct Obsidian, and the only way to link from a table. The
+  // split below happens on the raw pipe, so the backslash lands at the END OF THE TARGET and
+  // the marker points at a note that does not exist. Strip it here: a trailing backslash is
+  // never part of a real note name, so this cannot swallow a legitimate target.
   const wiki = (target, alias) => {
-    const t = target.replace(/\s+/g, " ").trim(), a = alias.replace(/\s+/g, " ").trim();
+    const t = target.replace(/\s+/g, " ").trim().replace(/\\+$/, "").trim();
+    const a = alias.replace(/\s+/g, " ").trim();
     return t && a ? LINK_MARK(t, a) : a;
   };
   const clean = s => s

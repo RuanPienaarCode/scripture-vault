@@ -820,6 +820,75 @@
   .cm-pick button[aria-pressed="true"]{color:var(--accent);border-color:var(--accent-line);
     background:var(--code-bg)}
 
+  /* the chapter map, collapsed under the chapter heading in the reader. Closed by
+     default and absent entirely where a chapter names nowhere, so it costs the
+     reader nothing until they want it. */
+  .chmap{margin:0 0 18px;border:1px solid var(--line);border-radius:10px;background:var(--panel)}
+  .chmap>summary{cursor:pointer;list-style:none;padding:9px 13px;font-size:12.5px;
+    color:var(--muted);font-family:var(--sans);letter-spacing:.02em}
+  .chmap>summary::-webkit-details-marker{display:none}
+  .chmap>summary:hover{color:var(--ink)}
+  .chmap .chmap-n{color:var(--accent);font-weight:400}
+  .chmap-body{padding:0 11px 11px}
+  .chmap-scope{display:flex;gap:5px;margin:0 0 9px}
+  .chmap-scope button{font-family:var(--sans);font-size:11px;font-weight:300;letter-spacing:.02em;
+    color:var(--muted);background:var(--panel-2);border:1px solid var(--line);border-radius:999px;
+    padding:3px 10px;cursor:pointer}
+  .chmap-scope button:hover{color:var(--ink);border-color:var(--accent)}
+  .chmap-scope button[aria-pressed="true"]{color:var(--accent);border-color:var(--accent-line);
+    background:var(--code-bg)}
+  .mc-go{display:inline-block;margin-top:7px;font-family:var(--sans);font-size:11.5px;
+    color:var(--accent-2);background:none;border:1px solid var(--line);border-radius:999px;
+    padding:3px 9px;cursor:pointer}
+  .mc-go:hover{color:var(--accent);border-color:var(--accent)}
+
+  /* ── the map component ──────────────────────────────────────────────────
+     The wrapper is positioned because the popup is real HTML laid OVER the SVG,
+     not a <foreignObject> inside it — that keeps the card's chips ordinary
+     anchors the page's existing click delegates already understand. */
+  .mapwrap{position:relative;margin:0 0 12px}
+  .mapwrap .mp-svg{margin:0}
+  .map-tools{position:absolute;top:8px;right:8px;display:flex;gap:4px}
+  .map-btn{width:26px;height:26px;display:flex;align-items:center;justify-content:center;
+    font-family:var(--sans);font-size:13px;line-height:1;color:var(--muted);
+    background:var(--panel);border:1px solid var(--line);border-radius:7px;cursor:pointer;
+    opacity:.85}
+  .map-btn:hover:not(:disabled){color:var(--accent);border-color:var(--accent);opacity:1}
+  /* A control that cannot do anything says so, rather than looking live and
+     silently refusing — zoom-out at the home window is the case that matters. */
+  .map-btn:disabled{opacity:.3;cursor:default}
+  .map-btn[aria-pressed="true"]{color:var(--accent);border-color:var(--accent);opacity:1}
+  /* Full screen. Native requestFullscreen is attempted, but the page normally runs
+     inside the plugin's pane where it is refused — so position:fixed does the real
+     work and fills the pane. Flex so the map takes the height it is given. */
+  .mapwrap.full{position:fixed;inset:0;z-index:60;margin:0;padding:12px;
+    background:var(--bg);display:flex;flex-direction:column;justify-content:center}
+  .mapwrap.full .mp-svg{max-height:100%;width:auto;max-width:100%;margin:0 auto}
+  .mapwrap.full .map-tools{top:16px;right:16px}
+  /* The card. Placed in page pixels by mapPopup(), which is why it carries no
+     position of its own beyond `absolute` — left/top are written by the JS after
+     it measures, so the card can flip sides rather than run off the frame. */
+  .map-pop{position:absolute;z-index:4;max-width:min(280px,72%);
+    background:var(--panel);border:1px solid var(--accent-line);border-radius:10px;
+    padding:11px 13px 12px;box-shadow:var(--shadow-pop);font-size:12.5px;line-height:1.55}
+  .map-pop[hidden]{display:none}
+  .map-pop-x{position:absolute;top:4px;right:5px;background:none;border:none;
+    color:var(--muted-2);font-size:12px;cursor:pointer;padding:2px 4px;font-family:var(--sans)}
+  .map-pop-x:hover{color:var(--ink)}
+  .map-card .mc-w{font-family:var(--mono);font-size:10.5px;color:var(--muted-2);letter-spacing:.04em}
+  .map-card .mc-t{font-size:13px;color:var(--accent);margin:2px 0 0;padding-right:14px}
+  .map-card .mc-m{font-size:11px;color:var(--muted);margin-top:2px}
+  .map-card .mc-n{margin:5px 0 0;color:var(--ink);font-weight:300}
+  .map-card .mc-link{display:inline-block;margin-top:7px;font-size:11.5px;color:var(--accent-2);
+    text-decoration:none}
+  .map-card .mc-link:hover{text-decoration:underline}
+  .map-card .tl-links{margin-top:7px}
+  /* A journey drawn through its stops. Dashed for the sea legs, because Acts 27 is
+     a voyage and a solid line across the Mediterranean would read as a road. */
+  .map-route{fill:none;stroke:var(--accent);stroke-width:1.6;opacity:.75;
+    stroke-linejoin:round;stroke-linecap:round;vector-effect:non-scaling-stroke}
+  .map-route.sea{stroke:var(--accent-2);stroke-dasharray:5 4}
+
   /* the map itself. Every colour is a page variable, which is the whole reason the
      basemap is inline SVG and not an image: it themes light/dark with the page and
      costs nothing at read time. vector-effect keeps hairlines hairline-thin however
@@ -835,6 +904,29 @@
   .mp-leader{stroke:var(--accent);stroke-width:1;opacity:.5;vector-effect:non-scaling-stroke}
   .mp-pin text{fill:var(--ink);font-family:var(--sans);font-weight:400;paint-order:stroke;
     stroke:var(--map-sea);stroke-width:2.5px;stroke-linejoin:round}
+
+  /* the Maps tab's mode picker, and the journey tabs under it */
+  .mm-pick,.jr-pick{display:flex;flex-wrap:wrap;gap:5px;margin:0 0 12px}
+  .mm-pick button,.jr-pick button{font-family:var(--sans);font-size:11.5px;font-weight:300;
+    letter-spacing:.02em;color:var(--muted);background:var(--panel);border:1px solid var(--line);
+    border-radius:999px;padding:4px 11px;cursor:pointer;white-space:nowrap}
+  .mm-pick button:hover,.jr-pick button:hover{color:var(--ink);border-color:var(--accent)}
+  .mm-pick button[aria-pressed="true"],.jr-pick button[aria-pressed="true"]{
+    color:var(--accent);border-color:var(--accent-line);background:var(--code-bg)}
+  .jr-pick{margin-bottom:10px}
+  .jr-head{margin:0 0 14px}
+  .jr-note{margin:3px 0 0;color:var(--ink);font-weight:300}
+  .jr-caution{margin:5px 0 0;color:var(--muted-2);font-size:12px}
+  .jr-sea{font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--accent-2)}
+  /* the map chip on an On This Day entry — outside the entry's own anchor */
+  .otd-wrap{position:relative}
+  .otd-map{position:absolute;top:6px;right:6px;font-family:var(--sans);font-size:10.5px;
+    color:var(--muted-2);background:var(--panel);border:1px solid var(--line);border-radius:999px;
+    padding:2px 8px;cursor:pointer;opacity:0;transition:opacity .12s ease}
+  .otd-wrap:hover .otd-map,.otd-map:focus-visible{opacity:1}
+  .otd-map:hover{color:var(--accent);border-color:var(--accent)}
+  /* Hover reveals it on a pointer; a touch device has no hover, so show it always. */
+  @media (hover:none){.otd-map{opacity:1}}
 
   /* ── Maps tab (History group) — the timeline, put where it happened ──────
      The map is the header of the view, not a thumbnail beside it: this tab exists
@@ -1231,8 +1323,10 @@ __TRANS_MENU__
             <tr><td><code>(nothing)</code></td><td>leave the box empty to see the whole sweep</td></tr>
             <tr><td><code>council</code></td><td>filter to the moments mentioning the word</td></tr>
             <tr><td><code>luther</code></td><td>follow one person across the map</td></tr>
+            <tr><td><code>jordan</code></td><td>in <strong>Places</strong>, find a place and every verse that names it</td></tr>
           </table>
-          <p>The same moments the Timeline tab lists, put where they happened — Haran to Wittenberg. The map zooms to whatever survives the filter, so searching narrows the geography as well as the list. Numbers run in time order; tap a pin to jump to its entry, and the 📜 and 📖 chips open the note or the passage. Two moments have no single place and sit under the map instead.</p>
+          <p>Five maps, one tab. <strong>History</strong> puts the timeline's moments where they happened, Haran to Wittenberg. <strong>Journeys</strong> traces the routes — Abraham, the Exodus, the exile, Jesus' ministry, Paul's three journeys and the voyage to Rome — with the sea legs drawn dashed. <strong>Places</strong> is every place the Bible names, and a pin answers with the verses that name it. <strong>Church origins</strong> and <strong>On This Day</strong> open onto the whole world, because the story left the biblical one.</p>
+          <p>Tap a pin to zoom in and read what happened there; <strong>–</strong> steps back out and <strong>⛶</strong> fills the pane. Searching narrows the geography as well as the list. Some things are deliberately unpinned — two timeline moments, the movements with no single origin, and the fixed feasts kept everywhere at once — and each map says so rather than quietly showing fewer.</p>
         </div>
         <div id="help-otd" hidden>
           <table>
@@ -2398,6 +2492,118 @@ function pageTurn(snap, dir){
   turn.oncancel = fin;
   setTimeout(fin, 1200);                // backstop — a wedged animation must not leave a stale leaf
 }
+/* ── the map in the reader ──────────────────────────────────────────────────
+   The study panel's Map tab is per-verse and behind two taps, and most verses name
+   nowhere — so most of the time it is honest and empty. The chapter is the unit
+   that actually earns a map: 849 of the Bible's 1,189 chapters name at least one
+   place, and the reader is where someone is actually asking "where is this?"
+
+   Both scopes come off the same sidecar the study panel uses, indexed once. The
+   verse keys are packed (bi, ch, v), so a chapter is arithmetic on the key rather
+   than a scan of anything. */
+let _placeIdx = null;
+function placeIndex(mp){
+  if (_placeIdx) return _placeIdx;
+  const byCh = new Map();     // "bi.ch" → [ [placeIdx, verse], … ] in verse order
+  const byBook = new Map();   // bi → Map(placeIdx → how many verses name it)
+  const keys = Object.keys(mp.v).map(Number).sort((a, b) => a - b);
+  for (const key of keys){
+    const v = key % 256, rest = (key - v) / 256, ch = rest % 256, bi = (rest - ch) / 256;
+    const ck = bi + "." + ch;
+    let arr = byCh.get(ck); if (!arr) byCh.set(ck, arr = []);
+    let bk = byBook.get(bi); if (!bk) byBook.set(bi, bk = new Map());
+    for (const pi of mp.v[key]){ arr.push([pi, v]); bk.set(pi, (bk.get(pi) || 0) + 1); }
+  }
+  return (_placeIdx = { byCh, byBook });
+}
+// A chapter's places in the order the chapter names them, each remembering the
+// first verse that does — which is what makes a pin able to jump into the text.
+function chapterPlaces(mp, bi, ch){
+  const seen = new Map();
+  for (const [pi, v] of (placeIndex(mp).byCh.get(bi + "." + ch) || []))
+    if (!seen.has(pi)) seen.set(pi, v);
+  return [...seen].map(([pi, v]) => ({ pi, v, p: mp.p[pi] })).filter(x => x.p);
+}
+// A book's places, most-named first. Genesis reads as Mesopotamia-to-Egypt; Joshua
+// (430 places, the most in the Bible) reads as one crowded territory.
+function bookPlaces(mp, bi, cap){
+  const m = placeIndex(mp).byBook.get(bi);
+  if (!m) return [];
+  return [...m].sort((a, b) => b[1] - a[1] || a[0] - b[0]).slice(0, cap || 60)
+    .map(([pi, n]) => ({ pi, n, p: mp.p[pi] })).filter(x => x.p);
+}
+
+/* What a pin on the reader's map says. The two scopes answer different questions,
+   so they carry different things: a chapter pin offers the verse that names the
+   place — the join that makes the map part of the reading rather than an
+   illustration beside it — while a book pin has no one verse and reports how often
+   the book names it instead. */
+function readerPlaceCard(x, t, bi, ch, wide){
+  return placeCard(x.p, wide
+    ? '<div class="mc-m">Named in ' + x.n + ' verse' + (x.n === 1 ? "" : "s") + ' of ' + esc(BOOKS[bi]) + '.</div>'
+    : '<button class="mc-go" data-open="verse" data-t="' + esc(t) + '" data-bi="' + bi +
+      '" data-ch="' + ch + '" data-v="' + x.v + '">📖 Read verse ' + x.v + '</button>');
+}
+
+/* The block itself: collapsed under the chapter heading so it never pushes verse 1
+   below the fold, and absent entirely on the 340 chapters that name nowhere —
+   the same "no content, no control" rule the tabs follow. */
+function readerMapBlock(mp, t, bi, ch, scope){
+  const chapter = chapterPlaces(mp, bi, ch);
+  const book = bookPlaces(mp, bi);
+  if (!chapter.length && !book.length) return "";
+  const wide = scope === "book" || !chapter.length;
+  const list = wide ? book : chapter;
+  const points = list.map(x => ({
+    lat: x.p[1], lon: x.p[2], label: x.p[0],
+    card: readerPlaceCard(x, t, bi, ch, wide),
+  }));
+  /* Both scopes are offered whenever they differ. The chapter is not always the
+     smaller one: Joshua 15 names 162 places, more than the whole-book map shows,
+     because the book map keeps only the most-named. */
+  const toggle = chapter.length && book.length && book.length !== chapter.length
+    ? '<div class="chmap-scope">' +
+      '<button data-mscope="chapter" aria-pressed="' + (!wide) + '">This chapter</button>' +
+      '<button data-mscope="book" aria-pressed="' + wide + '">Whole book</button></div>'
+    : "";
+  const n = chapter.length || book.length;
+  return '<details class="chmap"' + (scope ? " open" : "") + '>' +
+    '<summary>🗺️ <span class="chmap-n">' + n + '</span> place' + (n === 1 ? "" : "s") +
+      (chapter.length ? " in this chapter" : " in this book") + '</summary>' +
+    '<div class="chmap-body">' + toggle +
+    mapView({
+      points, min: 55, pad: 0.3,
+      /* Past about two dozen the labels stop being readable and start being a wall
+         of text over the coastline — Joshua 15 alone would draw 162 of them. Beyond
+         that the map shows the distribution and a tap gives the name. */
+      mode: points.length > 24 ? "dot" : "label",
+      aria: "Map of places in " + BOOKS[bi] + (wide ? "" : " " + ch),
+    }) + '</div></details>';
+}
+
+/* Mount it after the chapter is on screen rather than as part of it: the sidecar
+   is loaded on demand, and the verses must not wait on a map. If the reader has
+   moved on by the time it arrives, drop it — the same staleness rule the study
+   panel uses. */
+async function mountReaderMap(t, bi, ch, scope){
+  if (!STUDY.mp) return;
+  let mp;
+  try { mp = await loadPayload("mp"); }
+  catch (e){ return; }
+  // By name, for the same reason as the study panel above — the Maps tab may have
+  // left the world basemap active, and a chapter's places belong on the regional one.
+  if (STUDY.bm) await ensureBasemap("region");
+  const body = $reader.querySelector(".reader-body");
+  if (!body || $reader.hidden) return;
+  const cur = body.dataset;
+  if (+cur.bi !== bi || +cur.ch !== ch) return;
+  const html = readerMapBlock(mp, t, bi, ch, scope);
+  if (!html) return;
+  const old = body.querySelector(":scope > .chmap");
+  if (old) old.remove();
+  body.insertAdjacentHTML("afterbegin", html);
+}
+
 async function openVerse(t, bi, ch, v, dir){
   // dir (+1 next / -1 prev) is set only when paging between chapters — a fresh
   // open from a search hit passes none, so it appears without a turn. Snapshot
@@ -2438,6 +2644,12 @@ async function openVerse(t, bi, ch, v, dir){
   const foot = '<div class="reader-foot">' + navBtn(prev, "prev") + navBtn(next, "next") + '</div>';
   const canStudy = studyTabsFor(bi).length > 0;
   openReader(head, body || '<p class="muted">Chapter text not found.</p>', canStudy ? "has-study" : "", foot);
+  // Which chapter is on screen, so the map that arrives later can check it is still
+  // the one being read before inserting itself. (The .reader-body lookup below does
+  // the same thing for the study-panel wiring; this one runs first.)
+  const mapBody = $reader.querySelector(".reader-body");
+  if (mapBody){ mapBody.dataset.bi = bi; mapBody.dataset.ch = ch; }
+  mountReaderMap(t, bi, ch);
   curNav = { t, prev, next };
   // The panel lived in the outgoing chapter's DOM, which openReader has just wiped.
   studyAt = null;
@@ -2823,15 +3035,27 @@ const degree = (n, pos, neg) => Math.abs(n).toFixed(4) + "° " + (n >= 0 ? pos :
    Held in a module-level slot rather than passed around because both map surfaces
    (this panel and the History tab's Maps view) draw on the same basemap, and it is
    loaded once for the life of the page. */
+/* TWO basemaps, because two questions need different maps. "bm" is the biblical
+   world at 1:50m — detailed enough to zoom into. "bw" is the whole world at 1:110m,
+   for church history: Azusa Street is at 118°W and the Martyrs of Japan at 129°E,
+   both far outside a frame drawn for Canaan.
+
+   `_basemap` is whichever is ACTIVE, and each open map remembers the one it was
+   drawn against — a chapter map in the reader and a church map in the Maps tab can
+   be on screen at once, and re-culling one against the other's projection would
+   scatter its coastlines. */
 let _basemap = null;
-async function ensureBasemap(){
-  try { _basemap = await loadPayload("bm"); }
+const _bmCache = {};
+async function ensureBasemap(which){
+  const id = which === "world" ? "bw" : "bm";
+  if (_bmCache[id]) return (_basemap = _bmCache[id]);
+  try { _basemap = _bmCache[id] = await loadPayload(id); }
   catch (e){ _basemap = null; }        // the caller draws its list instead
   return _basemap;
 }
 const RAD = Math.PI / 180;
-function project(lat, lon){
-  const [x0, yTop, k] = _basemap.p;
+function project(lat, lon, bm){
+  const [x0, yTop, k] = (bm || _basemap).p;
   return [lon * RAD * k - x0, yTop - Math.log(Math.tan(Math.PI / 4 + lat * RAD / 2)) * k];
 }
 /* The window the pins deserve, not the window the data covers. A verse in Judah
@@ -2839,7 +3063,8 @@ function project(lat, lon){
    one pixel. So: fit the box to the pins, never tighter than MIN (a single place
    would otherwise zoom to infinity), then nudge it back inside the basemap so the
    frame can't run off the edge of the world we shipped. */
-function fitBox(pts, min, padRatio){
+function fitBox(pts, min, padRatio, bm){
+  const B = bm || _basemap;
   const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]);
   const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
   const pad = Math.max(x1 - x0, y1 - y0, min) * padRatio;
@@ -2847,14 +3072,14 @@ function fitBox(pts, min, padRatio){
      an SVG with a viewBox and `height:auto` derives its aspect ratio FROM the
      viewBox, so a wide box renders as a wide map rather than a stretched one. A
      square would letterbox the Reformation map with half a frame of empty Sahara. */
-  let w = Math.min(Math.max(x1 - x0 + pad * 2, min), _basemap.w);
-  let h = Math.min(Math.max(y1 - y0 + pad * 2, min), _basemap.h);
+  let w = Math.min(Math.max(x1 - x0 + pad * 2, min), B.w);
+  let h = Math.min(Math.max(y1 - y0 + pad * 2, min), B.h);
   // Nothing thinner than 1:2.2 either way — past that the map stops reading as a
   // map and becomes a strip with some coastline in it.
-  w = Math.min(Math.max(w, h / 2.2), _basemap.w);
-  h = Math.min(Math.max(h, w / 2.2), _basemap.h);
-  const x = Math.min(Math.max((x0 + x1) / 2 - w / 2, 0), _basemap.w - w);
-  const y = Math.min(Math.max((y0 + y1) / 2 - h / 2, 0), _basemap.h - h);
+  w = Math.min(Math.max(w, h / 2.2), B.w);
+  h = Math.min(Math.max(h, w / 2.2), B.h);
+  const x = Math.min(Math.max((x0 + x1) / 2 - w / 2, 0), B.w - w);
+  const y = Math.min(Math.max((y0 + y1) / 2 - h / 2, 0), B.h - h);
   return [x, y, w, h];
 }
 
@@ -2892,7 +3117,8 @@ const pinLeader = (from, to) =>
    The path data is generated, not user input, but it still reaches innerHTML: the
    filter keeps it to the alphabet an SVG path can be made of, so a corrupted or
    hand-edited sidecar cannot close the attribute and open a tag. */
-function basemapSvg(box, extra, label){
+function basemapSvg(box, extra, label, bm){
+  const B = bm || _basemap;
   const [bx, by, bw, bh] = box;
   const g = (cls, shapes) => {
     const inside = shapes.filter(s => s[1] <= bx + bw && s[3] >= bx && s[2] <= by + bh && s[4] >= by);
@@ -2903,7 +3129,7 @@ function basemapSvg(box, extra, label){
   };
   return '<svg class="mp-svg" viewBox="' + box.map(n => Math.round(n * 10) / 10).join(" ") +
     '" role="img" aria-label="' + esc(label) + '">' +
-    g("bm-land", _basemap.land) + g("bm-lake", _basemap.lakes) + g("bm-river", _basemap.rivers) +
+    g("bm-land", B.land) + g("bm-lake", B.lakes) + g("bm-river", B.rivers) +
     extra + '</svg>';
 }
 
@@ -2936,6 +3162,313 @@ function placeLabels(pts, names, r, fs){
   return out;
 }
 
+/* ── one map, everywhere ────────────────────────────────────────────────────
+   Five surfaces now draw maps — the study panel, the reader's chapter and book
+   maps, the History tab, and journeys — and they differ only in what they pin and
+   what a pin says when you tap it. So they all come through here. What mapView()
+   owns: fitting the window, spreading pins that would stack, labelling them,
+   drawing routes, the popup card, click-to-zoom, and the keyboard. What a caller
+   owns: the points, and the HTML that goes in a card.
+
+   `points` are { lat, lon, label, card } — `card` is the popup's inner HTML and is
+   built by the caller, because only the caller knows whether a pin is a place, a
+   moment in church history, or a stop on Paul's second journey.
+
+   Live state lives in _maps keyed by a per-render id: zooming re-emits the layers
+   for the new window (the cull in basemapSvg() is per-box, so a zoomed map draws
+   FEWER paths, not more), and the popup needs the pin's position after any zoom. */
+const _maps = {};
+let _mapSeq = 0;
+
+function mapView(o){
+  const pointsIn = o.points || [];
+  if (!pointsIn.length || !_basemap) return "";
+  const numbered = o.mode === "number";
+  /* Three ways to draw a pin, and the choice is really about how many there are.
+       label  — a handful, each named on the map (a verse's places, a chapter's)
+       number — an ordered set, numbered against a list beside it (moments, stops)
+       dot    — a hundred or more, named only when tapped. 106 branches of the
+                church labelled on a world map is not a map, it is a wall of text;
+                the distribution is the thing you can read at that size, and the
+                name is one tap away. */
+  const dotted = o.mode === "dot";
+  // Whichever basemap is active when the map is BUILT is the one it belongs to for
+  // life — see the note on _basemap.
+  const bm = _basemap;
+  const truth = pointsIn.map(p => project(p.lat, p.lon, bm));
+  // Sized off the first fit, then re-fitted around the spread pins so one pushed
+  // outward can't end up outside the frame it was measured in.
+  const box0 = fitBox(truth, o.min || 60, o.pad == null ? 0.3 : o.pad, bm);
+  const span = Math.max(box0[2], box0[3]);
+  const r = span / (numbered ? 55 : dotted ? 200 : 90);
+  const fs = span / (numbered ? 60 : 26);
+  /* Dense maps are NOT spread. Pushing sixty European origins apart at world scale
+     opens the cluster across the Sahara and the Atlantic — it invents beginnings in
+     places nothing began, which is a worse lie than an overlapping dot. Overlap
+     reads correctly here ("a dense cluster in Europe"), and zooming separates them
+     for real, because the pins are fixed in map space and the window is what shrinks. */
+  const pts = dotted ? truth.map(pt => pt.slice()) : spreadPins(truth, r);
+  const box = fitBox(pts, o.min || 60, o.pad == null ? 0.3 : o.pad, bm);
+  const id = "m" + (++_mapSeq);
+  _maps[id] = { o, bm, points: pointsIn, truth, pts, r, fs, numbered, dotted, home: box, box };
+  /* The wrapper is positioned, because the popup is real HTML laid over the SVG
+     rather than a <foreignObject> inside it. That keeps the card's links and chips
+     ordinary anchors the page's existing delegates already understand. */
+  return '<div class="mapwrap" data-map="' + id + '">' + mapSvg(id) +
+    /* Two controls, and both have to LOOK like what they do. The zoom-out is
+       disabled at the home window — a button that silently does nothing because
+       there is nothing to undo reads as broken. ⛶ is full screen, matching the
+       Church History chart, because that is what the icon promises. */
+    '<div class="map-tools">' +
+      '<button class="map-btn" data-mzoom="out" aria-label="Zoom out" disabled>–</button>' +
+      '<button class="map-btn" data-mfull="1" aria-pressed="false" aria-label="Expand the map to full screen">⛶</button>' +
+    '</div>' +
+    '<div class="map-pop" hidden></div></div>';
+}
+
+// The SVG for a map's CURRENT window. Re-run on zoom: the basemap cull, the pin
+// radius and the label placement are all functions of the box being drawn.
+function mapSvg(id){
+  const m = _maps[id];
+  if (!m) return "";
+  const [, , bw, bh] = m.box;
+  const span = Math.max(bw, bh);
+  // Furniture scales with the window, or a zoomed-in map paints boulders.
+  const r = span / (m.numbered ? 55 : m.dotted ? 200 : 90);
+  const fs = span / (m.numbered ? 60 : 26);
+  const pts = m.dotted ? m.truth.map(pt => pt.slice()) : spreadPins(m.truth, r);
+  m.drawn = pts; m.dr = r;
+  const routes = (m.o.routes || []).map(rt => {
+    const d = rt.stops.map((si, n) => (n ? "L" : "M") + pts[si][0].toFixed(1) + " " + pts[si][1].toFixed(1)).join("");
+    return '<path class="map-route' + (rt.sea ? " sea" : "") + '" d="' + d + '"/>';
+  }).join("");
+  const labels = m.numbered || m.dotted ? null
+    : placeLabels(pts, m.points.map(p => p.label), r, fs);
+  const pins = pts.map(([x, y], i) => {
+    const p = m.points[i];
+    const inner = m.dotted ? ""
+      : m.numbered
+      ? '<text x="' + x.toFixed(1) + '" y="' + (y + fs * 0.36).toFixed(1) +
+        '" style="font-size:' + fs.toFixed(2) + 'px">' + esc(p.label) + '</text>'
+      : '<text x="' + labels[i].x.toFixed(1) + '" y="' + labels[i].y.toFixed(1) +
+        '" style="font-size:' + fs.toFixed(2) + 'px">' + esc(p.label) + '</text>';
+    return '<g class="' + (m.numbered ? "mh-pin" : "mp-pin") + '" data-mi="' + i + '"' +
+      (p.card ? ' tabindex="0" role="button"' : '') +
+      ' aria-label="' + esc(p.aria || p.label) + '">' + pinLeader([x, y], m.truth[i]) +
+      '<circle cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="' + r.toFixed(2) + '"/>' +
+      inner + '</g>';
+  }).join("");
+  return basemapSvg(m.box, routes + pins, m.o.aria || "Map", m.bm);
+}
+
+/* Zoom is an animated viewBox, not a transform: the paths must be re-culled and
+   the pins re-sized for the new window, and both are cheap because the whole
+   basemap is already in memory. Animating the attribute keeps the reader oriented
+   — a map that cuts straight to a new window loses them. */
+function mapAnimate(id, target, then){
+  const wrap = document.querySelector('[data-map="' + id + '"]');
+  const m = _maps[id];
+  if (!wrap || !m) return;
+  const svg = wrap.querySelector("svg");
+  const from = m.box.slice();
+  // The page already has one reduced-motion probe; a zoom is exactly the kind of
+  // movement it exists to suppress, so jump straight to the destination instead.
+  if (!svg || reduceMotion()){
+    m.box = target;
+    svg && (svg.outerHTML = mapSvg(id));
+    syncMapTools(id);
+    then && then();
+    return;
+  }
+  const t0 = performance.now(), DUR = 260;
+  const step = (now) => {
+    const t = Math.min((now - t0) / DUR, 1);
+    const e = t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2;   // easeInOutQuad
+    const cur = from.map((v, i) => v + (target[i] - v) * e);
+    svg.setAttribute("viewBox", cur.map(n => Math.round(n * 10) / 10).join(" "));
+    if (t < 1) requestAnimationFrame(step);
+    else {
+      m.box = target;
+      // Re-emit at the destination: new cull, new pin radius, new labels.
+      const fresh = mapSvg(id);
+      const holder = document.createElement("div");
+      holder.innerHTML = fresh;
+      svg.replaceWith(holder.firstChild);
+      syncMapTools(id);
+      then && then();
+    }
+  };
+  requestAnimationFrame(step);
+}
+
+// A window around one pin, deep enough to read the country it is in but never
+// tighter than the basemap can draw usefully.
+function mapZoomTo(id, i){
+  const m = _maps[id];
+  if (!m) return;
+  const [x, y] = m.truth[i];
+  const side = Math.max(Math.min(m.home[2], m.home[3]) / 3.2, 45);
+  const w = Math.min(side, m.bm.w), h = Math.min(side, m.bm.h);
+  const box = [
+    Math.min(Math.max(x - w / 2, 0), m.bm.w - w),
+    Math.min(Math.max(y - h / 2, 0), m.bm.h - h), w, h,
+  ];
+  mapAnimate(id, box, () => mapPopup(id, i));
+}
+
+/* The card. Positioned in page pixels over the SVG rather than inside it, so its
+   chips stay ordinary anchors — the page already has delegates that turn those
+   into a chapter reader or a note. Flipped to the other side of the pin when it
+   would otherwise run off the frame. */
+function mapPopup(id, i){
+  const wrap = document.querySelector('[data-map="' + id + '"]');
+  const m = _maps[id];
+  if (!wrap || !m || !m.points[i] || !m.points[i].card) return;
+  const svg = wrap.querySelector("svg"), pop = wrap.querySelector(".map-pop");
+  if (!svg || !pop) return;
+  const rect = svg.getBoundingClientRect();
+  const [bx, by, bw, bh] = m.box;
+  const [px, py] = (m.drawn || m.pts)[i];
+  const sx = ((px - bx) / bw) * rect.width, sy = ((py - by) / bh) * rect.height;
+  pop.innerHTML = '<button class="map-pop-x" data-mclose="1" aria-label="Close">✕</button>' + m.points[i].card;
+  pop.hidden = false;
+  // Measure, then place: the card's height depends on how much the caller put in it.
+  const pw = pop.offsetWidth, ph = pop.offsetHeight;
+  let left = sx + 14, top = sy - ph / 2;
+  if (left + pw > rect.width - 4) left = sx - pw - 14;      // flip to the left
+  left = Math.max(4, Math.min(left, rect.width - pw - 4));
+  top = Math.max(4, Math.min(top, rect.height - ph - 4));
+  pop.style.left = left + "px";
+  pop.style.top = top + "px";
+  wrap.querySelectorAll(".mp-pin.on, .mh-pin.on").forEach(el => el.classList.remove("on"));
+  const pin = wrap.querySelector('[data-mi="' + i + '"]');
+  if (pin) pin.classList.add("on");
+  m.open = i;
+}
+
+function mapClose(id){
+  const wrap = document.querySelector('[data-map="' + id + '"]');
+  if (!wrap) return;
+  const pop = wrap.querySelector(".map-pop");
+  if (pop){ pop.hidden = true; pop.innerHTML = ""; }
+  wrap.querySelectorAll(".mp-pin.on, .mh-pin.on").forEach(el => el.classList.remove("on"));
+  if (_maps[id]) _maps[id].open = null;
+}
+
+// Back to the window the map opened at.
+function mapHome(id){
+  const m = _maps[id];
+  if (!m) return;
+  mapClose(id);
+  mapAnimate(id, m.home.slice());
+}
+// One step out from wherever we are, stopping at the home window.
+function mapZoomOut(id){
+  const m = _maps[id];
+  if (!m) return;
+  mapClose(id);
+  const [x, y, w, h] = m.box;
+  const f = 1.9;
+  const nw = Math.min(w * f, m.home[2]), nh = Math.min(h * f, m.home[3]);
+  if (nw >= m.home[2] - 0.5 && nh >= m.home[3] - 0.5){ mapAnimate(id, m.home.slice()); return; }
+  mapAnimate(id, [
+    Math.min(Math.max(x + w / 2 - nw / 2, 0), m.bm.w - nw),
+    Math.min(Math.max(y + h / 2 - nh / 2, 0), m.bm.h - nh), nw, nh,
+  ]);
+}
+
+/* Full screen, the same way the Church History chart does it: requestFullscreen is
+   attempted, but the page normally runs inside the plugin's pane where the host
+   iframe has no allowfullscreen and the promise rejects — so the class does the
+   real work, and position:fixed fills the pane, which is the bigger view that was
+   actually asked for. */
+function mapFull(id, on){
+  const wrap = document.querySelector('[data-map="' + id + '"]');
+  if (!wrap) return;
+  if (on == null) on = !wrap.classList.contains("full");
+  wrap.classList.toggle("full", on);
+  const btn = wrap.querySelector("[data-mfull]");
+  if (btn){
+    btn.setAttribute("aria-pressed", String(on));
+    btn.setAttribute("aria-label", on ? "Leave full screen" : "Expand the map to full screen");
+  }
+  try {
+    if (on && !document.fullscreenElement && wrap.requestFullscreen){
+      const r = wrap.requestFullscreen();
+      if (r && r.catch) r.catch(() => {});
+    } else if (!on && document.fullscreenElement && document.exitFullscreen){
+      const r = document.exitFullscreen();
+      if (r && r.catch) r.catch(() => {});
+    }
+  } catch (_) {}
+}
+// Leaving native full screen by Esc or the browser's own chrome must drop the class
+// too, or the map stays pinned over the page with no obvious way out.
+document.addEventListener("fullscreenchange", () => {
+  if (document.fullscreenElement) return;
+  document.querySelectorAll(".mapwrap.full").forEach(w => mapFull(w.dataset.map, false));
+});
+// Zoom-out is only meaningful away from the home window. Kept in step after every
+// animation so the control always describes what it can actually do.
+function syncMapTools(id){
+  const wrap = document.querySelector('[data-map="' + id + '"]');
+  const m = _maps[id];
+  if (!wrap || !m) return;
+  const btn = wrap.querySelector('[data-mzoom="out"]');
+  if (btn) btn.disabled = m.box[2] >= m.home[2] - 0.5 && m.box[3] >= m.home[3] - 0.5;
+}
+
+/* One delegate for every map on the page, bound to the document because maps now
+   appear in three different containers ($res, the study card, and the reader) and
+   each of those is replaced wholesale on re-render. */
+document.addEventListener("click", e => {
+  const wrap = e.target.closest && e.target.closest("[data-map]");
+  if (!wrap) return;
+  const id = wrap.dataset.map;
+  if (e.target.closest("[data-open]")) return;        // a chip inside the card wins
+  if (e.target.closest("[data-mclose]")){ mapClose(id); return; }
+  if (e.target.closest("[data-mfull]")){ mapFull(id); return; }
+  const zb = e.target.closest("[data-mzoom]");
+  if (zb){ zb.dataset.mzoom === "home" ? mapHome(id) : mapZoomOut(id); return; }
+  const pin = e.target.closest("[data-mi]");
+  if (pin){
+    const i = +pin.dataset.mi;
+    const m = _maps[id];
+    if (m && m.o.onPin && m.o.onPin(i) === false) return;   // the caller handled it
+    if (m && m.open === i){ mapClose(id); return; }          // tapping it again closes
+    mapZoomTo(id, i);
+    return;
+  }
+  mapClose(id);                                       // a tap on open sea dismisses
+});
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape"){
+    const full = document.querySelector(".mapwrap.full");
+    if (full){ mapFull(full.dataset.map, false); return; }
+    Object.keys(_maps).forEach(mapClose);
+    return;
+  }
+  if (e.key !== "Enter" && e.key !== " ") return;
+  const pin = e.target.closest && e.target.closest("[data-mi]");
+  if (!pin) return;
+  const wrap = pin.closest("[data-map]");
+  if (!wrap) return;
+  e.preventDefault();
+  pin.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+});
+
+/* The popup for a place, shared by every surface that pins one: the study panel,
+   the reader's chapter and book maps, and a journey's stops. Its shape follows the
+   list row so the two can't drift into telling different stories about one place. */
+function placeCard(p, extra){
+  return '<div class="map-card">' +
+    '<div class="mc-t">' + esc(p[0]) + '</div>' +
+    '<div class="mc-m">' + esc(p[3]) + ' · ' + degree(p[1], "N", "S") + " · " + degree(p[2], "E", "W") + '</div>' +
+    (extra || "") +
+    (p[4] ? '<a class="mc-link" href="' + vaultUrl(p[4]) + '">📄 Open the place note ↗</a>' : "") +
+    '</div>';
+}
+
 function renderMap(data, bi, ch, v){
   const idx = data.v[verseKey(bi, ch, v)] || [];
   if (!idx.length) return '<p class="muted">No places named in this verse.</p>';
@@ -2952,25 +3485,10 @@ function renderMap(data, bi, ch, v){
   /* No basemap payload — the panel still answers the question, it just answers it
      as a list. Worth keeping: bm.json is the one study sidecar a vault can be
      missing while every other map input is present. */
-  let map = "";
-  if (_basemap){
-    const truth = places.map(p => project(p[1], p[2]));
-    // Scale the furniture with the window, or a tight box paints boulders and a
-    // wide one paints dust. Text is drawn at a size, not scaled by the viewBox.
-    // Sized off the first fit, then the box is re-fitted around the spread pins so
-    // one pushed outward can't end up outside the frame it was measured in.
-    const box0 = fitBox(truth, 60, 0.35);
-    const r = Math.max(box0[2], box0[3]) / 90, fs = Math.max(box0[2], box0[3]) / 26;
-    const pts = spreadPins(truth, r);
-    const box = fitBox(pts, 60, 0.35);
-    const labels = placeLabels(pts, places.map(p => p[0]), r, fs);
-    const pins = pts.map(([x, y], i) =>
-      '<g class="mp-pin">' + pinLeader([x, y], truth[i]) +
-      '<circle cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="' + r.toFixed(2) + '"/>' +
-      '<text x="' + labels[i].x.toFixed(1) + '" y="' + labels[i].y.toFixed(1) +
-      '" style="font-size:' + fs.toFixed(2) + 'px">' + esc(places[i][0]) + '</text></g>').join("");
-    map = basemapSvg(box, pins, "Map of " + places.map(p => p[0]).join(", "));
-  }
+  const map = mapView({
+    points: places.map(p => ({ lat: p[1], lon: p[2], label: p[0], card: placeCard(p) })),
+    min: 60, pad: 0.35, aria: "Map of " + places.map(p => p[0]).join(", "),
+  });
   return map + '<div class="mp-list">' + rows + '</div>' +
     '<p class="study-src">Identified locations from openbible.info · CC-BY · ' +
     'coastlines from Natural Earth (public domain)</p>';
@@ -2986,9 +3504,12 @@ async function renderStudyBody(box, tab, t, bi, ch, v){
     box.innerHTML = '<p class="muted">' + esc(String((e && e.message) || e)) + '</p>';
     return;
   }
-  // The basemap is a second payload and a soft one: the Map tab degrades to its
-  // list without it, so a failure here must not take the tab down with it.
-  if (tab === "mp" && STUDY.bm && !_basemap) await ensureBasemap();
+  /* The basemap is a second payload and a soft one: the Map tab degrades to its
+     list without it, so a failure here must not take the tab down with it.
+     Asked for BY NAME every time, not gated on `!_basemap`: the Maps tab may have
+     left the world basemap active, and a verse's places drawn on that projection
+     would land in the sea. Cached, so this costs nothing after the first. */
+  if (tab === "mp" && STUDY.bm) await ensureBasemap("region");
   // The reader may have moved on while this payload was being read — rendering
   // then would drop another verse's content into the open panel.
   if (!studyAt || studyAt.tab !== tab || studyAt.bi !== bi || studyAt.ch !== ch || studyAt.v !== v) return;
@@ -3246,6 +3767,12 @@ function tlLinks(e){
       '" data-bi="' + ref.bi + '" data-ch="' + ref.ch + '" data-v="' + (ref.v1 == null ? "" : ref.v1) +
       '" title="Read the passage">📖 ' + esc(r.replace(/-/g, "–")) + '</a>');
   }
+  /* "Show on map" — the moment the Timeline is describing, on the map that can
+     place it. Only offered when there IS a map to jump to and the moment has a
+     place; a chip that lands on an empty frame is worse than no chip. */
+  if (STUDY.bm && e.where)
+    chips.push('<button class="tl-chip" data-showmap="moments" data-mkey="' + esc(e.title) +
+      '" title="Find it on the map">🗺️ Show on map</button>');
   return chips.length ? '<div class="tl-links">' + chips.join("") + '</div>' : "";
 }
 function renderTimeline(filter){
@@ -3296,6 +3823,264 @@ const eraTerms = (era, e) =>
   (era + " " + e.when + " " + e.title + " " + e.note + " " + (e.refs || []).join(" ") +
    " " + (e.where ? e.where[2] : "")).toLowerCase();
 
+/* ── the Maps tab's other modes ─────────────────────────────────────────────
+   One tab, four questions. Moments and journeys are the biblical world; church
+   history and the calendar are the whole world, because the story left it. The mode
+   picker is the only state — everything else is a different set of points through
+   the same mapView(). */
+let mapsMode = "moments";       // moments · journeys · church · otd
+let mapsJourney = 0;            // which route, when the mode is journeys
+const MAPS_MODES = [
+  ["moments", "🕰️ History"],
+  ["journeys", "🚶 Journeys"],
+  ["places", "📍 Places"],
+  ["church", "⛪ Church origins"],
+  ["otd", "📅 On This Day"],
+];
+// A mode is only offered when its payload shipped: journeys need jr, and the two
+// world maps need hm — the same "no payload, no tab" contract the strip uses.
+const mapsModeOn = (m) =>
+  m === "moments" ? true : m === "journeys" ? !!STUDY.jr : m === "places" ? !!STUDY.mp : !!STUDY.hm;
+function mapsPicker(){
+  const on = MAPS_MODES.filter(([k]) => mapsModeOn(k));
+  if (on.length < 2) return "";
+  return '<div class="mm-pick">' + on.map(([k, label]) =>
+    '<button data-mmode="' + k + '" aria-pressed="' + (k === mapsMode) + '">' + label + '</button>').join("") + '</div>';
+}
+
+/* Which basemap a mode needs, and the load for it. Church history and the calendar
+   run off the world map; everything else off the biblical one. */
+const mapsBasemapFor = (m) => (m === "church" || m === "otd" ? "world" : "region");
+
+/* ── places, searched ─────────────────────────────────────────────────────
+   The place table inverted: every place the Bible names, findable by name, and
+   every pin able to answer "where is this mentioned?". The index already ships —
+   this is the one map surface that costs nothing but the asking. */
+let _placeVerses = null;
+function placeVerses(mp){
+  if (_placeVerses) return _placeVerses;
+  const by = new Map();
+  for (const k in mp.v){
+    const key = +k;
+    for (const pi of mp.v[k]){
+      let a = by.get(pi); if (!a) by.set(pi, a = []);
+      a.push(key);
+    }
+  }
+  return (_placeVerses = by);
+}
+// A verse key back to something a reader can open. Mirrors verseKey()'s packing.
+function unpackVerseKey(key){
+  const v = key % 256, rest = (key - v) / 256, ch = rest % 256, bi = (rest - ch) / 256;
+  return { bi, ch, v };
+}
+function renderPlacesMap(filter, mp){
+  const terms = filter ? parseTerms(filter) : [];
+  const verses = placeVerses(mp);
+  /* An empty box would pin all 1,252 places at once — true, but not a thing anyone
+     asked. Without a search the map shows the places the Bible names MOST, which is
+     a real answer to "where does this book happen" at the whole-Bible scale. */
+  let rows = mp.p.map((p, i) => ({ p, i, n: (verses.get(i) || []).length }));
+  rows = terms.length
+    ? rows.filter(r => terms.every(w => termRe(w, "i").test((r.p[0] + " " + r.p[3]).toLowerCase())))
+    : rows.sort((a, b) => b.n - a.n).slice(0, 120);
+  if (!rows.length){
+    $status.innerHTML = 'No place matching “' + esc(filter) + '”.';
+    $res.innerHTML = mapsPicker() + '<div class="empty"><div class="big">📍</div>No place of that name — try part of it, or a kind of place like “river”.</div>';
+    return;
+  }
+  const t = pickTrans(null);
+  const map = mapView({
+    points: rows.map(r => ({
+      lat: r.p[1], lon: r.p[2], label: r.p[0], key: r.p[0],
+      card: placeCard(r.p, placeVerseChips(verses.get(r.i) || [], t)),
+    })),
+    mode: rows.length > 24 ? "dot" : "label",
+    min: 60, pad: 0.25, aria: "Map of " + rows.length + " places",
+  });
+  $status.innerHTML = terms.length
+    ? '<strong>' + rows.length + '</strong> place' + (rows.length === 1 ? '' : 's') + ' matching “' + esc(filter) + '”'
+    : 'Every place the Bible names — <strong>' + mp.p.length.toLocaleString() +
+      '</strong> of them. Showing the 120 most mentioned; search for any other.';
+  $res.innerHTML = mapsPicker() + '<div class="mh">' + map + '</div>' +
+    '<p class="study-src">Identified locations from openbible.info · CC-BY · ' +
+    'coastlines from Natural Earth (public domain)</p>';
+  applyMapsFocus();
+}
+// The verses that name a place — the first few, as chips into the reader.
+function placeVerseChips(keys, t){
+  if (!keys.length) return "";
+  const shown = keys.slice(0, 8).map(k => {
+    const r = unpackVerseKey(k);
+    if (!validCh(r.bi, r.ch)) return "";
+    return '<a class="tl-chip" href="' + obsUrl(t, BOOKS[r.bi], r.ch, r.v) + '" data-open="verse" data-t="' + esc(t) +
+      '" data-bi="' + r.bi + '" data-ch="' + r.ch + '" data-v="' + r.v + '">📖 ' +
+      esc(BOOKS[r.bi] + " " + r.ch + ":" + r.v) + '</a>';
+  }).filter(Boolean).join("");
+  const more = keys.length > 8
+    ? '<div class="mc-m">…and ' + (keys.length - 8) + ' more verse' + (keys.length - 8 === 1 ? "" : "s") + '.</div>'
+    : "";
+  return '<div class="mc-m">Named in ' + keys.length + ' verse' + (keys.length === 1 ? "" : "s") + '.</div>' +
+    '<div class="tl-links">' + shown + '</div>' + more;
+}
+
+/* ── journeys ─────────────────────────────────────────────────────────────
+   A scatter of pins says where. A route says the story moved, in an order, and
+   took time — which is the difference between a map and an atlas. */
+function renderJourneys(filter, data){
+  const list = data.j || [];
+  const terms = filter ? parseTerms(filter) : [];
+  /* Filtering picks the JOURNEY, not the stop: half a route drawn is a line that
+     never happened. A journey matching on any of its stops is shown whole. */
+  const blob = j => (j.name + " " + j.when + " " + j.note + " " +
+    j.stops.map(st => st.n + " " + st.note + " " + st.ref).join(" ")).toLowerCase();
+  const hits = terms.length ? list.filter(j => terms.every(w => termRe(w, "i").test(blob(j)))) : list;
+  if (!hits.length){
+    $status.innerHTML = 'No journey matching “' + esc(filter) + '”.';
+    $res.innerHTML = mapsPicker() + '<div class="empty"><div class="big">🚶</div>No journey mentions that — clear the box to see them all.</div>';
+    return;
+  }
+  if (mapsJourney >= hits.length) mapsJourney = 0;
+  const j = hits[mapsJourney];
+  const t = pickTrans(null);
+  const points = j.stops.map((st, i) => ({
+    lat: st.lat, lon: st.lon, label: String(i + 1),
+    aria: (i + 1) + ". " + st.n,
+    card: '<div class="map-card"><div class="mc-w">Stop ' + (i + 1) + ' of ' + j.stops.length + '</div>' +
+      '<div class="mc-t">' + esc(st.n) + '</div>' +
+      '<p class="mc-n">' + esc(st.note) + '</p>' + stopChips(st, t) + '</div>',
+  }));
+  // One route through every stop. A leg marked `sea` is dashed — Acts 27 is a
+  // voyage, and a solid line across the Mediterranean would read as a road.
+  const routes = [];
+  for (let i = 1; i < j.stops.length; i++)
+    routes.push({ stops: [i - 1, i], sea: !!j.stops[i].sea });
+  const map = mapView({ points, routes, mode: "number", min: 90, pad: 0.14,
+    aria: j.name + " — " + j.stops.length + " stops", onPin: (i) => { markStopRow(i); } });
+  $status.innerHTML = terms.length
+    ? '<strong>' + hits.length + '</strong> journey' + (hits.length === 1 ? '' : 's') + ' matching “' + esc(filter) + '”'
+    : 'Where the story went — <strong>' + list.length + '</strong> journeys, Ur to Rome';
+  const tabs = '<div class="jr-pick">' + hits.map((x, i) =>
+    '<button data-jr="' + i + '" aria-pressed="' + (i === mapsJourney) + '">' + esc(x.name) + '</button>').join("") + '</div>';
+  const rows = j.stops.map((st, i) =>
+    '<div class="mh-row" id="jr-' + i + '" data-si="' + i + '">' +
+    '<div class="mh-n">' + (i + 1) + '</div>' +
+    '<div class="mh-body"><div class="mh-head"><span class="mh-where">' + esc(st.n) + '</span>' +
+      (st.sea ? '<span class="jr-sea">by sea</span>' : '') + '</div>' +
+    '<p class="tl-note">' + highlight(esc(st.note), terms) + '</p>' + stopChips(st, t) + '</div></div>').join("");
+  $res.innerHTML = mapsPicker() + tabs +
+    '<div class="jr-head"><span class="mh-when">' + esc(j.when) + '</span>' +
+      '<p class="jr-note">' + highlight(esc(j.note), terms) + '</p>' +
+      (j.caution ? '<p class="jr-caution">⚠ ' + esc(j.caution) + '</p>' : '') + '</div>' +
+    '<div class="mh">' + map + '<div class="mh-list">' + rows + '</div></div>' +
+    '<p class="study-src">Stops resolved against openbible.info · CC-BY · ' +
+    'coastlines from Natural Earth (public domain)</p>';
+}
+// A stop's links out: the passage it happened in, and its place note when there is one.
+function stopChips(st, t){
+  const chips = [];
+  const ref = st.ref ? parseRef(st.ref) : null;
+  if (ref && validCh(ref.bi, ref.ch))
+    chips.push('<a class="tl-chip" href="' + obsUrl(t, ref.book, ref.ch, ref.v1) + '" data-open="verse" data-t="' + esc(t) +
+      '" data-bi="' + ref.bi + '" data-ch="' + ref.ch + '" data-v="' + (ref.v1 == null ? "" : ref.v1) +
+      '" title="Read the passage">📖 ' + esc(st.ref.replace(/-/g, "–")) + '</a>');
+  if (st.place)
+    chips.push('<a class="tl-chip" href="' + vaultUrl(st.place) + '" title="Open the place note">📄 ' + esc(st.n) + '</a>');
+  return chips.length ? '<div class="tl-links">' + chips.join("") + '</div>' : "";
+}
+function markStopRow(i){
+  const row = $res.querySelector('.mh-row[data-si="' + i + '"]');
+  if (!row) return;
+  $res.querySelectorAll(".mh-row.on").forEach(x => x.classList.remove("on"));
+  row.classList.add("on");
+}
+
+/* ── church origins, and the calendar located ─────────────────────────────
+   Both are the same shape: a curated list that always knew what and when, and now
+   knows where. Both are deliberately partial — a movement with no single origin and
+   a feast kept everywhere at once get no pin — and both say how many they left out
+   rather than quietly showing fewer than the tab they came from. */
+function renderChurchMap(filter, data){
+  const rows = data.ch || [];
+  const terms = filter ? parseTerms(filter) : [];
+  const hits = terms.length
+    ? rows.filter(r => terms.every(w => termRe(w, "i").test((r[1] + " " + r[2] + " " + r[6] + " " + r[7]).toLowerCase())))
+    : rows;
+  if (!hits.length){
+    $status.innerHTML = 'No branch matching “' + esc(filter) + '”.';
+    $res.innerHTML = mapsPicker() + '<div class="empty"><div class="big">⛪</div>Nothing matches — clear the box to see the whole world.</div>';
+    return;
+  }
+  const map = mapView({
+    points: hits.map(r => ({
+      lat: r[4], lon: r[5], label: r[1], aria: r[1] + " — " + r[6], key: r[0],
+      card: '<div class="map-card"><div class="mc-w">' + esc(r[2]) + ' · ' + esc(r[6]) + '</div>' +
+        '<div class="mc-t">' + esc(r[1]) + '</div><p class="mc-n">' + esc(r[7]) + '</p></div>',
+    })),
+    mode: "dot", min: 200, pad: 0.1, aria: "Where " + hits.length + " branches of the church began",
+  });
+  $status.innerHTML = terms.length
+    ? '<strong>' + hits.length + '</strong> branch' + (hits.length === 1 ? '' : 'es') + ' matching “' + esc(filter) + '”'
+    : 'Where the church branched — <strong>' + rows.length + '</strong> beginnings, Jerusalem to Azusa Street';
+  $res.innerHTML = mapsPicker() + '<div class="mh">' + map + '</div>' +
+    '<p class="study-src">Branches with no single place of origin are not pinned · ' +
+    'coastlines from Natural Earth (public domain)</p>';
+  applyMapsFocus();
+}
+
+function renderOtdMap(filter, data){
+  const rows = data.otd || [];
+  const terms = filter ? parseTerms(filter) : [];
+  const hits = terms.length
+    ? rows.filter(r => terms.every(w => termRe(w, "i").test((r[1] + " " + r[2] + " " + r[5] + " " + r[6]).toLowerCase())))
+    : rows;
+  if (!hits.length){
+    $status.innerHTML = 'No day matching “' + esc(filter) + '”.';
+    $res.innerHTML = mapsPicker() + '<div class="empty"><div class="big">📅</div>Nothing matches — clear the box to see the whole calendar.</div>';
+    return;
+  }
+  const md = new Date();
+  const today = String(md.getMonth() + 1).padStart(2, "0") + "-" + String(md.getDate()).padStart(2, "0");
+  const map = mapView({
+    points: hits.map(r => ({
+      lat: r[3], lon: r[4], label: r[1], aria: r[1] + " — " + r[5], key: r[1],
+      card: '<div class="map-card"><div class="mc-w">' + esc(r[0]) + (r[2] ? " · " + esc(r[2]) : "") +
+        ' · ' + esc(r[5]) + '</div><div class="mc-t">' + esc(r[1]) + '</div>' +
+        '<p class="mc-n">' + esc(r[6]) + '</p></div>',
+    })),
+    mode: "dot", min: 200, pad: 0.1, aria: "Where " + hits.length + " days of the church year happened",
+  });
+  const todays = hits.filter(r => r[0] === today).length;
+  $status.innerHTML = terms.length
+    ? '<strong>' + hits.length + '</strong> day' + (hits.length === 1 ? '' : 's') + ' matching “' + esc(filter) + '”'
+    : 'The calendar, located — <strong>' + rows.length + '</strong> days that happened somewhere' +
+      (todays ? ' · <strong>' + todays + '</strong> today' : '');
+  $res.innerHTML = mapsPicker() + '<div class="mh">' + map + '</div>' +
+    '<p class="study-src">The fixed feasts are kept everywhere at once and are not pinned · ' +
+    'coastlines from Natural Earth (public domain)</p>';
+  applyMapsFocus();
+}
+
+/* A timeline moment as a popup. Same content as its row in the list below, built
+   from the same pieces — the date, where it happened, what happened, and the
+   existing 📜 / 📖 chips, which stay ordinary anchors so the page's own delegate
+   opens the note or the passage. */
+function momentCard(e, terms){
+  return '<div class="map-card">' +
+    '<div class="mc-w">' + esc(e.when) + ' · ' + esc(e.where[2]) + '</div>' +
+    '<div class="mc-t">' + highlight(esc(e.title), terms || []) + '</div>' +
+    '<p class="mc-n">' + highlight(esc(e.note), terms || []) + '</p>' +
+    tlLinks(e) + '</div>';
+}
+// Light the moment's row without stealing the reader's scroll position: the popup
+// already answered the question, so the row only needs to be findable afterwards.
+function markMomentRow(i){
+  const row = $res.querySelector('.mh-row[data-mi="' + i + '"]');
+  if (!row) return;
+  $res.querySelectorAll(".mh-row.on").forEach(x => x.classList.remove("on"));
+  row.classList.add("on");
+}
+
 function renderMaps(filter){
   lastTerms = [];
   const terms = filter ? parseTerms(filter) : [];
@@ -3311,32 +4096,28 @@ function renderMaps(filter){
     '">📄 Open the full timeline note in Obsidian ↗</a>';
   if (!all.length){
     $status.innerHTML = 'No moments matching “' + esc(filter) + '”.';
-    $res.innerHTML = open + '<div class="empty"><div class="big">🗺️</div>Nothing on the map matches — clear the box to see all of it.</div>';
+    $res.innerHTML = mapsPicker() + open + '<div class="empty"><div class="big">🗺️</div>Nothing on the map matches — clear the box to see all of it.</div>';
     return;
   }
   const pinned = all.filter(e => e.where);
   const unplaced = all.filter(e => !e.where);
 
-  let map = "";
-  if (pinned.length){
-    const truth = pinned.map(e => project(e.where[0], e.where[1]));
-    // A tighter pad than the study panel's: these pins carry a number rather than a
-    // name, so they need no room beside them for a label to run into.
-    const box0 = fitBox(truth, 90, 0.12);
-    const span = Math.max(box0[2], box0[3]);
-    const r = span / 55, fs = span / 60;
-    // Eight moments happen in Jerusalem. Without this the map shows one pin and
-    // silently drops seven of the events it exists to display.
-    const pts = spreadPins(truth, r);
-    const box = fitBox(pts, 90, 0.12);
-    const pins = pts.map(([x, y], i) =>
-      '<g class="mh-pin" data-mi="' + i + '" tabindex="0" role="button" aria-label="' +
-        esc(pinned[i].title + " — " + pinned[i].where[2]) + '">' + pinLeader([x, y], truth[i]) +
-      '<circle cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="' + r.toFixed(2) + '"/>' +
-      '<text x="' + x.toFixed(1) + '" y="' + (y + fs * 0.36).toFixed(1) +
-        '" style="font-size:' + fs.toFixed(2) + 'px">' + (i + 1) + '</text></g>').join("");
-    map = basemapSvg(box, pins, "Map of " + pinned.length + " moments in Bible and church history");
-  }
+  /* A tighter pad than the study panel's: these pins carry a number rather than a
+     name, so they need no room beside them for a label to run into. Tapping one
+     zooms to it and opens the moment — the map answers on its own now, instead of
+     being a table of contents for the list below it. */
+  const map = mapView({
+    points: pinned.map((e, i) => ({
+      lat: e.where[0], lon: e.where[1], label: String(i + 1),
+      aria: e.title + " — " + e.where[2],
+      key: e.title,                       // what "Show on map" matches on
+      card: momentCard(e, terms),
+    })),
+    mode: "number", min: 90, pad: 0.12,
+    aria: "Map of " + pinned.length + " moments in Bible and church history",
+    // Keep the list in step: zooming a pin also lights and reveals its entry.
+    onPin: (i) => { markMomentRow(i); },
+  });
 
   $status.innerHTML = terms.length
     ? '<strong>' + all.length + '</strong> moment' + (all.length === 1 ? '' : 's') + ' matching “' + esc(filter) + '”'
@@ -3357,9 +4138,10 @@ function renderMaps(filter){
         '<p class="tl-note">' + highlight(esc(e.note), terms) + '</p>' + tlLinks(e) + '</div></div>').join("") +
       '</div>'
     : "";
-  $res.innerHTML = open + '<div class="mh">' + map + '<div class="mh-list">' + rows + '</div>' + rest + '</div>' +
+  $res.innerHTML = mapsPicker() + open + '<div class="mh">' + map + '<div class="mh-list">' + rows + '</div>' + rest + '</div>' +
     '<p class="study-src">Coastlines from Natural Earth (public domain) · ' +
     'places are the traditional sites, and the early dates are debated</p>';
+  applyMapsFocus();
 }
 
 /* ── Church History (denominational family tree) ──────────────────
@@ -4234,9 +5016,26 @@ function otdEntry(e, terms){
   const ref = e.ref ? '<span class="otd-ref">' + highlight(esc(e.ref), terms) + '</span>' : "";
   const blurb = e.blurb ? highlight(esc(e.blurb), terms) : "";
   const foot = (blurb || ref) ? '<div class="otd-blurb">' + blurb + (blurb && ref ? ' ' : '') + ref + '</div>' : '';
-  return '<a class="otd-entry"' + href + '>' +
+  /* The map chip sits OUTSIDE the anchor: an entry is a link to its source, and a
+     button nested in an <a> is neither valid HTML nor clickable the way either wants. */
+  const onMap = STUDY.hm && otdPlaced().has(e.title)
+    ? '<button class="otd-map" data-showmap="otd" data-mkey="' + esc(e.title) +
+      '" title="Find it on the map">🗺️ Map</button>'
+    : "";
+  return '<div class="otd-wrap"><a class="otd-entry"' + href + '>' +
     '<div class="otd-row"><span class="otd-yr">' + yr + '</span>' +
-    '<span class="otd-nm">' + highlight(esc(e.title), terms) + '</span></div>' + foot + '</a>';
+    '<span class="otd-nm">' + highlight(esc(e.title), terms) + '</span></div>' + foot + '</a>' + onMap + '</div>';
+}
+/* Which calendar entries the map can actually place. Read from the hm payload only
+   if something has already loaded it — this runs while rendering a list and must
+   never block on a fetch, so an unloaded payload means no chips this pass and they
+   appear once the Maps tab has been opened. */
+let _otdPlaced = null;
+function otdPlaced(){
+  if (_otdPlaced) return _otdPlaced;
+  const hm = _pcache.hm;
+  if (!hm) return new Set();
+  return (_otdPlaced = new Set((hm.otd || []).map(r => r[1])));
 }
 function otdSec(label, cls){ return '<div class="otd-sec ' + cls + '">' + esc(label) + '<span class="otd-rule"></span></div>'; }
 function otdTodayKey(){ const n = new Date(); return String(n.getMonth() + 1).padStart(2, "0") + "-" + String(n.getDate()).padStart(2, "0"); }
@@ -4316,17 +5115,36 @@ async function run(){
      token, and says why rather than drawing an empty frame if it never arrives. */
   if (source === "maps"){
     const mgen = ++runGen;
+    if (!mapsModeOn(mapsMode)) mapsMode = "moments";
+    $status.textContent = "Loading the map…";
+    // Each mode names the basemap it belongs to; the two are cached separately, so
+    // switching back and forth costs one load each and nothing after that.
+    await ensureBasemap(mapsBasemapFor(mapsMode));
+    if (mgen !== runGen) return;
     if (!_basemap){
-      $status.textContent = "Loading the map…";
-      await ensureBasemap();
-      if (mgen !== runGen) return;
-      if (!_basemap){
-        $status.textContent = "The map outlines could not be loaded.";
-        $res.innerHTML = '<div class="empty"><div class="big">🗺️</div>This tab draws on Bible/search-data/bm.json — rebuild it with tools/gen-basemap.js.</div>';
-        return;
-      }
+      $status.textContent = "The map outlines could not be loaded.";
+      $res.innerHTML = '<div class="empty"><div class="big">🗺️</div>This tab draws on the basemap in Bible/search-data/ — rebuild it with tools/gen-basemap.js.</div>';
+      return;
     }
-    renderMaps(input);
+    if (mapsMode === "moments"){ renderMaps(input); return; }
+    // The other three each read one more sidecar. A failure says which and stops,
+    // rather than drawing an empty frame and letting it look like there is nothing
+    // to show.
+    const id = mapsMode === "journeys" ? "jr" : mapsMode === "places" ? "mp" : "hm";
+    let data;
+    try { data = await loadPayload(id); }
+    catch (e){
+      if (mgen !== runGen) return;
+      $status.textContent = String((e && e.message) || e);
+      $res.innerHTML = mapsPicker() + '<div class="empty"><div class="big">🗺️</div>' +
+        esc(String((e && e.message) || e)) + '</div>';
+      return;
+    }
+    if (mgen !== runGen) return;
+    if (mapsMode === "journeys") renderJourneys(input, data);
+    else if (mapsMode === "places") renderPlacesMap(input, data);
+    else if (mapsMode === "church") renderChurchMap(input, data);
+    else renderOtdMap(input, data);
     return;
   }
   /* Words renders on an empty box too (the written studies are the way in), and
@@ -4571,30 +5389,82 @@ $res.addEventListener("click", e => {
 // Bound to #reader itself, which survives every body swap. Links without data-open
 // (Open in Obsidian ↗, Read on … ↗) fall through to normal navigation.
 $reader.addEventListener("click", e => {
+  // The chapter/whole-book toggle re-mounts the block at the other scope. Checked
+  // before the [data-open] delegate below, since neither claims the other's buttons.
+  const sc = e.target.closest("[data-mscope]");
+  if (sc){
+    const b = $reader.querySelector(".reader-body");
+    if (b) mountReaderMap(curNav ? curNav.t : pickTrans(null), +b.dataset.bi, +b.dataset.ch, sc.dataset.mscope);
+    return;
+  }
   const el = e.target.closest("[data-open]");
   if (!el) return;
   e.preventDefault();
   openFrom(el);
 });
-/* Maps tab — a pin and its entry are the same moment, so tapping either lights
-   both. Delegated on $res, which survives every re-render of the tab. */
+/* "Show on map", from the Timeline, On This Day and the Church History tree. It
+   switches tab, switches mode, and leaves a note of WHAT to focus; the render that
+   follows picks the note up, because the pin's index isn't knowable until the map
+   has been filtered and drawn. */
+let mapsFocus = null;
 $res.addEventListener("click", e => {
-  const el = e.target.closest("[data-mi]");
-  if (!el || e.target.closest("[data-open]")) return;   // a chip inside a row wins
-  const row = $res.querySelector('.mh-row[data-mi="' + el.dataset.mi + '"]');
-  if (!row) return;
-  $res.querySelectorAll(".mh-row.on, .mh-pin.on").forEach(x => x.classList.remove("on"));
-  row.classList.add("on");
-  const pin = $res.querySelector('.mh-pin[data-mi="' + el.dataset.mi + '"]');
-  if (pin) pin.classList.add("on");
-  // Only chase the row when the pin was the thing tapped — scrolling the page out
-  // from under a reader who just clicked the row they were already looking at is
-  // the kind of "help" that loses their place.
-  if (el.classList.contains("mh-pin")) row.scrollIntoView({ block: "center", behavior: "smooth" });
+  const b = e.target.closest("[data-showmap]");
+  if (!b) return;
+  e.preventDefault();
+  e.stopPropagation();
+  mapsMode = b.dataset.showmap;
+  mapsFocus = b.dataset.mkey || null;
+  mapsJourney = 0;
+  // Clear the filter box: a term that narrowed the list it was clicked from may
+  // filter the very pin we are jumping to straight off the map.
+  $q.value = "";
+  selectSource("maps", false);
 });
-$res.addEventListener("keydown", e => {
-  const pin = e.target.closest && e.target.closest(".mh-pin");
-  if (pin && (e.key === "Enter" || e.key === " ")){ e.preventDefault(); pin.dispatchEvent(new MouseEvent("click", { bubbles: true })); }
+/* Called at the end of every Maps render. The key is a title (or a node id), which
+   the caller has already put in each point's label or aria — matching on that keeps
+   this out of the business of knowing what each mode's rows look like. */
+function applyMapsFocus(){
+  if (!mapsFocus) return;
+  const key = mapsFocus;
+  mapsFocus = null;
+  const wrap = $res.querySelector("[data-map]");
+  if (!wrap) return;
+  const m = _maps[wrap.dataset.map];
+  if (!m) return;
+  const i = m.points.findIndex(pt => pt.key === key || pt.label === key);
+  if (i === -1) return;
+  mapZoomTo(wrap.dataset.map, i);
+}
+
+/* The Maps tab's mode picker and journey tabs. Both re-run the tab rather than
+   patching it, so the basemap swap and the payload load go through one path. */
+$res.addEventListener("click", e => {
+  const mb = e.target.closest("[data-mmode]");
+  if (mb){ mapsMode = mb.dataset.mmode; mapsJourney = 0; run(); return; }
+  const jb = e.target.closest("[data-jr]");
+  if (jb){ mapsJourney = +jb.dataset.jr; run(); return; }
+  // A journey stop's row taps back to its pin, the same way a moment's row does.
+  if (e.target.closest("[data-map]") || e.target.closest("[data-open]")) return;
+  const srow = e.target.closest(".mh-row[data-si]");
+  if (srow){
+    const wrap = $res.querySelector("[data-map]");
+    if (!wrap) return;
+    markStopRow(+srow.dataset.si);
+    mapZoomTo(wrap.dataset.map, +srow.dataset.si);
+  }
+});
+
+/* Maps tab — a row taps back to its pin. The pin's own side of this (zoom, popup,
+   keyboard) belongs to mapView's delegate; what is left here is the list, which is
+   ordinary page content outside any map. */
+$res.addEventListener("click", e => {
+  if (e.target.closest("[data-map]") || e.target.closest("[data-open]")) return;
+  const row = e.target.closest(".mh-row[data-mi]");
+  if (!row) return;
+  const wrap = $res.querySelector("[data-map]");
+  if (!wrap) return;
+  markMomentRow(+row.dataset.mi);
+  mapZoomTo(wrap.dataset.map, +row.dataset.mi);
 });
 
 // Church History tab — node taps tell the story, lineage links jump the chart,
