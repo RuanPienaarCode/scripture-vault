@@ -3055,11 +3055,18 @@ const degree = (n, pos, neg) => Math.abs(n).toFixed(4) + "° " + (n >= 0 ? pos :
    scatter its coastlines. */
 let _basemap = null;
 const _bmCache = {};
+/* Why the last load failed, for the one caller that reports it. Without this the
+   Maps tab blamed the basemap file and told the reader to rebuild it — which is the
+   wrong instruction whenever the real cause was the host bridge being absent (the
+   page opened outside Obsidian), and sends them to regenerate a file that was fine.
+   The sibling sidecars already surface `e.message`; this keeps the basemap honest
+   the same way. */
+let _bmError = null;
 async function ensureBasemap(which){
   const id = which === "world" ? "bw" : "bm";
   if (_bmCache[id]) return (_basemap = _bmCache[id]);
-  try { _basemap = _bmCache[id] = await loadPayload(id); }
-  catch (e){ _basemap = null; }        // the caller draws its list instead
+  try { _basemap = _bmCache[id] = await loadPayload(id); _bmError = null; }
+  catch (e){ _basemap = null; _bmError = (e && e.message) || String(e); }   // the caller draws its list instead
   return _basemap;
 }
 const RAD = Math.PI / 180;
@@ -5354,8 +5361,13 @@ async function run(){
     await ensureBasemap(mapsBasemapFor(mapsMode));
     if (mgen !== runGen) return;
     if (!_basemap){
+      // Say what actually went wrong. A missing host bridge and a missing basemap
+      // file are different problems with different fixes, and only the loader knows
+      // which one it hit — guessing "rebuild the basemap" sends the reader after a
+      // file that is usually fine.
+      const why = _bmError || "This tab draws on the basemap in Bible/search-data/ — rebuild it with tools/gen-basemap.js.";
       $status.textContent = "The map outlines could not be loaded.";
-      $res.innerHTML = '<div class="empty"><div class="big">🗺️</div>This tab draws on the basemap in Bible/search-data/ — rebuild it with tools/gen-basemap.js.</div>';
+      $res.innerHTML = '<div class="empty"><div class="big">🗺️</div>' + esc(why) + '</div>';
       return;
     }
     if (mapsMode === "moments"){ renderMaps(input); return; }

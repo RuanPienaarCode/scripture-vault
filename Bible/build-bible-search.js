@@ -74,7 +74,7 @@ for (const t of TRANS) {
 /* ── Articles ─────────────────────────────────────────────────── */
 // [ title, author, date, topics, excerpt, path(vault-relative, no .md), sourceUrl, bodyText, source ]
 // Every .md under Teaching/ is an article except hub/index notes. The source label is the folder
-// directly under Teaching/ ("Four12 Global", "Desiring God", …), so a new ministry becomes
+// directly under Teaching/ ("Example Ministry", "Desiring God", …), so a new ministry becomes
 // searchable by dropping its folder in — no code change here.
 function fmValue(fm, key){
   const m = fm.match(new RegExp("^" + key + ':\\s*"?(.*?)"?\\s*$', "m"));
@@ -190,7 +190,7 @@ function collectNotes(rootAbs, label, sourceOf) {
 
     const tagTopics = fmList(fm, "tags")
       .map(t => (t.startsWith("topic/") ? t.slice(6).replace(/-/g, " ") : t))
-      .filter(t => !t.includes("/") && !/^(article|hub|four12|devotional|teaching|topics|concept)$/i.test(t));
+      .filter(t => !t.includes("/") && !/^(article|hub|devotional|teaching|topics|concept)$/i.test(t));
     const topics = (fmList(fm, "topics").length ? fmList(fm, "topics") : tagTopics).slice(0, 6).join(", ");
 
     out.push([
@@ -225,7 +225,7 @@ catch { /* no config → all layers on */ }
 const layerOn = k => LAYER_CFG[k] !== false;
 
 // Teaching/ → Articles tab. The badge is the folder directly under Teaching/
-// ("Four12 Global", "Desiring God", …), so a new ministry becomes searchable by
+// ("Example Ministry", "Desiring God", …), so a new ministry becomes searchable by
 // dropping its folder in — no code change here.
 const ARTICLES = layerOn("articles") ? collectNotes(path.join(VAULT, "Teaching"), "Articles",
   rel => rel.split("/")[1] || "Teaching") : [];
