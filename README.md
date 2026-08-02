@@ -48,6 +48,7 @@ have it.
 | `tools/import-bible.js` | Node importer for any translation on bible.helloao.org (the wizard does this in-app) |
 | `Teaching/` | Drop article folders here and they join the search index — see its README |
 | `docs/` | Setup guide and the enrichment layout spec |
+| `data/` | Downloadable layer packs the wizard fetches: dictionary, prayers, On This Day, Church History, and the maps |
 
 ## The enrichment layer (parked for now)
 
@@ -94,3 +95,4 @@ noncommercial use; commercial use needs a separate licence.
 
 - Bible text API: [bible.helloao.org](https://bible.helloao.org) (Free Use Bible API)
 - Cross-reference data: openbible.info · Commentary: CCEL · Lexical data: openscriptures
+- Place coordinates: [openbible.info Bible Geocoding Data](https://github.com/openbibleinfo/Bible-Geocoding-Data) (CC-BY 4.0) · Map coastlines, lakes and rivers: [Natural Earth](https://www.naturalearthdata.com/) (public domain)
