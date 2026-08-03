@@ -907,11 +907,26 @@
   .bm-land path{fill:var(--map-land);stroke:var(--map-coast);stroke-width:.7}
   .bm-lake path{fill:var(--map-sea);stroke:var(--map-coast);stroke-width:.5}
   .bm-river path{fill:none;stroke:var(--map-river);stroke-width:.8}
+  /* Modern national borders — world basemap only. Dashed and faint: they orient
+     without competing with the coastline or claiming to be part of the story. */
+  .bm-border path{fill:none;stroke:var(--map-coast);stroke-width:.7;stroke-dasharray:3 3;opacity:.75}
+  /* ── the reference layer: what makes it a map rather than pins on a shape ──
+     Deliberately quiet. This is the furniture you read the pins AGAINST, so it has
+     to be legible and then get out of the way — if a reader's eye lands here first,
+     the layer has failed. */
+  .ref-dot{fill:var(--map-coast);opacity:.9}
+  .ref-t{fill:var(--muted-2);font-family:var(--sans);font-weight:300;paint-order:stroke;
+    stroke:var(--map-sea);stroke-width:2px;stroke-linejoin:round;vector-effect:non-scaling-stroke}
+  .ref-region{fill:var(--muted);letter-spacing:.14em;font-weight:400;opacity:.85}
+  .ref-water{fill:var(--map-river);font-style:italic}
   .mp-pin circle{fill:var(--accent);stroke:var(--map-sea);stroke-width:.5;vector-effect:none}
   /* A pin pushed off its true point keeps a thread back to it — see spreadPins(). */
   .mp-leader{stroke:var(--accent);stroke-width:1;opacity:.5;vector-effect:non-scaling-stroke}
+  /* The halo that lifts a label off the coastline. vector-effect is essential, not
+     cosmetic: an SVG stroke-width is in USER units, so without it the halo scales
+     with the viewBox and a zoomed-in map paints each label inside a black slab. */
   .mp-pin text{fill:var(--ink);font-family:var(--sans);font-weight:400;paint-order:stroke;
-    stroke:var(--map-sea);stroke-width:2.5px;stroke-linejoin:round}
+    stroke:var(--map-sea);stroke-width:2.5px;stroke-linejoin:round;vector-effect:non-scaling-stroke}
 
   /* the Maps tab's mode picker, and the journey tabs under it */
   .mm-pick,.jr-pick{display:flex;flex-wrap:wrap;gap:5px;margin:0 0 12px}
@@ -942,7 +957,8 @@
   .mh .mp-svg{margin:0 0 16px}
   .mh-pin circle{fill:var(--panel);stroke:var(--accent);stroke-width:1.2;vector-effect:none;cursor:pointer}
   .mh-pin text{fill:var(--accent);font-family:var(--mono);text-anchor:middle;cursor:pointer;
-    paint-order:stroke;stroke:var(--panel);stroke-width:1.5px;stroke-linejoin:round}
+    paint-order:stroke;stroke:var(--panel);stroke-width:1.5px;stroke-linejoin:round;
+    vector-effect:non-scaling-stroke}
   .mh-pin:hover circle,.mh-pin:focus-visible circle{fill:var(--accent)}
   .mh-pin:hover text,.mh-pin:focus-visible text{fill:var(--on-accent);stroke:var(--accent)}
   .mh-pin:focus-visible{outline:none}
@@ -2580,7 +2596,7 @@ function readerMapBlock(mp, t, bi, ch, scope){
       (chapter.length ? " in this chapter" : " in this book") + '</summary>' +
     '<div class="chmap-body">' + toggle +
     mapView({
-      points, min: 55, pad: 0.3,
+      points, min: 55, pad: 0.3, ref: true,
       /* Past about two dozen the labels stop being readable and start being a wall
          of text over the coastline — Joshua 15 alone would draw 162 of them. Beyond
          that the map shows the distribution and a tap gives the name. */
@@ -2601,6 +2617,7 @@ async function mountReaderMap(t, bi, ch, scope){
   // By name, for the same reason as the study panel above — the Maps tab may have
   // left the world basemap active, and a chapter's places belong on the regional one.
   if (STUDY.bm) await ensureBasemap("region");
+  if (_basemap) referenceLayer(mp);
   const body = $reader.querySelector(".reader-body");
   if (!body || $reader.hidden) return;
   const cur = body.dataset;
@@ -3146,6 +3163,7 @@ function basemapSvg(box, extra, label, bm){
   return '<svg class="mp-svg" viewBox="' + box.map(n => Math.round(n * 10) / 10).join(" ") +
     '" role="img" aria-label="' + esc(label) + '">' +
     g("bm-land", B.land) + g("bm-lake", B.lakes) + g("bm-river", B.rivers) +
+    g("bm-border", B.borders || []) +
     extra + '</svg>';
 }
 
@@ -3176,6 +3194,83 @@ function placeLabels(pts, names, r, fs){
     out.push({ x: slot.x, y: slot.y + h * 0.8 });
   });
   return out;
+}
+
+/* ── the reference layer ────────────────────────────────────────────────────
+   The complaint that produced this: "it just shows country outlines and random
+   pins." Both halves were true. A pin floating on blank land tells you nothing
+   about where it is, because there was nothing else on the map to place it
+   against — no cities, no territories, none of the furniture that makes a map
+   readable rather than merely correct.
+
+   The fix needed no new data. The place index already holds 809 settlements, 147
+   regions and 38 waters, every one geocoded, and inverting it gives how often the
+   Bible names each — which is exactly the ranking an atlas uses to decide what to
+   draw at what zoom. So the map now carries its own context: Jerusalem, Damascus
+   and Tyre as small grey dots wherever you are, GALILEE and MOAB as territory
+   labels, and the pins you actually asked about drawn on top of them.
+
+   Density comes free from the window. Only what is inside the frame competes for
+   the label budget, so zooming in reveals the smaller towns instead of showing
+   everything at once — the behaviour of a real map, out of a filter and a sort. */
+let _refLayer = null;
+function referenceLayer(mp){
+  if (_refLayer) return _refLayer;
+  const counts = new Map();
+  for (const k in mp.v) for (const i of mp.v[k]) counts.set(i, (counts.get(i) || 0) + 1);
+  const KIND = { region: "region", "people group": "region",
+    "body of water": "water", river: "water", lake: "water", wadi: "water", spring: "water" };
+  const out = [];
+  mp.p.forEach((row, i) => {
+    const rank = counts.get(i) || 0;
+    if (!rank) return;                       // never named — nothing to orient by
+    const [x, y] = project(row[1], row[2], _bmCache.bm || _basemap);
+    out.push({ x, y, name: row[0], kind: KIND[row[3]] || "town", rank });
+  });
+  out.sort((a, b) => b.rank - a.rank);
+  return (_refLayer = out);
+}
+// Built from the place index, which the map surfaces on the biblical basemap load
+// anyway. Absent is fine — the map simply goes back to being pins on coastline.
+async function ensureRef(){
+  if (_refLayer || !STUDY.mp) return _refLayer;
+  try { referenceLayer(await loadPayload("mp")); }
+  catch (e){ /* no index, no furniture */ }
+  return _refLayer;
+}
+
+/* What to draw, for one window. Two budgets, because they are different problems:
+   dots are cheap and can be dense, labels collide and must be rationed. Both are
+   spent on the most-named places first — the Bible's own sense of what matters,
+   which is a better editorial rule than population would be. */
+function referenceFor(box, exclude, fs, taken){
+  if (!_refLayer) return { dots: [], labels: [] };
+  const [bx, by, bw, bh] = box;
+  const inside = _refLayer.filter(r =>
+    r.x >= bx && r.x <= bx + bw && r.y >= by && r.y <= by + bh && !exclude.has(r.name));
+  const dots = inside.filter(r => r.kind === "town").slice(0, 220);
+  /* Rectangle collision, not a grid. A grid cell can only say "something is already
+     near here", and labels are much wider than they are tall — CANA and GALILEE sat
+     in different cells and still printed on top of each other. Widths are estimated
+     from the character count rather than measured, for the same reason placeLabels()
+     estimates: measuring means laying the SVG out first, and being a few percent
+     wrong about a label's width costs nothing while a reflow per render would.
+
+     `taken` arrives already holding the query pins' own labels, so the furniture
+     gives way to the answer rather than the other way round. */
+  const hits = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+  const placed = (taken || []).slice();
+  const labels = [];
+  for (const r of inside){
+    if (labels.length >= 18) break;
+    // Regions are letter-spaced and uppercased, so they run wider per character.
+    const per = r.kind === "region" ? 0.78 : 0.54;
+    const rect = { x: r.x, y: r.y - fs * 0.6, w: r.name.length * fs * per + fs * 0.8, h: fs * 1.25 };
+    if (placed.some(q => hits(rect, q))) continue;
+    placed.push(rect);
+    labels.push(r);
+  }
+  return { dots, labels };
 }
 
 /* ── one map, everywhere ────────────────────────────────────────────────────
@@ -3263,6 +3358,30 @@ function mapSvg(id){
   }).join("");
   const labels = m.numbered || m.dotted ? null
     : placeLabels(pts, m.points.map(p => p.label), r, fs);
+
+  /* Drawn beneath the routes and the pins, and never for a place that is already
+     one of them — a town would otherwise appear twice, once as context and once as
+     the answer, which is exactly the confusion this layer exists to remove.
+     Computed AFTER the pins so their labels can claim their space first. */
+  let ref = "";
+  if (m.o.ref && _refLayer){
+    const own = new Set(m.points.map(p => p.label));
+    const claimed = (labels || []).map((l, i) => ({
+      x: l.x, y: l.y - fs * 0.8, w: m.points[i].label.length * fs * 0.54, h: fs * 1.3,
+    }));
+    // The pins themselves are obstacles too, labelled or not.
+    pts.forEach(([x, y]) => claimed.push({ x: x - r, y: y - r, w: r * 2, h: r * 2 }));
+    const rfs = fs * 0.55;
+    const { dots, labels: refLabels } = referenceFor(m.box, own, rfs, claimed);
+    const rr = Math.max(r * 0.34, span / 420);
+    ref = '<g class="ref-layer">' +
+      dots.map(d => '<circle class="ref-dot" cx="' + d.x.toFixed(1) + '" cy="' + d.y.toFixed(1) +
+        '" r="' + rr.toFixed(2) + '"/>').join("") +
+      refLabels.map(l => '<text class="ref-t ref-' + l.kind + '" x="' + (l.x + rr * 2.2).toFixed(1) +
+        '" y="' + (l.y + rfs * 0.34).toFixed(1) + '" style="font-size:' + rfs.toFixed(2) + 'px">' +
+        esc(l.kind === "region" ? l.name.toUpperCase() : l.name) + '</text>').join("") +
+      '</g>';
+  }
   const pins = pts.map(([x, y], i) => {
     const p = m.points[i];
     const inner = m.dotted ? ""
@@ -3277,7 +3396,7 @@ function mapSvg(id){
       '<circle cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="' + r.toFixed(2) + '"/>' +
       inner + '</g>';
   }).join("");
-  return basemapSvg(m.box, routes + pins, m.o.aria || "Map", m.bm);
+  return basemapSvg(m.box, ref + routes + pins, m.o.aria || "Map", m.bm);
 }
 
 /* Zoom is an animated viewBox, not a transform: the paths must be re-culled and
@@ -3721,7 +3840,7 @@ function renderMap(data, bi, ch, v){
      missing while every other map input is present. */
   const map = mapView({
     points: places.map(p => ({ lat: p[1], lon: p[2], label: p[0], card: placeCard(p) })),
-    min: 60, pad: 0.35, aria: "Map of " + places.map(p => p[0]).join(", "),
+    min: 60, pad: 0.35, ref: true, aria: "Map of " + places.map(p => p[0]).join(", "),
   });
   return map + '<div class="mp-list">' + rows + '</div>' +
     '<p class="study-src">Identified locations from openbible.info · CC-BY · ' +
@@ -3744,6 +3863,8 @@ async function renderStudyBody(box, tab, t, bi, ch, v){
      left the world basemap active, and a verse's places drawn on that projection
      would land in the sea. Cached, so this costs nothing after the first. */
   if (tab === "mp" && STUDY.bm) await ensureBasemap("region");
+  // The furniture — towns and territories to place the verse's pins against.
+  if (tab === "mp" && _basemap) referenceLayer(data);
   // The reader may have moved on while this payload was being read — rendering
   // then would drop another verse's content into the open panel.
   if (!studyAt || studyAt.tab !== tab || studyAt.bi !== bi || studyAt.ch !== ch || studyAt.v !== v) return;
@@ -4131,7 +4252,7 @@ function renderPlacesMap(filter, mp){
       card: placeCard(r.p, placeVerseChips(verses.get(r.i) || [], t)),
     })),
     mode: rows.length > 24 ? "dot" : "label",
-    min: 60, pad: 0.25, aria: "Map of " + rows.length + " places",
+    min: 60, pad: 0.25, ref: true, aria: "Map of " + rows.length + " places",
   });
   $status.innerHTML = terms.length
     ? '<strong>' + rows.length + '</strong> place' + (rows.length === 1 ? '' : 's') + ' matching “' + esc(filter) + '”'
@@ -4191,7 +4312,7 @@ function renderJourneys(filter, data){
   const routes = [];
   for (let i = 1; i < j.stops.length; i++)
     routes.push({ stops: [i - 1, i], sea: !!j.stops[i].sea });
-  const map = mapView({ points, routes, mode: "number", min: 90, pad: 0.14,
+  const map = mapView({ points, routes, mode: "number", min: 90, pad: 0.14, ref: true,
     aria: j.name + " — " + j.stops.length + " stops", onPin: (i) => { markStopRow(i); } });
   $status.innerHTML = terms.length
     ? '<strong>' + hits.length + '</strong> journey' + (hits.length === 1 ? '' : 's') + ' matching “' + esc(filter) + '”'
@@ -4351,7 +4472,7 @@ function renderMaps(filter){
       key: e.title,                       // what "Show on map" matches on
       card: momentCard(e, terms),
     })),
-    mode: "number", min: 90, pad: 0.12,
+    mode: "number", min: 90, pad: 0.12, ref: true,
     aria: "Map of " + pinned.length + " moments in Bible and church history",
     // Keep the list in step: zooming a pin also lights and reveals its entry.
     onPin: (i) => { markMomentRow(i); },
@@ -5370,6 +5491,9 @@ async function run(){
       $res.innerHTML = '<div class="empty"><div class="big">🗺️</div>' + esc(why) + '</div>';
       return;
     }
+    // The biblical modes draw on the reference layer; the world ones do not, since
+    // it is a layer of places the Bible names and church history left that frame.
+    if (mapsBasemapFor(mapsMode) === "region"){ await ensureRef(); if (mgen !== runGen) return; }
     if (mapsMode === "moments"){ renderMaps(input); return; }
     // The other three each read one more sidecar. A failure says which and stops,
     // rather than drawing an empty frame and letting it look like there is nothing
@@ -5386,7 +5510,7 @@ async function run(){
     }
     if (mgen !== runGen) return;
     if (mapsMode === "journeys") renderJourneys(input, data);
-    else if (mapsMode === "places") renderPlacesMap(input, data);
+    else if (mapsMode === "places"){ referenceLayer(data); renderPlacesMap(input, data); }
     else if (mapsMode === "church") renderChurchMap(input, data);
     else renderOtdMap(input, data);
     return;
