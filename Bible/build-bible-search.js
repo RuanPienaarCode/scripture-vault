@@ -359,16 +359,25 @@ const DATA_DIR = path.join(VAULT, "Bible", "search-data");
    on what exists by listing one folder — the same reason the Words tab keeps its
    dictionary in lex.json and ships only counts in the page. */
 function studyManifest() {
-  const m = { xr: false, bx: false, mp: false, bm: false, bw: false, jr: false, hm: false, il: [], cm: [] };
+  const m = { xr: false, xa: false, bx: false, mp: false, bm: false, bw: false, jr: false, hm: false, al: false, pl: false, il: [], cm: [] };
   if (!fs.existsSync(DATA_DIR)) return m;
   for (const f of fs.readdirSync(DATA_DIR)) {
     if (f === "xr.json") { m.xr = layerOn("xrefs"); continue; }
+    /* xa.json is xr.json's richer twin — the same references, grouped under the TSK
+       catchword each belongs to. Same "xrefs" layer, because to a reader they are one
+       feature; the page prefers xa and falls back to xr's flat list when it is absent. */
+    if (f === "xa.json") { m.xa = layerOn("xrefs"); continue; }
     if (f === "bx.json") { m.bx = layerOn("bookcontext"); continue; }
     if (f === "mp.json") { m.mp = layerOn("places"); continue; }
     if (f === "bm.json") { m.bm = layerOn("places"); continue; }
     if (f === "bw.json") { m.bw = layerOn("places"); continue; }
     if (f === "jr.json") { m.jr = layerOn("places"); continue; }
     if (f === "hm.json") { m.hm = layerOn("places"); continue; }
+    if (f === "al.json") { m.al = layerOn("places"); continue; }
+    /* Only the plate INDEX gates the tab. The scans (pl-<n>.json) are fetched one at a
+       time when a reader opens that plate, so listing them would claim the page loads
+       megabytes it never touches. */
+    if (f === "pl.json") { m.pl = layerOn("places"); continue; }
     const il = f.match(/^il-(\d+)\.json$/);
     if (il && layerOn("interlinear")) { m.il.push(+il[1]); continue; }
     const cm = f.match(/^cm-(\d+)\.json$/);
@@ -382,6 +391,7 @@ const STUDY = studyManifest();
 console.log(`Study panel: cross-refs ${STUDY.xr ? "yes" : "no"} · context ${STUDY.bx ? "yes" : "no"} · ` +
   `places ${STUDY.mp ? "yes" : "no"} · basemap ${STUDY.bm ? "yes" : "no"}${STUDY.bw ? "+world" : ""} · ` +
   `journeys ${STUDY.jr ? "yes" : "no"} · history maps ${STUDY.hm ? "yes" : "no"} · ` +
+  `allotments ${STUDY.al ? "yes" : "no"} · plates ${STUDY.pl ? "yes" : "no"} · ` +
   `interlinear ${STUDY.il.length} books · commentary ${STUDY.cm.length} books`);
 
 if (problems.length) {

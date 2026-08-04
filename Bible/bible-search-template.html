@@ -284,6 +284,15 @@
   a.bookcard:hover{background:var(--panel-2)}
   a.bookcard strong{color:var(--accent);font-weight:400}
   .hit.article .snip .lead{color:var(--ink)}
+  /* commentary tab, empty box — a source card. It carries a heading rather than a
+     link because there is nothing to open: it describes a whole commentary, not a
+     passage of one. Sized to read like a result card so the tab doesn't change
+     shape the moment a word is typed. */
+  /* Gold, not the link blue every other card title wears: this one opens nothing,
+     and a heading dressed as a link is a promise the card cannot keep. */
+  .hit.article.cm-about .cm-name{font-size:17px;font-weight:400;color:var(--accent);letter-spacing:.01em}
+  .hit.article.cm-about .ctx-row{margin:0 0 11px}
+  .hit.article.cm-about .ctx-v{font-size:14.5px;font-weight:300;line-height:1.75;color:var(--muted)}
   /* words tab — dictionary hits. The headword carries dir="auto" so a Hebrew
      lemma lays itself out right-to-left without dragging the Latin around it
      along; unicode-bidi:isolate is what keeps that reordering inside the span. */
@@ -727,6 +736,40 @@
   .reader-body.has-study .rv{cursor:pointer;border-radius:6px}
   .reader-body.has-study .rv:hover{background:var(--code-bg)}
   .reader-body .rv.studying{background:var(--code-bg);box-shadow:inset 2px 0 0 var(--accent-2)}
+
+  /* ── the reader's own marks ──────────────────────────────────────────────────
+     A highlight's colour is the READER's, not the build's, so it arrives as an
+     inline custom property rather than a class per colour: --hl is the set's own
+     hex, --hl-tint the same colour at reading strength. Two tints, not one — the
+     alpha that reads as a wash on navy is invisible on cream, and an inline
+     property cannot be re-stated per theme, so both are set and the rules below
+     choose. rgba(), computed in JS, rather than color-mix(): this page has to
+     render on the iOS 15 WebKit floor, where color-mix() is absent and a rule
+     using it is dropped whole — which would leave a highlight with no colour.
+
+     .hl re-cuts the box exactly as .target and .studying do above, and for the
+     same reason: the moment anything is painted behind a verse, its hanging
+     number needs the 1em of clearance. */
+  .reader-body .rv.hl{padding:11px 14px 11px 2.3em;text-indent:-1.3em;margin:10px 0;
+    background:var(--hl-tint);box-shadow:inset 3px 0 0 var(--hl);border-radius:0 6px 6px 0}
+  :root[data-theme="light"] .reader-body .rv.hl{background:var(--hl-tint-l)}
+  /* --muted-2 is pitched to be quiet against the page's own ground, and a colour
+     washed over that ground takes it under. One step up, so a highlighted verse
+     keeps its number — the same lift .target gives its number in accent. */
+  .reader-body .rv.hl .rvn{color:var(--muted)}
+  /* Hover paints --code-bg across the whole verse, which would wipe the highlight
+     in exactly the layout that advertises the tap. Restate it at hover's weight. */
+  .reader-body.has-study .rv.hl:hover{background:var(--hl-tint)}
+  :root[data-theme="light"] .reader-body.has-study .rv.hl:hover{background:var(--hl-tint-l)}
+  /* Both states at once on a highlighted verse being studied: the accent rule says
+     "this is the open one", the colour still says which set it belongs to. */
+  .reader-body .rv.hl.studying{box-shadow:inset 3px 0 0 var(--hl),inset 0 0 0 1px var(--accent-2)}
+  /* Bookmarked and annotated verses carry their glyphs in ONE ::after fed by an
+     attribute, so a verse can show both without a second pseudo-element — and so
+     repainting after an edit is one attribute write rather than DOM surgery. */
+  .reader-body .rv[data-mk]::after{content:" " attr(data-mk);font-size:.82em;opacity:.8;
+    letter-spacing:.08em;white-space:nowrap}
+
   .reader-body.article .rmeta{color:var(--muted-2);font-size:12.5px;font-weight:300;letter-spacing:.03em;margin:0 0 16px}
   .reader-body.article p{margin:0 0 14px;line-height:1.8;font-weight:300}
   /* A curated note's own links — [[wikilinks]] and bare "Romans 8:28" refs — rebuilt as
@@ -737,6 +780,31 @@
     border-bottom-color:color-mix(in srgb,var(--accent-2) 45%,transparent)}
   .reader-body.article a.xlink:hover{border-bottom-style:solid;color:var(--accent)}
   .reader-body.article a.xlink:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}
+  /* A curated note's own structure — the headings, lists and tables the markdown had.
+     Sized down from the reader's prose rather than up: these are section furniture
+     inside an article, not page titles competing with the note's own name above. */
+  .reader-body.article h3,.reader-body.article h4,
+  .reader-body.article h5,.reader-body.article h6{
+    font-weight:400;letter-spacing:.01em;color:var(--ink);margin:26px 0 10px;line-height:1.35}
+  .reader-body.article h3{font-size:17px}
+  .reader-body.article h4{font-size:15px}
+  .reader-body.article h5,.reader-body.article h6{font-size:14px;color:var(--muted)}
+  .reader-body.article ul,.reader-body.article ol{margin:0 0 14px;padding-left:22px}
+  .reader-body.article li{margin:0 0 7px;line-height:1.75;font-weight:300}
+  .reader-body.article li>ul,.reader-body.article li>ol{margin:7px 0 0}
+  .reader-body.article ul{list-style:disc}
+  .reader-body.article ol{list-style:decimal}
+  /* Tables scroll INSIDE this box. The page runs in a plugin pane that can be half a
+     phone wide, and a timeline table is four columns of prose — without the scroller
+     it is the whole document that goes sideways, taking the reader's place with it. */
+  .reader-body.article .rtable{overflow-x:auto;margin:0 0 16px;-webkit-overflow-scrolling:touch}
+  .reader-body.article .rtable table{border-collapse:collapse;width:100%;min-width:min(100%,420px)}
+  .reader-body.article .rtable th,.reader-body.article .rtable td{
+    text-align:left;vertical-align:top;padding:8px 14px 8px 0;font-weight:300;line-height:1.65;
+    border-bottom:1px solid var(--line)}
+  .reader-body.article .rtable th{font-weight:400;color:var(--muted-2);font-size:12.5px;
+    letter-spacing:.04em;text-transform:uppercase;white-space:nowrap}
+  .reader-body.article .rtable tr:last-child td{border-bottom:0}
 
   /* ── the study panel ────────────────────────────────────────────────────────
      Tapping a verse in the reader opens one panel — cross-references, the
@@ -764,9 +832,11 @@
     color:var(--accent);background:none;border:none;padding:0;cursor:pointer;text-align:left}
   .study-ref button:hover{text-decoration:underline}
   .study-ref .spacer{flex:1}
-  /* Sized so all four tabs sit on ONE line inside the 340px rail — at 11.5px/11px
-     padding "Commentary" wrapped to a second row, which read as a layout accident.
-     wrap is kept as the safety net for a narrower pane or a larger base font. */
+  /* Sized so the tabs sit on as few lines as possible inside the rail — at
+     11.5px/11px padding "Commentary" alone wrapped, which read as a layout
+     accident. Six tabs (Notes joined them) no longer fit on one line at 380px and
+     take two, which is what wrap has always been here for: a narrower pane or a
+     larger base font would have done the same. */
   .study-tabs{display:flex;flex-wrap:wrap;gap:5px;padding:9px 12px;border-bottom:1px solid var(--line)}
   .study-tabs button{font-family:var(--sans);font-size:11px;font-weight:300;letter-spacing:.02em;
     color:var(--muted);background:none;border:1px solid transparent;border-radius:999px;
@@ -783,10 +853,160 @@
   .study-src{margin:10px 0 0;padding-top:9px;border-top:1px solid var(--line);
     color:var(--muted-2);font-size:11.5px;letter-spacing:.02em}
 
+  /* ── the Notes tab ───────────────────────────────────────────────────────────
+     The one tab in the study card that writes rather than reads: a row of
+     highlight sets, a bookmark toggle, and the reader's own note on this verse.
+     Everything here is sized to survive the 380px rail without wrapping into a
+     column of one-item rows. */
+  .mk-lab{font-family:var(--sans);font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;
+    color:var(--muted-2);margin:0 0 6px;display:block}
+  .mk-lab:not(:first-child){margin-top:13px}
+  .mk-row{display:flex;flex-wrap:wrap;gap:5px;margin:0}
+  .mk-sw{display:inline-flex;align-items:center;gap:6px;font-family:var(--sans);font-size:11.5px;
+    font-weight:300;letter-spacing:.02em;color:var(--muted);background:none;
+    border:1px solid var(--line);border-radius:999px;padding:4px 10px 4px 7px;cursor:pointer}
+  .mk-sw i{width:11px;height:11px;border-radius:50%;background:var(--sw);flex:none;
+    border:1px solid rgba(128,128,128,.4)}
+  .mk-sw:hover{color:var(--ink)}
+  .mk-sw[aria-pressed="true"]{color:var(--ink);border-color:var(--accent);background:var(--panel)}
+  /* "None" is a set-shaped button with no colour, so clearing a highlight is the
+     same gesture as choosing one rather than a differently-shaped exception. */
+  .mk-none i{background:none;border-style:dashed}
+  .mk-plain{font-family:var(--sans);font-size:11.5px;font-weight:300;letter-spacing:.02em;
+    color:var(--muted);background:none;border:1px solid var(--line);border-radius:999px;
+    padding:4px 11px;cursor:pointer}
+  .mk-plain:hover{color:var(--ink);border-color:var(--accent)}
+  .mk-plain[aria-pressed="true"]{color:var(--ink);border-color:var(--accent);background:var(--panel)}
+  .mk-note{display:block;width:100%;box-sizing:border-box;min-height:104px;resize:vertical;
+    font-family:var(--sans);font-size:13px;font-weight:300;line-height:1.65;color:var(--ink);
+    background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:9px 11px}
+  .mk-note:focus{outline:2px solid var(--accent);outline-offset:1px}
+  /* Reserves its line whether or not it is saying anything, so "Saved" appearing
+     under the box cannot push the box itself up under the cursor mid-sentence. */
+  .mk-said{font-family:var(--sans);font-size:11px;letter-spacing:.03em;color:var(--muted-2);
+    margin:6px 0 0;min-height:1.25em}
+  .mk-said.bad{color:var(--otd-orth)}
+  /* The colour editor, folded out of the ＋ / ✎ buttons. A fixed palette rather
+     than <input type="color">: the native picker is uneven on the mobile engines
+     this page has to reach, and ten swatches are a faster choice anyway. */
+  .mk-edit{margin:10px 0 0;padding:10px 11px;border:1px solid var(--line);border-radius:9px;
+    background:var(--panel)}
+  .mk-edit input[type="text"]{width:100%;box-sizing:border-box;font-family:var(--sans);
+    font-size:12.5px;font-weight:300;color:var(--ink);background:var(--code-bg);
+    border:1px solid var(--line);border-radius:7px;padding:6px 9px;margin:0 0 9px}
+  .mk-edit input[type="text"]:focus{outline:2px solid var(--accent);outline-offset:1px}
+  .mk-pal{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}
+  .mk-pal button{width:22px;height:22px;border-radius:50%;background:var(--sw);cursor:pointer;
+    border:1px solid rgba(128,128,128,.4);padding:0}
+  .mk-pal button[aria-pressed="true"]{box-shadow:0 0 0 2px var(--panel),0 0 0 4px var(--accent)}
+  .mk-btns{display:flex;flex-wrap:wrap;gap:6px}
+  .mk-btns .warn{color:var(--otd-orth)}
+
+  /* ── the Marks tab ───────────────────────────────────────────────────────────
+     Every mark in the vault, in canonical order. One row per verse, carrying
+     whichever of the three kinds it has — the colour as a stripe, the bookmark
+     and note as glyphs — because a verse commonly has more than one and three
+     separate lists would say so three times. */
+  .mkx-sum{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 14px}
+  .mkx-sum span{font-family:var(--sans);font-size:11.5px;font-weight:300;letter-spacing:.03em;
+    color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:3px 11px}
+  .mkx-list{display:flex;flex-direction:column;gap:2px}
+  .mkx-list button{display:block;width:100%;text-align:left;font-family:inherit;cursor:pointer;
+    background:none;border:none;border-left:3px solid var(--hl,transparent);border-radius:0 8px 8px 0;
+    padding:9px 12px}
+  .mkx-list button:hover{background:var(--code-bg)}
+  .mkx-list button:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+  .mkx-ref{display:block;font-family:var(--sans);font-size:12px;letter-spacing:.04em;
+    color:var(--accent);margin:0 0 3px}
+  .mkx-set{color:var(--muted-2);letter-spacing:.02em}
+  .mkx-text{display:block;font-size:14px;font-weight:300;line-height:1.6;color:var(--ink)}
+  /* The reader's own words, set apart from the verse's — italic, indented off the
+     same stripe, so a note is never mistaken for scripture. */
+  .mkx-note{display:block;font-family:var(--sans);font-size:12.5px;font-weight:300;font-style:italic;
+    line-height:1.55;color:var(--muted);margin:5px 0 0;padding-left:10px;
+    border-left:1px solid var(--line);white-space:pre-wrap}
+
+  /* ── the Translations tab ────────────────────────────────────────────────────
+     A map of the English Bibles rather than a list of them: where each one sits
+     between word-for-word and paraphrase, how hard it is to read, and when it was
+     made. The tab carries its own table and asks for no payload, so it is the one
+     tab that cannot fail to load.
+     The approach column IS the map — a hairline track with this version's dot on
+     it, repeated down every row. One shared axis would be the obvious drawing and
+     the wrong one: two dozen labels inside a hundred points collide into a smear,
+     and the comparison the reader came for is between NEIGHBOURS, which a column
+     of aligned tracks shows and a crowded axis hides. */
+  .tx-legend{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;margin:0 0 12px}
+  .tx-legend div{border:1px solid var(--line);border-radius:9px;padding:9px 11px;background:var(--panel)}
+  .tx-legend b{display:block;font-family:var(--sans);font-size:10.5px;font-weight:400;letter-spacing:.11em;
+    text-transform:uppercase;color:var(--accent);margin:0 0 4px}
+  .tx-legend span{display:block;font-family:var(--sans);font-size:11.5px;font-weight:300;
+    line-height:1.5;color:var(--muted)}
+  .tx-list{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:2px 0}
+  /* Band headings live INSIDE the list rather than above it, so the run of rows
+     under a heading is visibly one band and not a caption floating over the lot. */
+  .tx-band{font-family:var(--sans);font-size:10.5px;font-weight:400;letter-spacing:.12em;
+    text-transform:uppercase;color:var(--muted-2);margin:0;padding:13px 14px 5px;
+    border-top:1px solid var(--line)}
+  .tx-list > .tx-band:first-child{border-top:none;padding-top:11px}
+  .tx-row{display:grid;gap:3px 12px;align-items:center;padding:9px 14px;
+    border-top:1px solid var(--line);border-left:3px solid transparent;
+    grid-template-columns:58px minmax(0,1fr) 148px 88px 82px;
+    grid-template-areas:"code name appr read year" ".    note note note note"}
+  .tx-band + .tx-row{border-top:none}
+  /* A translation this build actually carries gets the accent stripe: the table is
+     about every English Bible, but four or five of them are one tap away in here. */
+  .tx-row.here{border-left-color:var(--accent)}
+  .tx-code{grid-area:code;font-family:var(--sans);font-size:11.5px;font-weight:400;letter-spacing:.06em;
+    color:var(--accent);border:1px solid var(--accent-line);border-radius:6px;
+    padding:2px 0;text-align:center}
+  .tx-name{grid-area:name;font-family:var(--sans);font-size:13px;font-weight:300;color:var(--ink)}
+  .tx-here{font-size:10.5px;letter-spacing:.06em;color:var(--muted-2);white-space:nowrap}
+  .tx-note{grid-area:note;font-family:var(--sans);font-size:11.5px;font-weight:300;line-height:1.5;
+    color:var(--muted)}
+  .tx-appr{grid-area:appr;font-family:var(--sans);font-size:11px;font-weight:300;color:var(--muted)}
+  .tx-track{display:block;position:relative;height:3px;border-radius:3px;margin:0 4px 5px;
+    background:linear-gradient(90deg,var(--accent-2),var(--muted-2) 55%,var(--accent));opacity:.55}
+  .tx-track i{position:absolute;top:50%;width:9px;height:9px;margin:-4.5px 0 0 -4.5px;
+    border-radius:50%;background:var(--ink);box-shadow:0 0 0 2px var(--panel)}
+  .tx-read{grid-area:read;font-family:var(--sans);font-size:11px;font-weight:300;color:var(--muted)}
+  .tx-year{grid-area:year;font-family:var(--sans);font-size:11px;font-weight:300;color:var(--muted);
+    text-align:right}
+  .tx-read b,.tx-year b{font-weight:400;color:var(--ink)}
+  .tx-meter{display:block;height:3px;border-radius:3px;background:var(--code-bg);margin:4px 0 0;
+    overflow:hidden}
+  .tx-meter i{display:block;height:100%;background:var(--accent-2);opacity:.7}
+  .tx-foot{font-family:var(--sans);font-size:11.5px;font-weight:300;line-height:1.6;color:var(--muted-2);
+    margin:14px 2px 0}
+  @media (max-width:700px){
+    /* Four legend cards stacked one per row push the table itself off the bottom of
+       a phone — a page of captions before a single Bible. Two across, and the band
+       heading inside the list carries the name again anyway. */
+    .tx-legend{grid-template-columns:1fr 1fr;gap:6px}
+    .tx-legend div{padding:7px 9px}
+    .tx-legend span{font-size:11px;line-height:1.45}
+    /* Five columns is a desktop reading. On a phone the row folds to two, and the
+       three measures sit on one line under the name where they still line up. */
+    .tx-row{grid-template-columns:58px minmax(0,1fr);
+      grid-template-areas:"code name" "appr appr" "read year" "note note";
+      gap:5px 12px}
+    .tx-appr{margin-top:2px}
+    .tx-read,.tx-year{font-size:11.5px}
+  }
+
   /* cross-references — one tappable reference per row */
   /* A column of reference + verse text, not a row of bare pills: the point of the
      tab is to read what the reference SAYS without leaving the chapter. Each row is
      one button so the whole block is the tap target. */
+  /* The catchword heading a group of references — TSK's own quotation of the part
+     of the verse those references answer to. Italic and quoted so it reads as
+     borrowed wording rather than as a UI label. Margin collapses at the top so the
+     first group sits flush with the panel. */
+  .xr-anchor{font-family:var(--sans);font-size:11.5px;font-style:italic;letter-spacing:.04em;
+    color:var(--accent-2);margin:10px 0 3px;padding:0 2px}
+  .xr-anchor:first-child{margin-top:0}
+  .xr-anchor::before{content:"\201C"}
+  .xr-anchor::after{content:"\201D"}
   .xr-list{display:flex;flex-direction:column;gap:1px}
   .xr-list button{display:block;width:100%;text-align:left;font-family:var(--sans);
     background:none;border:none;border-radius:8px;padding:8px 10px;cursor:pointer}
@@ -829,6 +1049,7 @@
   .chmap>summary::-webkit-details-marker{display:none}
   .chmap>summary:hover{color:var(--ink)}
   .chmap .chmap-n{color:var(--accent);font-weight:400}
+  .chmap .chmap-sub{color:var(--muted-2);font-size:11px;margin-left:8px}
   .chmap-body{padding:0 11px 11px}
   .chmap-scope{display:flex;gap:5px;margin:0 0 9px}
   .chmap-scope button{font-family:var(--sans);font-size:11px;font-weight:300;letter-spacing:.02em;
@@ -850,12 +1071,26 @@
   /* touch-action:none is what lets a finger pan and pinch the map instead of
      scrolling the page under it. Scoped to the SVG, so the block around the map
      still scrolls normally — only the map itself claims the gesture. */
-  .mapwrap .mp-svg{margin:0;touch-action:none;cursor:grab}
+  /* Capped so the whole map fits on screen with its controls under it. Without this
+     a square window in a wide pane is as tall as the pane is wide, and reading the
+     bottom of the map means scrolling the top of it away.
+
+     A flat px cap, deliberately, not a viewport unit: this page runs inside the
+     plugin's iframe, where vh resolves against the IFRAME rather than the pane —
+     the same trap that catches position:fixed here — so a vh cap is either right or
+     silently wrong depending on how the host sized the frame, and there is no way to
+     tell from inside. 520px is predictable in both. The width constrains it on a
+     phone long before this does. */
+  .mapwrap .mp-svg{margin:0;touch-action:none;cursor:grab;max-height:520px}
   .mapwrap.grabbing .mp-svg{cursor:grabbing}
   .mapwrap.grabbing .mp-pin,.mapwrap.grabbing .mh-pin{pointer-events:none}
+  /* One row under the map: what you can do on the left, the controls on the right.
+     Wraps to two lines on a narrow pane rather than crushing the buttons. */
+  .map-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;
+    flex-wrap:wrap;margin:7px 2px 0}
   .map-hint{font-family:var(--sans);font-size:11px;font-weight:300;color:var(--muted-2);
-    margin:6px 2px 0;letter-spacing:.02em}
-  .map-tools{position:absolute;top:8px;right:8px;display:flex;gap:4px}
+    margin:0;letter-spacing:.02em}
+  .map-tools{display:flex;gap:4px;margin-left:auto}
   .map-btn{width:26px;height:26px;display:flex;align-items:center;justify-content:center;
     font-family:var(--sans);font-size:13px;line-height:1;color:var(--muted);
     background:var(--panel);border:1px solid var(--line);border-radius:7px;cursor:pointer;
@@ -871,8 +1106,7 @@
   .mapwrap.full{position:fixed;inset:0;z-index:60;margin:0;padding:12px;
     background:var(--bg);display:flex;flex-direction:column;justify-content:center}
   .mapwrap.full .mp-svg{max-height:100%;width:auto;max-width:100%;margin:0 auto}
-  .mapwrap.full .map-tools{top:16px;right:16px}
-  .mapwrap.full .map-hint{position:absolute;left:16px;bottom:14px;margin:0}
+  .mapwrap.full .map-bar{margin:10px 4px 0}
   /* The card. Placed in page pixels by mapPopup(), which is why it carries no
      position of its own beyond `absolute` — left/top are written by the JS after
      it measures, so the card can flip sides rather than run off the frame. */
@@ -935,12 +1169,12 @@
     stroke:var(--map-sea);stroke-width:2.5px;stroke-linejoin:round;vector-effect:non-scaling-stroke}
 
   /* the Maps tab's mode picker, and the journey tabs under it */
-  .mm-pick,.jr-pick{display:flex;flex-wrap:wrap;gap:5px;margin:0 0 12px}
-  .mm-pick button,.jr-pick button{font-family:var(--sans);font-size:11.5px;font-weight:300;
+  .mm-pick,.jr-pick,.tx-pick{display:flex;flex-wrap:wrap;gap:5px;margin:0 0 12px}
+  .mm-pick button,.jr-pick button,.tx-pick button{font-family:var(--sans);font-size:11.5px;font-weight:300;
     letter-spacing:.02em;color:var(--muted);background:var(--panel);border:1px solid var(--line);
     border-radius:999px;padding:4px 11px;cursor:pointer;white-space:nowrap}
-  .mm-pick button:hover,.jr-pick button:hover{color:var(--ink);border-color:var(--accent)}
-  .mm-pick button[aria-pressed="true"],.jr-pick button[aria-pressed="true"]{
+  .mm-pick button:hover,.jr-pick button:hover,.tx-pick button:hover{color:var(--ink);border-color:var(--accent)}
+  .mm-pick button[aria-pressed="true"],.jr-pick button[aria-pressed="true"],.tx-pick button[aria-pressed="true"]{
     color:var(--accent);border-color:var(--accent-line);background:var(--code-bg)}
   .jr-pick{margin-bottom:10px}
   .jr-head{margin:0 0 14px}
@@ -1050,6 +1284,44 @@
   details.help code{font-family:var(--mono);font-size:.85em;background:var(--code-bg);border:1px solid var(--line);padding:1px 6px;border-radius:6px}
   details.help td{padding:4px 10px 4px 0;vertical-align:top}
   footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);color:var(--muted-2);font-size:13px;font-weight:300}
+
+  /* ── Plates (Shepherd's 1911 atlas, scanned) ─────────────────────────────
+     The one raster surface on the page. Everything else here is SVG drawn from
+     coordinates and themes itself; a photograph of 1911 paper is cream and sepia
+     in dark mode too, and pretending otherwise would mean tinting a historical
+     document. So the plate keeps its own colour and gets a frame that says it is
+     a picture of a thing rather than a layer of the page. */
+  .pl-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(232px,1fr));gap:10px;margin:0 0 14px}
+  .pl-card{text-align:left;background:var(--panel);border:1px solid var(--line);border-radius:10px;
+    padding:11px 13px 12px;cursor:pointer;font-family:inherit;color:inherit;display:block;width:100%}
+  .pl-card:hover,.pl-card:focus-visible{border-color:var(--accent);outline:none}
+  .pl-card h4{font-family:var(--sans);font-size:12.5px;font-weight:500;margin:0 0 4px;line-height:1.4}
+  .pl-card .pl-when{font-family:var(--mono);font-size:10.5px;color:var(--accent);
+    letter-spacing:.03em;margin:0 0 5px}
+  .pl-card p{font-size:11.5px;line-height:1.5;color:var(--muted);margin:0}
+  .pl-card .pl-kb{font-family:var(--mono);font-size:10px;color:var(--muted-2);margin:6px 0 0}
+  /* The stage clips; the image inside it is moved by transform. An <img> cannot
+     take a viewBox, so the pan/zoom the SVG maps get from mapSetBox is done here
+     with translate+scale instead — same gestures, same controls, different lever. */
+  .pl-stage{position:relative;overflow:hidden;border:1px solid var(--line);border-radius:10px;
+    background:var(--panel);height:520px;touch-action:none;cursor:grab}
+  .mapwrap.grabbing .pl-stage{cursor:grabbing}
+  .pl-img{position:absolute;left:0;top:0;transform-origin:0 0;user-select:none;
+    -webkit-user-drag:none;max-width:none;image-rendering:auto}
+  .mapwrap.full .pl-stage{height:auto;flex:1 1 auto;min-height:0}
+  /* Attribution rides with the plate rather than sitting in a footer. It is a
+     public-domain scan, so nothing here is owed — but a reader looking at a
+     hand-drawn border deserves to know it is 1911 scholarship and not ours. */
+  .pl-cred{font-family:var(--sans);font-size:10.5px;font-weight:300;color:var(--muted-2);
+    line-height:1.5;margin:8px 2px 0}
+  .pl-back{font-family:var(--sans);font-size:11.5px;font-weight:300;color:var(--muted);
+    background:none;border:none;padding:0;margin:0 0 10px;cursor:pointer}
+  .pl-back:hover{color:var(--accent)}
+  /* The reader's offer: a strip of plates under the chapter map, not a second map. */
+  .pl-offer{display:flex;flex-wrap:wrap;gap:5px;margin:9px 0 0}
+  .pl-offer button{font-family:var(--sans);font-size:11px;font-weight:300;color:var(--muted);
+    background:var(--panel);border:1px solid var(--line);border-radius:7px;padding:4px 9px;cursor:pointer}
+  .pl-offer button:hover{color:var(--accent);border-color:var(--accent)}
 
   /* ── narrow screens (phones, and the Obsidian mobile pane) ──────────────────
      The desktop layout assumes ~860px. Below ~640px three things break rather
@@ -1251,12 +1523,14 @@
       <button role="tab" data-s="topics" data-g="study" aria-selected="false">🏷️ Topics</button>
       <button role="tab" data-s="faq" data-g="study" aria-selected="false">❓ FAQ</button>
       <button role="tab" data-s="commentary" data-g="study" aria-selected="false">📚 Commentary</button>
+      <button role="tab" data-s="translations" data-g="study" aria-selected="false">⚖️ Translations</button>
       <button role="tab" data-s="timeline" data-g="history" aria-selected="false">🕰️ Timeline</button>
       <button role="tab" data-s="history" data-g="history" aria-selected="false">📜 History</button>
       <button role="tab" data-s="churchhistory" data-g="history" aria-selected="false">⛪ Church History</button>
       <button role="tab" data-s="onthisday" data-g="history" aria-selected="false">📅 On This Day</button>
       <button role="tab" data-s="maps" data-g="history" aria-selected="false">🗺️ Maps</button>
       <button role="tab" data-s="prayers" data-g="devotion" aria-selected="false">🙏 Prayers</button>
+      <button role="tab" data-s="marks" data-g="devotion" aria-selected="false">🔖 My Marks</button>
       <button data-g="devotion" disabled>📆 Reading Plan <span class="soon">soon</span></button>
       <button role="tab" data-s="articles" data-g="reading" aria-selected="false">📄 Articles</button>
     </div>
@@ -1377,13 +1651,33 @@ __TRANS_MENU__
           </table>
           <p>The full Strong's dictionary — every Hebrew and Greek word in the Bible, with what it means, what the KJV calls it, and where it came from. Words with a <strong>Study</strong> tag also have a written page showing every verse they appear in.</p>
         </div>
+        <div id="help-marks" hidden>
+          <table>
+            <tr><td><code>(nothing)</code></td><td>leave the box empty for everything you've marked</td></tr>
+            <tr><td><code>promises</code></td><td>find by the name you gave a highlight</td></tr>
+            <tr><td><code>romans 8</code></td><td>find by where the verse is</td></tr>
+            <tr><td><code>fear</code></td><td>search the verses and your own notes together</td></tr>
+          </table>
+          <p>Your highlights, bookmarks and notes. Make them in the reader: open a chapter, tap a verse, and the study card's <strong>Notes</strong> tab colours it, bookmarks it, or keeps what you wrote about it. A highlight has a name and a colour you choose, and marks are kept <em>by verse</em> — so a verse you colour in one translation is already coloured when you read it in another.</p>
+        </div>
         <div id="help-commentary" hidden>
           <table>
+            <tr><td><code>(nothing)</code></td><td>leave the box empty to see who wrote each commentary, and why</td></tr>
             <tr><td><code>propitiation</code></td><td>every passage of commentary that discusses it</td></tr>
             <tr><td><code>leaven kingdom</code></td><td>passages discussing <em>all</em> the words</td></tr>
             <tr><td><code>shepherd</code></td><td>also finds <em>shepherds</em>, <em>shepherding</em></td></tr>
           </table>
-          <p>Verse-by-verse commentary — Matthew Henry and the Church Fathers — searched by what it <em>says</em>, not by where it sits. Click a result to read it beside the chapter. Very common words (<em>the</em>, <em>of</em>, <em>and</em>) are ignored, and this tab matches words rather than exact phrases.</p>
+          <p>Verse-by-verse commentary — the Tyndale Study Notes, Matthew Henry and the Church Fathers — searched by what it <em>says</em>, not by where it sits. Click a result to read it beside the chapter. Very common words (<em>the</em>, <em>of</em>, <em>and</em>) are ignored, and this tab matches words rather than exact phrases. With the box empty the tab introduces each source: who wrote it, when, why, and how much of the Bible it covers.</p>
+        </div>
+        <div id="help-translations" hidden>
+          <table>
+            <tr><td><code>(nothing)</code></td><td>leave the box empty for the whole table</td></tr>
+            <tr><td><code>NASB</code></td><td>find one version by its abbreviation</td></tr>
+            <tr><td><code>king james</code></td><td>find it by name — and everything descended from it</td></tr>
+            <tr><td><code>word for word</code></td><td>find a whole band of the spectrum</td></tr>
+            <tr><td><code>1611</code></td><td>find by the year it was published or revised</td></tr>
+          </table>
+          <p>Twenty-four English Bibles set against each other on three measures: <strong>how literal</strong> each one is — the dot on the track runs word-for-word on the left to freest on the right — <strong>how hard it is to read</strong>, as a US reading grade, and <strong>when it was made</strong>. Sort by any of the three. Neither end of the spectrum is the good end: the left keeps the shape of the Hebrew and Greek sentence and reads stiffly, the right rebuilds the sentence in natural English and reads easily, and the honest use of the table is to read a hard passage in one of each. The gold stripe marks the versions this build actually carries.</p>
         </div>
         <div id="help-prayers" hidden>
           <table>
@@ -1480,6 +1774,171 @@ function loadPayload(id){
   }
   return _ploading[id];
 }
+
+/* ── the reader's own marks ───────────────────────────────────────────────────
+   Highlights, bookmarks and verse notes: the one thing on this page the reader
+   WRITES. Every other payload flows one way out of the vault; this flows back,
+   to Bible/search-data/marks.json, through a bridge of its own. The page never
+   names that path — bibleSearchSaveMarks() takes the serialised string and knows
+   where it goes — so nothing coming out of this iframe can choose a file to
+   write, which is the same rule the read whitelist keeps on the way in.
+
+   Keyed by VERSE, never by translation. A mark is made on Romans 8:28, not on
+   one translation's wording of it, so the colour is already there when the reader
+   switches from the ESV to the KJV. That falls out of keying on (book, chapter,
+   verse) — the packed verseKey the rest of the page already uses.
+
+   localStorage is the fallback, not the store: it is what a standalone --inline
+   build gets (no plugin, no vault), and what holds the last good copy when the
+   vault is unreachable. When the bridge is there the vault wins on load, so a
+   phone and a desktop reading the same synced vault agree about what is marked.
+
+   Shape, and it is hand-editable on purpose — this is the reader's own file:
+     { v:1, sets:[{id,name,color}], hl:{verseKey:setId}, bm:{verseKey:1},
+       nt:{verseKey:{t:text,m:epochMs}} }                                      */
+const MARKS_LS = "bs-marks";
+// One verse's note. The file as a whole is not capped here — MARKS_MAX below is
+// what the bridge will accept, and it is a guard against a runaway, not a target.
+const NOTE_MAX = 20000;
+const MARKS_MAX = 4e6;
+// The palette a new highlight is picked from. Chosen to stay apart from each other
+// at a glance in both themes, and clear of --accent so a highlight never reads as
+// the page's own "you searched for this" gold.
+const HL_PALETTE = [
+  ["Yellow", "#e0b34a"], ["Amber", "#d98b3f"], ["Rose", "#cf6f86"], ["Plum", "#a273c9"],
+  ["Indigo", "#6f83d8"], ["Sky", "#4f9fc4"], ["Teal", "#3fa294"], ["Green", "#5ea267"],
+  ["Olive", "#8d9a4a"], ["Clay", "#b07a5e"],
+];
+// Five to begin with, named for their colour — the name is the point of a set, and
+// renaming "Yellow" to "Promises" is one field in the editor.
+const DEFAULT_SETS = () => HL_PALETTE.slice(0, 5).map(([name, color], i) => ({ id: "s" + (i + 1), name, color }));
+const HEX_RE = /^#[0-9a-f]{6}$/i;
+const VKEY_RE = /^[0-9]{1,9}$/;
+
+let MARKS = { v: 1, sets: DEFAULT_SETS(), hl: {}, bm: {}, nt: {} };
+let marksSaved = true;      // false while an edit is waiting on its write
+let marksFrozen = null;     // set to a reason when saving would risk clobbering the vault
+
+/* Anything that reaches here has been on disk, where a hand (or a half-finished
+   sync) can have been at it. Validate every field and drop what doesn't fit rather
+   than trusting the file: a stray key that isn't a verse would paint nothing and
+   sit in the file forever, and a set id nothing points at would leave verses
+   highlighted in a colour that no longer exists. */
+function normalizeMarks(raw){
+  const out = { v: 1, sets: [], hl: {}, bm: {}, nt: {} };
+  if (!raw || typeof raw !== "object") { out.sets = DEFAULT_SETS(); return out; }
+  const seen = new Set();
+  for (const s of (Array.isArray(raw.sets) ? raw.sets : [])){
+    if (!s || typeof s.id !== "string" || !s.id || seen.has(s.id)) continue;
+    if (!HEX_RE.test(String(s.color || ""))) continue;
+    seen.add(s.id);
+    out.sets.push({ id: s.id, name: String(s.name || "Highlight").slice(0, 40), color: String(s.color).toLowerCase() });
+  }
+  // A file with no usable sets still has to be able to make a highlight.
+  if (!out.sets.length) out.sets = DEFAULT_SETS();
+  if (raw.hl && typeof raw.hl === "object"){
+    for (const k of Object.keys(raw.hl)) if (VKEY_RE.test(k) && seen.has(raw.hl[k])) out.hl[k] = raw.hl[k];
+  }
+  if (raw.bm && typeof raw.bm === "object"){
+    for (const k of Object.keys(raw.bm)) if (VKEY_RE.test(k) && raw.bm[k]) out.bm[k] = 1;
+  }
+  if (raw.nt && typeof raw.nt === "object"){
+    for (const k of Object.keys(raw.nt)){
+      if (!VKEY_RE.test(k)) continue;
+      const n = raw.nt[k];
+      // A bare string is accepted as well as { t, m }: it is the obvious thing to
+      // type when editing this file by hand, and refusing it would silently eat a note.
+      const text = typeof n === "string" ? n : (n && typeof n.t === "string" ? n.t : "");
+      if (!text.trim()) continue;
+      out.nt[k] = { t: text.slice(0, NOTE_MAX), m: (n && +n.m) || 0 };
+    }
+  }
+  return out;
+}
+
+const markSet = id => MARKS.sets.find(s => s.id === id) || null;
+// #rrggbb → rgba() at the given alpha. Done here rather than with color-mix() in
+// the stylesheet because color-mix() is absent on the iOS 15 WebKit this page has
+// to reach, and a dropped rule would leave a highlight with no colour at all.
+function tint(hex, a){
+  const n = parseInt(hex.slice(1), 16);
+  return "rgba(" + ((n >> 16) & 255) + "," + ((n >> 8) & 255) + "," + (n & 255) + "," + a + ")";
+}
+
+function readLocalMarks(){
+  try { const txt = localStorage.getItem(MARKS_LS); return txt ? JSON.parse(txt) : null; }
+  catch (e){ return null; }
+}
+function writeLocalMarks(){
+  try { localStorage.setItem(MARKS_LS, JSON.stringify(MARKS)); } catch (e){ /* full or blocked — the vault is the store */ }
+}
+
+/* Load order: the vault if the plugin is there, otherwise whatever localStorage
+   kept. A vault with no marks.json yet falls through to localStorage too, which
+   is what carries marks made before the file existed into it on the first save.
+
+   A vault read that FAILS is different from one that finds nothing, and is the
+   one case where saving is frozen: overwriting a file we could not read is how
+   a year of highlights disappears. The reader is told, and told what to do. */
+async function loadMarks(){
+  let raw = null;
+  const host = window.bibleSearchLoadMarks;
+  if (host){
+    try {
+      const txt = await host();
+      if (txt) raw = JSON.parse(txt);
+    } catch (e){
+      marksFrozen = "Your marks file couldn’t be read (" + ((e && e.message) || e) +
+        "), so nothing new will be saved until it can. Reopen this view once the vault has finished syncing.";
+    }
+  }
+  /* localStorage answers in both remaining cases, and they are not the same case.
+     A vault with no marks.json yet is a FIRST RUN: whatever is here is adopted and
+     written back on the next save, which is how marks made before the file existed
+     move into it. A vault that could not be READ is frozen: the local copy is still
+     shown, because a reader who has highlighted a hundred verses should see them
+     rather than an empty page, but nothing will be written anywhere until the file
+     can be read again. */
+  if (raw === null) raw = readLocalMarks();
+  MARKS = normalizeMarks(raw);
+  repaintMarks();
+}
+
+/* Discrete edits (a highlight, a bookmark) save at once; typing a note is
+   debounced. Both land here, and localStorage is written every time so the last
+   good copy survives a vault write that fails. */
+let _saveTimer = null;
+function saveMarks(delay, done){
+  // Frozen means frozen everywhere. Mirroring to localStorage while the vault is
+  // unreadable would overwrite the last good copy with whatever is on screen —
+  // and what is on screen, in that state, is the local copy itself.
+  if (marksFrozen){ if (done) done(marksFrozen); return; }
+  marksSaved = false;
+  writeLocalMarks();
+  clearTimeout(_saveTimer);
+  // The caller hears about the write through `done` rather than by awaiting: a
+  // debounced save has not happened yet when the keystroke that asked for it
+  // returns, and awaiting here would collapse the debounce into a write per key.
+  _saveTimer = setTimeout(() => { flushMarks().then(err => { if (done) done(err); }); }, delay || 0);
+}
+async function flushMarks(){
+  clearTimeout(_saveTimer);
+  if (marksFrozen) return marksFrozen;
+  const host = window.bibleSearchSaveMarks;
+  // No bridge is not an error: a standalone build has localStorage and nothing else,
+  // and writeLocalMarks() has already run.
+  if (!host){ marksSaved = true; return null; }
+  const json = JSON.stringify(MARKS);
+  if (json.length > MARKS_MAX) return "Your marks file has grown past what can be saved.";
+  try { await host(json); marksSaved = true; return null; }
+  catch (e){ return "Couldn’t save to the vault: " + ((e && e.message) || e); }
+}
+/* The view can be closed mid-debounce, and Obsidian does not reliably fire
+   beforeunload for a leaf. pagehide covers the page going away; visibilitychange
+   covers the far commoner case of switching to another tab or app mid-sentence. */
+function flushIfPending(){ if (!marksSaved) flushMarks(); }
+window.addEventListener("pagehide", flushIfPending);
+document.addEventListener("visibilitychange", () => { if (document.hidden) flushIfPending(); });
 
 /* Note collections — Articles, Topics, FAQ and History all share the record shape
    [ title, author, date, topics, excerpt, path, url, body, source ], so one loader,
@@ -1721,9 +2180,20 @@ const norm = s => s.toLowerCase().replace(/\./g,"").replace(/\s+/g," ").trim();
    build-bible-search.js and the plugin’s twin builder — change it in all three or none.
    stripLinks() is the plain-text view: everything that INDEXES, SNIPPETS or measures a
    body must call it first, or a wikilink target leaks into search results.
-   `[^\\u0001-\\u0003]` on both halves keeps a malformed run from swallowing the next marker. */
+   `[^\\u0001-\\u0003]` on both halves keeps a malformed run from swallowing the next marker.
+
+   BLOCK MARKERS ride the next range up, and say what KIND of block a paragraph is:
+   \u0004<level> a heading, \u0005<depth><kind> a list item, \u0006<kind> a table row whose
+   cells are separated by \u0007. renderNoteBody() below turns them into real markup; a
+   paragraph with no prefix is prose, which is what a body built before this was made of.
+   stripLinks() drops the scaffolding too — an index must not match on a "d" that was
+   only ever a row marker, and a snippet must not print one. */
 const LINK_RE = /\u0001([^\u0001-\u0003]*)\u0002([^\u0001-\u0003]*)\u0003/g;
-const stripLinks = s => String(s).replace(/\u0001([^\u0001-\u0003]*)\u0002([^\u0001-\u0003]*)\u0003/g, "$2");
+const B_HEAD = "\u0004", B_ITEM = "\u0005", B_ROW = "\u0006", B_CELL = "\u0007";
+const stripLinks = s => String(s)
+  .replace(/\u0001([^\u0001-\u0003]*)\u0002([^\u0001-\u0003]*)\u0003/g, "$2")
+  .replace(/\u0007/g, " · ")
+  .replace(/^(?:\u0004[2-6]|\u0005[0-9][uo]|\u0006[hd])/gm, "");
 
 function noteName(t, book, ch){ return t === "KJV" ? book + " " + ch : book + " " + ch + " (" + t + ")"; }
 function obsUrl(t, book, ch, v){
@@ -2182,6 +2652,67 @@ function cmxExpand(term){
   return lists;
 }
 const CMX_PAGE = 40;
+
+/* ── who wrote this, and why ───────────────────────────────────────
+   Three voices sit behind one word "Commentary", and until the tab said so a reader
+   had no way to know that one of them is a 300-year-old devotional, another is a
+   modern scholarly note, and the third is a handful of chapters of patristic
+   quotation. That matters before a search, not after: "no results from the Fathers"
+   means something entirely different once you know they cover four books.
+
+   Keyed by the commentator name EXACTLY as the payloads spell it — the same string
+   the study panel's picker and the result cards' badge use. A name with no entry
+   here still gets a card, sized and licensed from the index; it simply says nothing
+   it does not know, rather than dropping a source the search will still return. */
+const CM_ABOUT = {
+  "Tyndale Study Notes": {
+    who: "The Tyndale Open Study Notes — the notes from the NLT Study Bible, by the team of scholars Tyndale House assembled for it.",
+    when: "Modern. First published with the NLT Study Bible in 2008, and released openly afterwards.",
+    why: "Background rather than devotion: history, geography, custom, and what a Hebrew or Greek phrase is doing in a sentence. The one voice here that reaches nearly every book."
+  },
+  "Matthew Henry": {
+    who: "Matthew Henry (1662–1714), an English Nonconformist minister who preached in Chester and then Hackney.",
+    when: "Begun in 1708. He had reached the end of Acts when he died in 1714, and fellow ministers finished the rest from his notes.",
+    why: "Written for the family and the closet, not the lecture room — it asks what a passage requires of the person reading it. Warm, applied, and quoted ever since."
+  },
+  "Church Fathers": {
+    who: "A catena — a “chain” of comment gathered from the early church: Basil, Chrysostom, Augustine, Origen, Ambrose and others.",
+    when: "Written between the second and eighth centuries; quoted here from the public-domain nineteenth-century ANF/NPNF translations.",
+    why: "How the church read a passage long before the divisions that came later. Kept for the chapters where that tradition is richest, not across the whole Bible."
+  }
+};
+/* The opening view of the tab, drawn from the counts inlined in the page — so it
+   answers before the 6 MB index has been touched, and answers even if the sidecar
+   never arrives. Ordered by how much each voice actually carries, because that is
+   the first thing a reader needs to weigh. */
+function renderCommentaryIntro(){
+  const meta = cmxMeta();
+  if (!meta){ $status.textContent = ""; $res.innerHTML = ""; return; }
+  const cov = meta.cov || {};
+  const names = (meta.who || []).slice()
+    .sort((a, b) => ((cov[b] && cov[b].n) || 0) - ((cov[a] && cov[a].n) || 0) || a.localeCompare(b));
+  $status.innerHTML = '<strong>' + meta.n.toLocaleString() + '</strong> passages of commentary across ' +
+    meta.books + ' books, from ' + names.length + ' source' + (names.length === 1 ? '' : 's') +
+    ' — type a word to search all of them at once.';
+  const row = (k, val) => val ? '<div class="ctx-row"><div class="ctx-k">' + k + '</div>' +
+    '<div class="ctx-v">' + esc(val) + '</div></div>' : "";
+  $res.innerHTML = names.map(name => {
+    const c = cov[name] || null, a = CM_ABOUT[name] || null;
+    const size = c
+      ? c.n.toLocaleString() + ' passage' + (c.n === 1 ? '' : 's') + ' · ' +
+        c.books + ' book' + (c.books === 1 ? '' : 's')
+      : "";
+    return '<div class="hit article cm-about">' +
+      '<div class="ref"><span class="sbadge">Source</span>' +
+      '<strong class="cm-name">' + esc(name) + '</strong></div>' +
+      (size ? '<div class="ameta">' + esc(size) + '</div>' : "") +
+      (a ? row("Who", a.who) + row("When", a.when) + row("Why", a.why)
+         : '<p class="muted">Searchable here; nothing written down yet about where it came from.</p>') +
+      (c && c.lic ? '<p class="study-src">' + esc(c.lic) + '</p>' : "") +
+      '</div>';
+  }).join("");
+}
+
 /* Named …Search, not renderCommentary: the study panel already owns that name for
    drawing one chapter's commentary into the reader (see below). Two function
    declarations with one name is not an error in JS — the later simply wins — so
@@ -2435,6 +2966,79 @@ function renderNoteParagraph(p, terms){
   }).join("");
 }
 
+/* ── a note body, block by block ──────────────────────────────────────────────
+   The builder marks each paragraph with the kind of block it came from (see the
+   marker contract by stripLinks above). Prose is still a <p>; a run of list items
+   becomes one nested <ul>/<ol>, and a run of table rows becomes one <table>. Every
+   piece of text still goes through renderNoteParagraph, so a wikilink keeps working
+   inside a table cell or a bullet — which is where most of them actually live.
+
+   A paragraph with no marker renders exactly as it always did, so a page built by an
+   older builder still reads correctly rather than showing its scaffolding. */
+function renderNoteList(lines, i, depth, terms){
+  const kind = lines[i][2] === "o" ? "ol" : "ul";
+  let html = "<" + kind + ">", open = false;
+  while (i < lines.length && lines[i][0] === B_ITEM){
+    const d = +lines[i][1];
+    if (d < depth) break;
+    if (d === depth && (lines[i][2] === "o" ? "ol" : "ul") !== kind) break;   // ul→ol at one depth is a new list
+    if (d > depth){
+      // A nested list belongs INSIDE the item it hangs off, so it goes before that </li>.
+      if (!open){ html += "<li>"; open = true; }
+      const sub = renderNoteList(lines, i, d, terms);
+      html += sub.html;
+      i = sub.i;
+      continue;
+    }
+    if (open) html += "</li>";
+    html += "<li>" + renderNoteParagraph(lines[i].slice(3), terms);
+    open = true;
+    i++;
+  }
+  if (open) html += "</li>";
+  return { html: html + "</" + kind + ">", i };
+}
+function renderNoteTable(lines, i, terms){
+  let head = "", body = "";
+  while (i < lines.length && lines[i][0] === B_ROW){
+    const isHead = lines[i][1] === "h";
+    const tag = isHead ? "th" : "td";
+    const row = "<tr>" + lines[i].slice(2).split(B_CELL)
+      .map(c => "<" + tag + (isHead ? ' scope="col"' : "") + ">" +
+        renderNoteParagraph(c, terms) + "</" + tag + ">").join("") + "</tr>";
+    if (isHead) head += row; else body += row;
+    i++;
+  }
+  // The scroller is the narrow-pane answer: a four-column timeline table cannot shrink
+  // to an Obsidian side pane, and without this the whole page scrolls sideways with it.
+  return { html: '<div class="rtable"><table>' +
+    (head ? "<thead>" + head + "</thead>" : "") + "<tbody>" + body + "</tbody></table></div>", i };
+}
+function renderNoteBody(body, terms){
+  const lines = String(body).split("\n").filter(Boolean);
+  const out = [];
+  let i = 0;
+  while (i < lines.length){
+    const ln = lines[i];
+    if (ln[0] === B_HEAD){
+      // The note's own title is the <h2> in the reader head, so the markdown's "##"
+      // sits one level under it — a linear outline rather than two competing h2s.
+      const lv = Math.min(6, (+ln[1] || 2) + 1);
+      out.push("<h" + lv + ">" + renderNoteParagraph(ln.slice(2), terms) + "</h" + lv + ">");
+      i++;
+    } else if (ln[0] === B_ITEM){
+      const r = renderNoteList(lines, i, +ln[1], terms);
+      out.push(r.html); i = r.i;
+    } else if (ln[0] === B_ROW){
+      const r = renderNoteTable(lines, i, terms);
+      out.push(r.html); i = r.i;
+    } else {
+      out.push("<p>" + renderNoteParagraph(ln, terms) + "</p>"); i++;
+    }
+  }
+  return out.join("");
+}
+
 /* ── in-page reader ──────────────────────────────────────────── */
 const $reader = document.getElementById("reader");
 let curNav = null;     // { t, prev:[bi,ch]|null, next:[bi,ch]|null } while a chapter is open
@@ -2560,7 +3164,12 @@ function chapterPlaces(mp, bi, ch){
 function bookPlaces(mp, bi, cap){
   const m = placeIndex(mp).byBook.get(bi);
   if (!m) return [];
-  return [...m].sort((a, b) => b[1] - a[1] || a[0] - b[0]).slice(0, cap || 60)
+  /* Uncapped by default. It used to stop at 60, which silently became the number
+     the reader was told the book contained — Joshua names 430. The map names the
+     first slice and the rest show as dots, so the full list is what the count and
+     the dots are both drawn from. */
+  const rows = [...m].sort((a, b) => b[1] - a[1] || a[0] - b[0]);
+  return (cap ? rows.slice(0, cap) : rows)
     .map(([pi, n]) => ({ pi, n, p: mp.p[pi] })).filter(x => x.p);
 }
 
@@ -2579,12 +3188,25 @@ function readerPlaceCard(x, t, bi, ch, wide){
 /* The block itself: collapsed under the chapter heading so it never pushes verse 1
    below the fold, and absent entirely on the 340 chapters that name nowhere —
    the same "no content, no control" rule the tabs follow. */
+/* How many places a reader's map can NAME before the labels stop being a map and
+   start being a wall of text over the coastline. Past this the old behaviour was to
+   draw every one as an unlabelled dot — which, sitting among the grey context dots,
+   is how a book map came to look like static. Now the map names the most-mentioned
+   up to this many and lets the rest be the book's own quiet dots underneath. */
+const READER_NAMED = 20;
 function readerMapBlock(mp, t, bi, ch, scope){
   const chapter = chapterPlaces(mp, bi, ch);
   const book = bookPlaces(mp, bi);
   if (!chapter.length && !book.length) return "";
   const wide = scope === "book" || !chapter.length;
-  const list = wide ? book : chapter;
+  const all = wide ? book : chapter;
+  /* Named pins are the first slice of whatever order the scope already carries —
+     the book's by how often it names each place, the chapter's by verse, which is
+     the order the chapter is read in and must not be re-sorted away. Everything
+     past the cap still shows as the reference layer's dots, because `strict` has
+     confined that layer to this book: every dot on the map is a place this book
+     names, and nothing else. */
+  const list = all.slice(0, READER_NAMED);
   const points = list.map(x => ({
     lat: x.p[1], lon: x.p[2], label: x.p[0],
     card: readerPlaceCard(x, t, bi, ch, wide),
@@ -2597,20 +3219,66 @@ function readerMapBlock(mp, t, bi, ch, scope){
       '<button data-mscope="chapter" aria-pressed="' + (!wide) + '">This chapter</button>' +
       '<button data-mscope="book" aria-pressed="' + wide + '">Whole book</button></div>'
     : "";
-  const n = chapter.length || book.length;
+  const n = all.length;
+  // Say when the map is showing a selection rather than everything, so a reader is
+  // never left wondering whether a place is missing or simply not named on the map.
+  const shown = n > list.length
+    ? '<span class="chmap-sub">' + list.length + ' named · ' + (n - list.length) + ' more as dots</span>'
+    : "";
   return '<details class="chmap"' + (scope ? " open" : "") + '>' +
+    /* `wide`, not `chapter.length` — the old wording keyed off whether the chapter
+       had ANY places, so a book-scope map of Genesis announced itself as "places in
+       this chapter" while showing the whole book. */
     '<summary>🗺️ <span class="chmap-n">' + n + '</span> place' + (n === 1 ? "" : "s") +
-      (chapter.length ? " in this chapter" : " in this book") + '</summary>' +
+      (wide ? " in this book" : " in this chapter") + shown + '</summary>' +
     '<div class="chmap-body">' + toggle +
     mapView({
-      points, min: 55, pad: 0.3, ref: true, bi,
-      /* Past about two dozen the labels stop being readable and start being a wall
-         of text over the coastline — Joshua 15 alone would draw 162 of them. Beyond
-         that the map shows the distribution and a tap gives the name. */
-      mode: points.length > 24 ? "dot" : "label",
+      points, min: 55, pad: 0.3, ref: true, refStrict: true, bi,
+      // Always labelled now: the list is capped to what a map can carry names for.
+      mode: "label",
       aria: "Map of places in " + BOOKS[bi] + (wide ? "" : " " + ch),
-    }) + '</div></details>';
+    }) +
+    /* Filled in by mountReaderPlates() once the 3 KB index has loaded, or left
+       empty. The strip is a pointer to a period map, not a second map: the plate
+       cannot be drawn here, because a scan carries no coordinates for this book's
+       pins to land on. */
+    '<div class="pl-offer" data-ploffer="' + bi + '" hidden></div>' +
+    '</div></details>';
 }
+
+/* Which of Shepherd's plates answer to the book being read. Loaded after the map
+   rather than with it: the chapter must not wait on either, and a reader who never
+   opens the map never pays for the index. */
+async function mountReaderPlates(bi){
+  if (!STUDY.pl) return;
+  if (!_plates){
+    try { _plates = await loadPayload("pl"); }
+    catch (e){ return; }               // no plates is a quiet absence, not an error
+  }
+  const slot = $reader.querySelector('.pl-offer[data-ploffer="' + bi + '"]');
+  if (!slot) return;                   // the reader moved on while the index loaded
+  const hits = platesForBook(bi);
+  if (!hits.length) return;
+  slot.innerHTML = '<span class="map-hint">Period maps for ' + esc(BOOKS[bi]) + ':</span>' +
+    hits.map(p => '<button data-goplate="' + p.i + '">\uD83D\uDCDC ' + esc(p.title) + '</button>').join("");
+  slot.hidden = false;
+}
+
+/* A plate chip leaves the reader for the Maps tab with that plate open — the plate
+   is a full-width thing to pore over, and squeezing it into the reader's map slot
+   would make it useless at exactly the job it is here to do. */
+document.addEventListener("click", e => {
+  const g = e.target.closest && e.target.closest("[data-goplate]");
+  if (!g) return;
+  const i = +g.dataset.goplate;
+  closeReader();
+  // Set the destination BEFORE switching: selectSource() ends in run(), so a mode
+  // assigned after it would be picked up only on the next render — the tab would
+  // open on whatever map it last showed and the chip would look like it misfired.
+  mapsMode = "plates";
+  _plateOpen = i;
+  selectSource("maps", false);
+});
 
 /* Mount it after the chapter is on screen rather than as part of it: the sidecar
    is loaded on demand, and the verses must not wait on a map. If the reader has
@@ -2635,6 +3303,36 @@ async function mountReaderMap(t, bi, ch, scope){
   if (old) old.remove();
   body.insertAdjacentHTML("afterbegin", html);
   bindMaps();
+  mountReaderPlates(bi);
+}
+
+/* ── painting the marks onto the chapter ──────────────────────────────────────
+   Kept separate from the chapter render so an edit made in the study card costs
+   one attribute write on one paragraph, not a re-render of Psalm 119 underneath
+   the panel the reader is typing into. openVerse() calls repaintMarks() once the
+   chapter is mounted; every toggle calls markVerse() on the verse it changed. */
+function markVerse(el, key){
+  const set = markSet(MARKS.hl[key]);
+  el.classList.toggle("hl", !!set);
+  if (set){
+    el.style.setProperty("--hl", set.color);
+    el.style.setProperty("--hl-tint", tint(set.color, .20));
+    el.style.setProperty("--hl-tint-l", tint(set.color, .34));
+  } else {
+    el.style.removeProperty("--hl");
+    el.style.removeProperty("--hl-tint");
+    el.style.removeProperty("--hl-tint-l");
+  }
+  // One attribute carries both glyphs — see the .rv[data-mk]::after rule.
+  const glyphs = (MARKS.bm[key] ? "🔖" : "") + (MARKS.nt[key] ? "✎" : "");
+  if (glyphs) el.setAttribute("data-mk", glyphs);
+  else el.removeAttribute("data-mk");
+}
+function repaintMarks(){
+  const body = document.querySelector(".reader-body[data-bi]");
+  if (!body) return;
+  const bi = +body.dataset.bi, ch = +body.dataset.ch;
+  body.querySelectorAll(".rv[data-v]").forEach(p => markVerse(p, verseKey(bi, ch, +p.dataset.v)));
 }
 
 async function openVerse(t, bi, ch, v, dir){
@@ -2682,6 +3380,9 @@ async function openVerse(t, bi, ch, v, dir){
   // the same thing for the study-panel wiring; this one runs first.)
   const mapBody = $reader.querySelector(".reader-body");
   if (mapBody){ mapBody.dataset.bi = bi; mapBody.dataset.ch = ch; }
+  // Colours the chapter's marked verses. After the dataset above, which is what
+  // tells it which chapter these paragraphs belong to.
+  repaintMarks();
   mountReaderMap(t, bi, ch);
   curNav = { t, prev, next };
   // The panel lived in the outgoing chapter's DOM, which openReader has just wiped.
@@ -2719,8 +3420,7 @@ function openNote(coll, i){
     parts.push('<a href="' + esc(safeUrl(a[6])) + '" target="_blank" rel="noopener">Read on ' + esc(host) + ' ↗</a>');
   }
   const meta = '<p class="rmeta">' + parts.join(' · ') + '</p>';
-  const paras = a[7].split("\n").filter(Boolean)
-    .map(p => '<p>' + renderNoteParagraph(p, lastTerms) + '</p>').join("");
+  const paras = renderNoteBody(a[7], lastTerms);
   // A note reached from a link in another note replaces the body underneath wherever the
   // reader happened to be scrolled, so land at the top — openReader only does that for a
   // FRESH open, and following a link is not one. Back still returns to the results list.
@@ -2888,7 +3588,11 @@ let studyTab = "xr";       // remembered across verses: a reader working through
 let studyCommentator = null;   // likewise for the chosen commentary voice
 
 function studyTabsFor(bi){
-  const tabs = [];
+  /* Notes first, and unconditional. It is the one tab that needs no sidecar — it
+     renders what the reader wrote — so a vault with none of the study layers built
+     still has something behind a tapped verse, and every verse in every book is
+     tappable rather than only those in the 30 books Matthew Henry covered. */
+  const tabs = [["mk", "Notes"]];
   if (STUDY.xr) tabs.push(["xr", "References"]);
   if (STUDY.il && STUDY.il.indexOf(bi) !== -1) tabs.push(["il", "Original"]);
   if (STUDY.bx) tabs.push(["bx", "Context"]);
@@ -2905,9 +3609,18 @@ function closeStudy(){
 }
 
 function renderXrefs(box, data, t, bi, ch, v){
-  const refs = data[verseKey(bi, ch, v)] || [];
-  if (!refs.length) return '<p class="muted">No cross-references listed for this verse.</p>';
-  const targets = refs.map(unpackRef);
+  const key = verseKey(bi, ch, v);
+  /* Two payload shapes reach here, and the tab must render either. xa.json groups
+     references under the TSK catchword each hangs off — { c: [catchwords],
+     v: { key: [[catchwordIdx, ...refs], …] } } — because a verse with two clauses
+     usually speaks to two different things. xr.json is the flat
+     { key: [refs] } this tab shipped first, and stays the fallback. */
+  const anchored = !!(data && data.c && data.v);
+  const groups = anchored
+    ? (data.v[key] || []).map(row => ({ word: data.c[row[0]], refs: row.slice(1).map(unpackRef) }))
+    : (data[key] || []).length ? [{ word: null, refs: data[key].map(unpackRef) }] : [];
+  if (!groups.length) return '<p class="muted">No cross-references listed for this verse.</p>';
+  const targets = groups.reduce((all, g) => all.concat(g.refs), []);
 
   /* Each reference is shown with its verse text, so the panel answers "what does
      Romans 5:8 say" without a trip out of the chapter. The text comes from the
@@ -2929,7 +3642,7 @@ function renderXrefs(box, data, t, bi, ch, v){
     }
   } catch (e){ /* translation not loaded — fall back to bare references */ }
 
-  const rows = targets.map(r => {
+  const rowsFor = refs => refs.map(r => {
     const parts = [];
     for (let n = r.v; n < r.v + r.span; n++){
       const s = want.get(r.bi + "." + r.ch + "." + n);
@@ -2941,8 +3654,18 @@ function renderXrefs(box, data, t, bi, ch, v){
       (text ? '<span class="xr-text">' + esc(text) + '</span>' : "") +
       '</button>';
   }).join("");
-  return '<div class="xr-list">' + rows + '</div>' +
-    '<p class="study-src">Ranked by openbible.info votes · CC-BY</p>';
+
+  /* The catchword is quoted, not paraphrased — it is the editors' own words, and a
+     reader scanning for the half of the verse they are asking about finds it faster
+     as a quotation than as a heading. */
+  const body = groups.map(g =>
+    (g.word ? '<p class="xr-anchor">' + esc(g.word) + '</p>' : "") +
+    '<div class="xr-list">' + rowsFor(g.refs) + '</div>'
+  ).join("");
+  return body + '<p class="study-src">' + (anchored
+    ? "Grouped by catchword — Treasury of Scripture Knowledge, public domain · " +
+      "ordered by openbible.info votes · CC-BY"
+    : "Ranked by openbible.info votes · CC-BY") + '</p>';
 }
 
 function renderInterlinear(box, data, ch, v){
@@ -3042,8 +3765,17 @@ function renderCommentary(box, data, ch, v){
     : "";
   if (!intro && !body) return picker + '<p class="muted">Nothing on this chapter from ' +
     esc(studyCommentator) + '.</p>';
+  /* The licence comes from the note the text was read out of, NOT from a constant.
+     Every commentator here was public domain until Tyndale's Open Study Notes
+     arrived under CC BY-SA 4.0, and a hardcoded "· public domain" beneath those is
+     a licence claim shown to every reader — one that tells them they owe nothing
+     when anything built on the notes has to be shared alike. A source whose licence
+     could not be read says nothing rather than guessing in the permissive
+     direction. */
+  const lic = data.lic && data.lic[studyCommentator];
   return picker + intro + body +
-    '<p class="study-src">' + esc(studyCommentator) + ' · public domain</p>';
+    '<p class="study-src">' + esc(studyCommentator) +
+    (lic ? " · " + esc(lic) : "") + '</p>';
 }
 
 /* The places a verse names, from the mp.json sidecar (tools/gen-places-map.js).
@@ -3189,16 +3921,23 @@ function placeLabels(pts, names, r, fs){
   const hits = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
   pts.forEach(([x, y], i) => {
     const w = names[i].length * fs * 0.54, h = fs * 1.1;
-    const bx = x + r * 1.8;
+    /* Right of the dot first, then LEFT of it, at each line away from the baseline.
+       Trying only the right ran out of slots wherever a dozen places crowd together
+       — Mamre, Zoar and Havilah printed on top of one another around Bethel — and a
+       label that gives up lands back on the pile. Both sides doubles the room at no
+       cost, and a label on the left reads just as well. */
+    const sides = [x + r * 1.8, x - r * 1.8 - w];
     let slot = null;
-    for (let k = 0; k < 12 && !slot; k++){
+    for (let k = 0; k < 14 && !slot; k++){
       // 0, +1, -1, +2, -2 … lines away from the dot's own baseline
       const step = Math.ceil(k / 2) * (k % 2 ? 1 : -1);
       const by = y + fs * 0.35 + step * h;
-      const rect = { x: bx, y: by - h * 0.8, w, h };
-      if (!placed.some(p => hits(rect, p))) slot = rect;
+      for (const sx of sides){
+        const rect = { x: sx, y: by - h * 0.8, w, h };
+        if (!placed.some(p => hits(rect, p))){ slot = rect; break; }
+      }
     }
-    if (!slot) slot = { x: bx, y: y + fs * 0.35 - h * 0.8, w, h };
+    if (!slot) slot = { x: sides[0], y: y + fs * 0.35 - h * 0.8, w, h };
     placed.push(slot);
     out.push({ x: slot.x, y: slot.y + h * 0.8 });
   });
@@ -3267,12 +4006,17 @@ async function ensureRef(){
    It is a re-ranking, not a filter. A book that names almost nowhere (Philemon
    names nothing at all) simply falls back to the whole-Bible order and keeps its
    furniture, rather than being handed an empty map. */
-function referenceFor(box, exclude, fs, taken, bi){
+function referenceFor(box, exclude, fs, taken, bi, strict){
   if (!_refLayer) return { dots: [], labels: [] };
   const [bx, by, bw, bh] = box;
-  const inside = _refLayer.filter(r =>
-    r.x >= bx && r.x <= bx + bw && r.y >= by && r.y <= by + bh && !exclude.has(r.name));
   const book = bi == null || !_placeIdx ? null : _placeIdx.byBook.get(bi);
+  /* `strict` turns the re-ranking into a FILTER, and only the reader uses it. On a
+     map of one book, a place from another book is not context — it is a grey dot
+     with no name next to gold dots with no name, which is the noise that makes a
+     book map read as static. Everywhere else the whole Bible is fair context. */
+  const inside = _refLayer.filter(r =>
+    r.x >= bx && r.x <= bx + bw && r.y >= by && r.y <= by + bh && !exclude.has(r.name) &&
+    (!strict || !book || book.has(r.i)));
   if (book && book.size){
     /* The offset has to exceed any possible whole-Bible rank, or a place named once
        here would lose to Jerusalem's 955 and the re-ranking would do nothing. */
@@ -3373,17 +4117,24 @@ function mapView(o){
      rather than a <foreignObject> inside it. That keeps the card's links and chips
      ordinary anchors the page's existing delegates already understand. */
   return '<div class="mapwrap" data-map="' + id + '">' + mapSvg(id) +
-    /* Two controls, and both have to LOOK like what they do. The zoom-out is
-       disabled at the home window — a button that silently does nothing because
-       there is nothing to undo reads as broken. ⛶ is full screen, matching the
-       Church History chart, because that is what the icon promises. */
-    '<div class="map-tools">' +
-      '<button class="map-btn" data-mzoom="in" aria-label="Zoom in">+</button>' +
-      '<button class="map-btn" data-mzoom="out" aria-label="Zoom out" disabled>–</button>' +
-      '<button class="map-btn" data-mzoom="home" aria-label="Show the whole map" disabled>⤢</button>' +
-      '<button class="map-btn" data-mfull="1" aria-pressed="false" aria-label="Expand the map to full screen">⛶</button>' +
+    /* The controls sit BELOW the map, in flow, not floating over its top-right
+       corner. A map is tall enough that reaching its lower half means scrolling the
+       page — and a floating control scrolls away with the corner it is pinned to,
+       which is how they came to be "hidden". Under the map they are always the next
+       thing after it, wherever you are in it.
+
+       Two of them have to LOOK like what they do: the zoom-out and reset are
+       disabled at the home window, because a live-looking button that does nothing
+       reads as broken. ⛶ is full screen, matching the Church History chart. */
+    '<div class="map-bar">' +
+      '<p class="map-hint">Drag to pan · pinch or ⌘/Ctrl-scroll to zoom · tap a pin for its story</p>' +
+      '<div class="map-tools">' +
+        '<button class="map-btn" data-mzoom="in" aria-label="Zoom in">+</button>' +
+        '<button class="map-btn" data-mzoom="out" aria-label="Zoom out" disabled>–</button>' +
+        '<button class="map-btn" data-mzoom="home" aria-label="Show the whole map" disabled>⤢</button>' +
+        '<button class="map-btn" data-mfull="1" aria-pressed="false" aria-label="Expand the map to full screen">⛶</button>' +
+      '</div>' +
     '</div>' +
-    '<p class="map-hint">Drag to pan · pinch or ⌘/Ctrl-scroll to zoom · tap a pin for its story</p>' +
     '<div class="map-pop" hidden></div></div>';
 }
 
@@ -3419,7 +4170,7 @@ function mapSvg(id){
     // The pins themselves are obstacles too, labelled or not.
     pts.forEach(([x, y]) => claimed.push({ x: x - r, y: y - r, w: r * 2, h: r * 2 }));
     const rfs = fs * 0.55;
-    const { dots, labels: refLabels } = referenceFor(m.box, own, rfs, claimed, m.o.bi);
+    const { dots, labels: refLabels } = referenceFor(m.box, own, rfs, claimed, m.o.bi, m.o.refStrict);
     const rr = Math.max(r * 0.34, span / 420);
     ref = '<g class="ref-layer">' +
       dots.map(d => '<circle class="ref-dot" cx="' + d.x.toFixed(1) + '" cy="' + d.y.toFixed(1) +
@@ -3670,7 +4421,7 @@ function mapBindGestures(wrap){
     mapClose(id);
   };
   wrap.addEventListener("pointerdown", e => {
-    if (e.target.closest(".map-tools") || e.target.closest(".map-pop")) return;
+    if (e.target.closest(".map-bar") || e.target.closest(".map-pop")) return;
     if (e.pointerType === "mouse" && e.button !== 0) return;
     /* Do NOT capture here. A captured pointer retargets the resulting CLICK to the
        capturing element, so capturing every press would send every tap to the
@@ -3905,10 +4656,219 @@ function renderMap(data, bi, ch, v){
     'coastlines from Natural Earth (public domain)</p>';
 }
 
+/* ── the Notes tab ────────────────────────────────────────────────────────────
+   Highlight, bookmark and note for one verse, plus the editor that names and
+   colours a highlight set. Everything writes through saveMarks(), which mirrors
+   to localStorage immediately and lands in the vault behind it.
+
+   Two redraw rules, and they are the whole reason this is hand-wired rather than
+   re-rendered on every change:
+     · a swatch or bookmark toggle updates attributes IN PLACE, because a full
+       redraw would replace the textarea and lose whatever is half-typed in it;
+     · anything that changes the set LIST redraws, and commits the note first.  */
+function mountNotesTab(box, bi, ch, v){
+  const key = verseKey(bi, ch, v);
+  let editing = null;        // null = editor closed, else { id:setId|null, name, color }
+  let confirmDel = false;    // Delete asks once before it takes verses' colour away
+
+  // The verse in the chapter behind the panel, so a toggle repaints one paragraph
+  // rather than the chapter. Looked up per call: the reader can page underneath.
+  const verseEl = () => {
+    const body = document.querySelector(".reader-body[data-bi]");
+    if (!body || +body.dataset.bi !== bi || +body.dataset.ch !== ch) return null;
+    return body.querySelector('.rv[data-v="' + v + '"]');
+  };
+  const paint = () => { const el = verseEl(); if (el) markVerse(el, key); };
+
+  const say = (msg, bad) => {
+    const el = box.querySelector(".mk-said");
+    if (!el) return;
+    el.textContent = msg || "";
+    el.classList.toggle("bad", !!bad);
+  };
+  // Every write reports what happened to it. Silence after a failed save is how a
+  // reader ends up trusting a note that was never written.
+  const commit = (delay, ok) => {
+    if (delay) say("Saving…");
+    saveMarks(delay, err => say(err || ok || "Saved", !!err));
+  };
+
+  const swatchRow = () =>
+    MARKS.sets.map(s =>
+      '<button class="mk-sw" data-set="' + esc(s.id) + '" style="--sw:' + esc(s.color) + '"' +
+      ' aria-pressed="' + (MARKS.hl[key] === s.id) + '"><i aria-hidden="true"></i>' + esc(s.name) + '</button>'
+    ).join("") +
+    '<button class="mk-sw mk-none" data-set="" aria-pressed="' + !MARKS.hl[key] + '">' +
+    '<i aria-hidden="true"></i>None</button>';
+
+  const editorHtml = () => {
+    if (!editing) return "";
+    const picks = MARKS.sets.map(s =>
+      '<button class="mk-sw" data-ed="' + esc(s.id) + '" style="--sw:' + esc(s.color) + '"' +
+      ' aria-pressed="' + (editing.id === s.id) + '"><i aria-hidden="true"></i>' + esc(s.name) + '</button>'
+    ).join("") +
+      '<button class="mk-plain" data-ed="" aria-pressed="' + (editing.id === null) + '">＋ New</button>';
+    const pal = HL_PALETTE.map(([name, color]) =>
+      '<button data-col="' + color + '" style="--sw:' + color + '" title="' + esc(name) + '"' +
+      ' aria-label="' + esc(name) + '" aria-pressed="' + (editing.color === color) + '"></button>').join("");
+    return '<div class="mk-edit">' +
+      '<div class="mk-row">' + picks + '</div>' +
+      '<span class="mk-lab">Name</span>' +
+      '<input type="text" class="mk-name" maxlength="40" placeholder="Promises · Commands · To memorise…" value="' + esc(editing.name) + '">' +
+      '<span class="mk-lab">Colour</span>' +
+      '<div class="mk-pal">' + pal + '</div>' +
+      '<div class="mk-btns"><button class="mk-plain mk-save">' + (editing.id ? "Save" : "Create") + '</button>' +
+      (editing.id ? '<button class="mk-plain mk-del warn">' + (confirmDel ? "Delete — sure?" : "Delete") + '</button>' : "") +
+      '<button class="mk-plain mk-close">Close</button></div></div>';
+  };
+
+  function draw(){
+    const note = MARKS.nt[key];
+    box.innerHTML =
+      '<span class="mk-lab">Highlight</span>' +
+      '<div class="mk-row" role="group" aria-label="Highlight this verse">' + swatchRow() + '</div>' +
+      '<div class="mk-row" style="margin-top:8px">' +
+        '<button class="mk-plain mk-bm" aria-pressed="' + !!MARKS.bm[key] + '">🔖 Bookmark</button>' +
+        '<button class="mk-plain mk-colours" aria-pressed="' + !!editing + '">✎ Colours</button>' +
+      '</div>' + editorHtml() +
+      '<label class="mk-lab" for="mkNote">Your note on ' + esc(BOOKS[bi] + " " + ch + ":" + v) + '</label>' +
+      '<textarea class="mk-note" id="mkNote" spellcheck="true" maxlength="' + NOTE_MAX + '" ' +
+        'placeholder="What this verse says to you…">' + esc(note ? note.t : "") + '</textarea>' +
+      '<p class="mk-said" role="status"></p>';
+    wire();
+    if (marksFrozen) say(marksFrozen, true);
+  }
+
+  // The textarea is the one control that must survive a redraw, so its value is
+  // written into MARKS before anything can replace it.
+  function commitNote(){
+    const ta = box.querySelector(".mk-note");
+    if (!ta) return false;
+    const text = ta.value.trim();
+    const had = MARKS.nt[key] ? MARKS.nt[key].t : "";
+    if (text === had) return false;
+    if (text) MARKS.nt[key] = { t: text.slice(0, NOTE_MAX), m: Date.now() };
+    else delete MARKS.nt[key];
+    paint();
+    return true;
+  }
+
+  function wire(){
+    box.querySelectorAll(".mk-row [data-set]").forEach(b => b.addEventListener("click", () => {
+      const id = b.dataset.set;
+      // Clicking the set a verse already carries clears it, so one gesture both
+      // paints and unpaints — the same rule the verse tap follows for the panel.
+      if (!id || MARKS.hl[key] === id) delete MARKS.hl[key];
+      else MARKS.hl[key] = id;
+      box.querySelectorAll(".mk-row [data-set]").forEach(o =>
+        o.setAttribute("aria-pressed", String(o.dataset.set ? MARKS.hl[key] === o.dataset.set : !MARKS.hl[key])));
+      paint();
+      commit(0);
+    }));
+    const bm = box.querySelector(".mk-bm");
+    if (bm) bm.addEventListener("click", () => {
+      if (MARKS.bm[key]) delete MARKS.bm[key]; else MARKS.bm[key] = 1;
+      bm.setAttribute("aria-pressed", String(!!MARKS.bm[key]));
+      paint();
+      commit(0, MARKS.bm[key] ? "Bookmarked" : "Bookmark removed");
+    });
+    const col = box.querySelector(".mk-colours");
+    if (col) col.addEventListener("click", () => {
+      commitNote();
+      const cur = markSet(MARKS.hl[key]);
+      // Opens on the set this verse already carries, since that is the one the
+      // reader is most likely looking at when they reach for the editor.
+      editing = editing ? null : (cur ? { id: cur.id, name: cur.name, color: cur.color }
+                                      : { id: null, name: "", color: HL_PALETTE[0][1] });
+      confirmDel = false;
+      draw();
+    });
+
+    box.querySelectorAll(".mk-edit [data-ed]").forEach(b => b.addEventListener("click", () => {
+      const s = markSet(b.dataset.ed);
+      editing = s ? { id: s.id, name: s.name, color: s.color }
+                  : { id: null, name: "", color: HL_PALETTE[0][1] };
+      confirmDel = false;
+      draw();
+    }));
+    box.querySelectorAll(".mk-pal [data-col]").forEach(b => b.addEventListener("click", () => {
+      editing.color = b.dataset.col;
+      box.querySelectorAll(".mk-pal [data-col]").forEach(o =>
+        o.setAttribute("aria-pressed", String(o.dataset.col === editing.color)));
+    }));
+    const nameEl = box.querySelector(".mk-name");
+    if (nameEl) nameEl.addEventListener("input", () => { editing.name = nameEl.value; confirmDel = false; });
+    const save = box.querySelector(".mk-save");
+    if (save) save.addEventListener("click", () => {
+      const name = (editing.name || "").trim().slice(0, 40);
+      if (!name){ say("Give the highlight a name first.", true); if (nameEl) nameEl.focus(); return; }
+      commitNote();
+      if (editing.id){
+        const s = markSet(editing.id);
+        if (s){ s.name = name; s.color = editing.color; }
+      } else {
+        // ids must not collide with one another OR with an id a deleted set left
+        // behind in an older copy of the file, so they count past the highest in use.
+        let n = 1;
+        while (MARKS.sets.some(s => s.id === "s" + n)) n++;
+        const id = "s" + n;
+        MARKS.sets.push({ id, name, color: editing.color });
+        MARKS.hl[key] = id;             // a set made here is meant for the verse in hand
+        paint();
+      }
+      editing = null;
+      draw();
+      commit(0, "Highlight saved");
+    });
+    const del = box.querySelector(".mk-del");
+    if (del) del.addEventListener("click", () => {
+      const id = editing.id;
+      const used = Object.keys(MARKS.hl).filter(k => MARKS.hl[k] === id).length;
+      // Deleting a set takes the colour off every verse wearing it, which is not
+      // recoverable from this page — so it says how many, then asks again.
+      if (!confirmDel && used){
+        confirmDel = true;
+        draw();
+        say(used + " verse" + (used === 1 ? " is" : "s are") + " highlighted with this. Click again to delete it.", true);
+        return;
+      }
+      commitNote();
+      MARKS.sets = MARKS.sets.filter(s => s.id !== id);
+      for (const k of Object.keys(MARKS.hl)) if (MARKS.hl[k] === id) delete MARKS.hl[k];
+      editing = null;
+      confirmDel = false;
+      draw();
+      repaintMarks();
+      commit(0, "Highlight deleted");
+    });
+    const close = box.querySelector(".mk-close");
+    if (close) close.addEventListener("click", () => { editing = null; confirmDel = false; draw(); });
+
+    const ta = box.querySelector(".mk-note");
+    if (ta){
+      // Typing is the one thing that must not write per keystroke — a note is
+      // written a sentence at a time, and the vault is a file. Blur flushes it,
+      // so leaving the field never leaves a note unwritten.
+      ta.addEventListener("input", () => { if (commitNote()) commit(900); });
+      ta.addEventListener("blur", () => { if (commitNote() || !marksSaved) commit(0); });
+    }
+  }
+
+  draw();
+}
+
 async function renderStudyBody(box, tab, t, bi, ch, v){
+  // Notes has no payload to wait on — it renders what is already in memory, so it
+  // returns before the "Loading…" below would ever be seen.
+  if (tab === "mk"){ mountNotesTab(box, bi, ch, v); return; }
   box.innerHTML = '<p class="muted">Loading…</p>';
   // xr, bx and mp are whole-Bible sidecars; il and cm are one per book.
-  const id = tab === "xr" || tab === "bx" || tab === "mp" ? tab : tab + "-" + bi;
+  // References prefers the catchword-anchored payload and falls back to the flat
+  // one; an older build (or an in-app rebuild by a plugin that predates xa) simply
+  // leaves STUDY.xa unset and gets xr, which renders the same references ungrouped.
+  const id = tab === "xr" ? (STUDY.xa ? "xa" : "xr")
+           : tab === "bx" || tab === "mp" ? tab
+           : tab + "-" + bi;
   let data;
   try { data = await loadPayload(id); }
   catch (e){
@@ -4242,7 +5202,7 @@ const eraTerms = (era, e) =>
    history and the calendar are the whole world, because the story left it. The mode
    picker is the only state — everything else is a different set of points through
    the same mapView(). */
-let mapsMode = "moments";       // moments · journeys · church · otd
+let mapsMode = "moments";       // moments · journeys · places · allotments · church · otd · plates
 let mapsJourney = 0;            // which route, when the mode is journeys
 const MAPS_MODES = [
   ["moments", "🕰️ History"],
@@ -4251,11 +5211,19 @@ const MAPS_MODES = [
   ["allotments", "🧭 Allotments"],
   ["church", "⛪ Church origins"],
   ["otd", "📅 On This Day"],
+  ["plates", "📜 Plates"],
 ];
 // A mode is only offered when its payload shipped: journeys need jr, and the two
 // world maps need hm — the same "no payload, no tab" contract the strip uses.
+/* Two gates, not one. A mode needs its own payload AND the basemap it draws on —
+   which used to be implicit, because the tab itself only appeared when the region
+   basemap existed. Plates broke that: they need no basemap at all, so the tab can
+   now open in a vault that has none, and a vector mode that assumed one would have
+   loaded a map with nothing under it. */
 const mapsModeOn = (m) =>
-  m === "moments" ? true : m === "journeys" ? !!STUDY.jr
+  m === "plates" ? !!STUDY.pl
+  : !(mapsBasemapFor(m) === "world" ? STUDY.bw : STUDY.bm) ? false
+  : m === "moments" ? true : m === "journeys" ? !!STUDY.jr
   : m === "places" ? !!STUDY.mp : m === "allotments" ? !!STUDY.al : !!STUDY.hm;
 function mapsPicker(){
   const on = MAPS_MODES.filter(([k]) => mapsModeOn(k));
@@ -4267,6 +5235,249 @@ function mapsPicker(){
 /* Which basemap a mode needs, and the load for it. Church history and the calendar
    run off the world map; everything else off the biblical one. */
 const mapsBasemapFor = (m) => (m === "church" || m === "otd" ? "world" : "region");
+
+/* ── plates: Shepherd's atlas, 1911 ───────────────────────────────────────────
+   The one surface here that is not drawn from coordinates. Every other map on this
+   page knows where its pins are because the generator projected them; a plate knows
+   nothing — it is a photograph of a page, and the page cannot ask it where Nineveh
+   is. That is exactly why it earns its place: the vector maps carry no borders,
+   because the open datasets for historical territory are GPL-3.0 and drawing them
+   by hand would be inventing cartography. Shepherd drew them in 1911, and his
+   copyright has run out. So the borders arrive as what they are — one scholar's
+   reading of the period, a century old, shown rather than absorbed.
+
+   Consequences of being raster, all deliberate:
+     · it does not theme. A scan of 1911 paper is cream in dark mode too, and
+       tinting a historical document to match a colour scheme is a lie about it.
+     · it does not carry pins. Overlaying our points would need the plate
+       georeferenced, and a period lithograph fits a modern projection to a few
+       kilometres at best — close enough to look authoritative and not to be.
+     · it is heavy. Hence one sidecar per plate, fetched on opening. */
+// The index (pl.json), fetched once.
+let _plates = null;
+// Which plate is on screen, or null for the gallery.
+let _plateOpen = null;
+// i → data: URL, so reopening a plate costs nothing. NOTE: these three carry their
+// comments ABOVE them, not trailing — tools/page-js.test.js slices a `const`/`let`
+// by reading to the first line ending in ";", and a trailing comment makes the line
+// end in prose, swallowing whatever follows into the slice.
+const _plateImg = {};
+
+/* A plate is offered for a book when its authored list names it — plus the one
+   general reference map, which is offered everywhere. Church-history plates are
+   offered by the Maps tab and never by the reader, since they answer to a century
+   rather than to a book. */
+function platesForBook(bi){
+  if (!_plates) return [];
+  return _plates.plates.filter(p => !p.church && (p.always || p.books.indexOf(bi) !== -1));
+}
+
+/* Pan/zoom for an <img>. The SVG maps move a viewBox; there is no viewBox here, so
+   the same gestures drive a transform instead. State is per-open-plate and thrown
+   away on close — a plate is a thing you look at, not a view you keep. */
+let _pv = null;   // {scale, x, y, fit, natW, natH}
+
+function plateStage(){ return document.querySelector(".pl-stage"); }
+
+function plateFit(){
+  const st = plateStage(); if (!st || !_pv) return;
+  const sw = st.clientWidth, sh = st.clientHeight;
+  _pv.fit = Math.min(sw / _pv.natW, sh / _pv.natH);
+  _pv.scale = _pv.fit;
+  _pv.x = (sw - _pv.natW * _pv.scale) / 2;
+  _pv.y = (sh - _pv.natH * _pv.scale) / 2;
+  plateApply();
+}
+/* Keep the plate overlapping its frame. Below fit the image is smaller than the
+   stage and is centred instead of clamped, or it would stick to a corner. */
+function plateClamp(){
+  const st = plateStage(); if (!st || !_pv) return;
+  const sw = st.clientWidth, sh = st.clientHeight;
+  const w = _pv.natW * _pv.scale, h = _pv.natH * _pv.scale;
+  _pv.x = w <= sw ? (sw - w) / 2 : Math.min(0, Math.max(sw - w, _pv.x));
+  _pv.y = h <= sh ? (sh - h) / 2 : Math.min(0, Math.max(sh - h, _pv.y));
+}
+function plateApply(){
+  const img = document.querySelector(".pl-img"); if (!img || !_pv) return;
+  plateClamp();
+  img.style.transform = "translate(" + _pv.x + "px," + _pv.y + "px) scale(" + _pv.scale + ")";
+  syncPlateTools();
+}
+/* Zoom about the stage centre, or about a point when one is given (a pinch, or a
+   wheel with the pointer somewhere specific) — so the thing under the finger stays
+   under the finger. Capped at 5× the plate's own pixels: past that the scan is
+   showing its grain rather than more map, and a control that keeps responding
+   without revealing anything reads as broken. */
+function plateZoomBy(f, cx, cy){
+  const st = plateStage(); if (!st || !_pv) return;
+  const next = Math.max(_pv.fit, Math.min(5, _pv.scale * f));
+  if (next === _pv.scale) return;
+  const r = st.getBoundingClientRect();
+  const px = cx == null ? r.width / 2 : cx - r.left;
+  const py = cy == null ? r.height / 2 : cy - r.top;
+  _pv.x = px - (px - _pv.x) * (next / _pv.scale);
+  _pv.y = py - (py - _pv.y) * (next / _pv.scale);
+  _pv.scale = next;
+  plateApply();
+}
+// Same contract as the vector maps: a control that cannot do anything says so.
+function syncPlateTools(){
+  const wrap = document.querySelector('[data-map="plate"]'); if (!wrap || !_pv) return;
+  const home = Math.abs(_pv.scale - _pv.fit) < 1e-6;
+  const out = wrap.querySelector('[data-pzoom="out"]'), hb = wrap.querySelector('[data-pzoom="home"]');
+  const zin = wrap.querySelector('[data-pzoom="in"]');
+  if (out) out.disabled = home;
+  if (hb) hb.disabled = home;
+  if (zin) zin.disabled = _pv.scale >= 5 - 1e-6;
+}
+
+/* Drag to pan, pinch or ctrl/⌘-wheel to zoom — the same gesture vocabulary the
+   vector maps use, so the two surfaces do not need learning separately. A plain
+   wheel is left alone so the page still scrolls past a plate. */
+function plateBindGestures(){
+  const st = plateStage(); if (!st) return;
+  const wrap = st.closest(".mapwrap");
+  const pts = new Map();
+  let last = null, moved = false, pinch = 0;
+
+  st.addEventListener("pointerdown", e => {
+    pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pts.size === 1){ last = { x: e.clientX, y: e.clientY }; moved = false; wrap.classList.add("grabbing"); }
+    st.setPointerCapture(e.pointerId);
+  });
+  st.addEventListener("pointermove", e => {
+    if (!pts.has(e.pointerId)) return;
+    pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    const all = [...pts.values()];
+    if (all.length >= 2){
+      const d = Math.hypot(all[0].x - all[1].x, all[0].y - all[1].y);
+      if (pinch) plateZoomBy(d / pinch, (all[0].x + all[1].x) / 2, (all[0].y + all[1].y) / 2);
+      pinch = d; moved = true; return;
+    }
+    if (!last) return;
+    _pv.x += e.clientX - last.x; _pv.y += e.clientY - last.y;
+    if (Math.abs(e.clientX - last.x) + Math.abs(e.clientY - last.y) > 2) moved = true;
+    last = { x: e.clientX, y: e.clientY };
+    plateApply();
+  });
+  const up = e => {
+    pts.delete(e.pointerId);
+    if (pts.size < 2) pinch = 0;
+    if (!pts.size){ last = null; wrap.classList.remove("grabbing"); }
+  };
+  st.addEventListener("pointerup", up);
+  st.addEventListener("pointercancel", up);
+  st.addEventListener("wheel", e => {
+    if (!e.ctrlKey && !e.metaKey) return;      // a plain wheel still scrolls the page
+    e.preventDefault();
+    plateZoomBy(e.deltaY < 0 ? 1.12 : 1 / 1.12, e.clientX, e.clientY);
+  }, { passive: false });
+  // A drag ends in a click; swallow it so panning never counts as a tap.
+  wrap.plateMoved = () => moved;
+}
+
+/* The gallery, and the plate. One render function for both states, because the
+   back button is the only way out and it must always be in the same place. */
+function plateFrame(p){
+  return '<button class="pl-back" data-pback="1">← All plates</button>' +
+    '<div class="jr-head"><span class="mh-when">' + esc(p.when) + '</span>' +
+      '<p class="jr-note">' + esc(p.title) + ' — ' + esc(p.note) + '</p></div>' +
+    '<div class="mapwrap" data-map="plate">' +
+      '<div class="pl-stage"><img class="pl-img" alt="' + esc(p.title) +
+        '" draggable="false" src="" width="' + p.w + '" height="' + p.h + '"></div>' +
+      '<div class="map-bar">' +
+        '<p class="map-hint">Drag to pan · pinch or ⌘/Ctrl-scroll to zoom</p>' +
+        '<div class="map-tools">' +
+          '<button class="map-btn" data-pzoom="in" aria-label="Zoom in">+</button>' +
+          '<button class="map-btn" data-pzoom="out" aria-label="Zoom out" disabled>–</button>' +
+          '<button class="map-btn" data-pzoom="home" aria-label="Fit the whole plate" disabled>⤢</button>' +
+          '<button class="map-btn" data-mfull="1" aria-pressed="false" aria-label="Expand the plate to full screen">⛶</button>' +
+        '</div>' +
+      '</div>' +
+      '<p class="pl-cred">' + esc(_plates.source) + '</p>' +
+    '</div>';
+}
+
+/* Fetching the pixels. The index carries none, so this is the first time the plate
+   costs anything — and it is one file, not ten. */
+async function plateShow(i){
+  const p = _plates.plates.find(x => x.i === i);
+  if (!p) return;
+  _plateOpen = i;
+  $res.innerHTML = mapsPicker() + plateFrame(p);
+  $status.textContent = _plateImg[i] ? "" : "Loading the plate…";
+  let url = _plateImg[i];
+  if (!url){
+    try {
+      const body = await loadPayload("pl-" + i);
+      url = _plateImg[i] = "data:" + body.mime + ";base64," + body.data;
+    } catch (e){
+      $status.textContent = String((e && e.message) || e);
+      const st = plateStage();
+      if (st) st.innerHTML = '<div class="empty" style="padding:40px 16px"><div class="big">📜</div>' +
+        esc(String((e && e.message) || e)) + '</div>';
+      return;
+    }
+    if (_plateOpen !== i) return;              // the reader moved on while it loaded
+  }
+  const img = document.querySelector(".pl-img");
+  if (!img) return;
+  _pv = { scale: 1, x: 0, y: 0, fit: 1, natW: p.w, natH: p.h };
+  // Fit once the pixels are actually there, so the first frame is the whole plate
+  // rather than a corner of it at 1:1.
+  img.addEventListener("load", () => { plateFit(); }, { once: true });
+  img.src = url;
+  plateBindGestures();
+  $status.textContent = p.when;
+}
+
+function renderPlates(q){
+  const all = _plates.plates;
+  const needle = (q || "").toLowerCase();
+  const hits = needle
+    ? all.filter(p => (p.title + " " + p.when + " " + p.note).toLowerCase().indexOf(needle) !== -1)
+    : all;
+  $status.textContent = needle
+    ? hits.length + " plate" + (hits.length === 1 ? "" : "s") + " matching " + JSON.stringify(q)
+    : all.length + " plates from Shepherd's atlas";
+  if (!hits.length){
+    $res.innerHTML = mapsPicker() + '<div class="empty"><div class="big">📜</div>' +
+      'No plate matches ' + esc(JSON.stringify(q)) + '.</div>';
+    return;
+  }
+  $res.innerHTML = mapsPicker() +
+    '<div class="pl-grid">' + hits.map(p =>
+      '<button class="pl-card" data-plate="' + p.i + '">' +
+        '<p class="pl-when">' + esc(p.when) + '</p>' +
+        '<h4>' + esc(p.title) + '</h4>' +
+        '<p>' + esc(p.note) + '</p>' +
+        '<p class="pl-kb">' + p.w + '×' + p.h + ' · ' + p.kb + ' KB</p>' +
+      '</button>').join("") + '</div>' +
+    '<p class="pl-cred">' + esc(_plates.source) + '</p>';
+}
+
+/* Controls, and the two ways in and out of a plate. Kept off the vector maps'
+   delegate on purpose: that one reaches into _maps for every id it sees, and a
+   plate has no entry there. */
+document.addEventListener("click", e => {
+  if (!e.target.closest) return;
+  const card = e.target.closest("[data-plate]");
+  if (card){ plateShow(+card.dataset.plate); return; }
+  const back = e.target.closest("[data-pback]");
+  if (back){ _plateOpen = null; _pv = null; renderPlates($q.value.trim()); return; }
+  const zb = e.target.closest("[data-pzoom]");
+  if (zb){
+    const wrap = zb.closest(".mapwrap");
+    if (wrap && wrap.plateMoved && wrap.plateMoved()) return;
+    const k = zb.dataset.pzoom;
+    if (k === "home") plateFit();
+    else plateZoomBy(k === "in" ? 1.8 : 1 / 1.8);
+  }
+});
+// Refitting on resize matters more here than on the vector maps: leaving full
+// screen changes the stage height, and a transform written for the old box leaves
+// the plate parked off-centre.
+window.addEventListener("resize", () => { if (_pv && _plateOpen != null) plateFit(); });
 
 /* ── places, searched ─────────────────────────────────────────────────────
    The place table inverted: every place the Bible names, findable by name, and
@@ -5627,19 +6838,298 @@ function renderOtdSearch(terms, filter){
   }).join("") + '</div></div>';
 }
 
+/* ── the Marks tab ────────────────────────────────────────────────────────────
+   Everything the reader has marked, in canonical order, with the verse it was
+   marked on. One row per verse rather than three lists: a verse commonly carries
+   a colour AND a bookmark AND a note, and three lists would report it three
+   times while making "what did I mark in Romans" three searches.
+
+   The verse text is read in whichever translation the chip is set to, so this
+   list — like the marks themselves — is not tied to the version it was made in. */
+function unmarkKey(k){
+  const n = +k, v = n % 256, rest = (n - v) / 256, ch = rest % 256;
+  return { bi: (rest - ch) / 256, ch, v };
+}
+async function renderMarksIndex(filter){
+  const gen = ++runGen;
+  const keys = Object.keys(MARKS.hl).concat(Object.keys(MARKS.bm), Object.keys(MARKS.nt));
+  const uniq = [...new Set(keys)].sort((a, b) => a - b);
+  if (!uniq.length){
+    $status.textContent = marksFrozen ? "Your marks could not be read." : "";
+    $res.innerHTML = '<div class="empty"><div class="big">🔖</div>' +
+      (marksFrozen ? esc(marksFrozen)
+        : 'Nothing marked yet. Open a chapter, tap a verse, and the study card’s <strong>Notes</strong> tab will highlight it, bookmark it, or keep your note on it. Marks are kept by verse, so they show in every translation.') +
+      '</div>';
+    return;
+  }
+  // Verse text comes from the translation the chip is on; "All" has no one answer,
+  // so it reads the first, exactly as the Browse control does.
+  const t = scope === "ALL" ? TRANS[0] : scope;
+  let haveText = true;
+  try { await ensureData([t]); }
+  catch (e){ haveText = false; }        // a split build outside the plugin — refs still list
+  if (gen !== runGen) return;
+
+  // One sweep for every wanted verse rather than one scan per row: D(t) is ~31,000
+  // rows and a well-used vault has hundreds of marks.
+  const want = new Map();
+  for (const k of uniq){ const r = unmarkKey(k); want.set(r.bi + "." + r.ch + "." + r.v, ""); }
+  if (haveText){
+    try {
+      for (const row of D(t)){
+        const kk = row[0] + "." + row[1] + "." + row[2];
+        if (want.has(kk) && !want.get(kk)) want.set(kk, row[3]);
+      }
+    } catch (e){ haveText = false; }
+  }
+
+  const terms = parseTerms(filter);
+  const rows = [];
+  for (const k of uniq){
+    const r = unmarkKey(k);
+    const set = markSet(MARKS.hl[k]);
+    const note = MARKS.nt[k];
+    const text = want.get(r.bi + "." + r.ch + "." + r.v) || "";
+    const ref = BOOKS[r.bi] + " " + r.ch + ":" + r.v;
+    if (terms.length){
+      const blob = (ref + " " + (set ? set.name : "") + " " + text + " " + (note ? note.t : "")).toLowerCase();
+      if (!terms.every(w => termRe(w, "i").test(blob))) continue;
+    }
+    rows.push({ k, r, set, note, text, ref });
+  }
+
+  const n = { hl: Object.keys(MARKS.hl).length, bm: Object.keys(MARKS.bm).length, nt: Object.keys(MARKS.nt).length };
+  const chips = '<div class="mkx-sum">' +
+    '<span>' + n.hl + ' highlighted</span>' +
+    '<span>' + n.bm + ' bookmarked</span>' +
+    '<span>' + n.nt + ' with notes</span></div>';
+
+  $status.innerHTML = terms.length
+    ? '<strong>' + rows.length + '</strong> marked verse' + (rows.length === 1 ? '' : 's') + ' matching “' + esc(filter) + '”'
+    : '<strong>' + uniq.length + '</strong> marked verse' + (uniq.length === 1 ? '' : 's');
+  if (!rows.length){
+    $res.innerHTML = chips + '<div class="empty"><div class="big">🔖</div>No marked verse matches that.</div>';
+    return;
+  }
+  $res.innerHTML = chips + '<div class="mkx-list">' + rows.map(row => {
+    const glyph = MARKS.bm[row.k] ? " 🔖" : "";
+    const setName = row.set ? ' <span class="mkx-set">· ' + esc(row.set.name) + '</span>' : "";
+    const body = row.text
+      ? '<span class="mkx-text">' + (terms.length ? highlight(esc(row.text), terms) : esc(row.text)) + '</span>'
+      : '<span class="mkx-text muted">Open to read it in ' + esc(t) + '.</span>';
+    const note = row.note
+      ? '<span class="mkx-note">' + (terms.length ? highlight(esc(row.note.t), terms) : esc(row.note.t)) + '</span>'
+      : "";
+    return '<button data-open="verse" data-t="' + esc(t) + '" data-bi="' + row.r.bi +
+      '" data-ch="' + row.r.ch + '" data-v="' + row.r.v + '"' +
+      (row.set ? ' style="--hl:' + esc(row.set.color) + '"' : "") + '>' +
+      '<span class="mkx-ref">' + esc(row.ref) + glyph + setName + '</span>' + body + note + '</button>';
+  }).join("") + '</div>';
+}
+
+/* ── translations ─────────────────────────────────────────────────────────────
+   The one tab whose content is a judgement rather than a lookup. Every other tab
+   answers "what does the vault have"; this one answers "which English Bible am I
+   reading, and what did it decide to do with the Hebrew and the Greek".
+
+   Three measures per version, and they are three DIFFERENT questions that readers
+   routinely collapse into one:
+     approach  0–100, word-for-word → freest. NOT a quality score. The left keeps
+               the shape of the original sentence and reads stiffly; the right
+               rebuilds it in natural English and reads easily. A translation
+               committee picks a point on this line on purpose.
+     grade     the US reading grade the publisher or the standard readability
+               studies put it at. Independent of approach — the NKJV is nearly as
+               literal as the KJV and four grades easier, because the difficulty
+               of 1611 English is age, not literalness.
+     years     first published, then the revision in print now. Several of these
+               are the SAME translation forty years apart (NIV 1978 / 2011), and
+               the year is often what a disagreement about "the NIV" is really about.
+
+   The numbers are positions on a spectrum scholars draw slightly differently, not
+   measurements — treat a gap of five as noise and a gap of thirty as real. Kept
+   here in the page rather than in a payload so the tab can never fail to load and
+   costs no sidecar; it is a couple of kilobytes of prose.
+
+   [code, name, approach, grade, first published, revision|0, one line on it] */
+const TX = [
+  ["NASB", "New American Standard Bible",       8, 11, 1971, 2020, "The most rigidly formal of the mainstream Bibles — wooden by design, so the Greek shows through."],
+  ["LSB",  "Legacy Standard Bible",             8, 11, 2021,    0, "A NASB revision that renders the divine name as Yahweh throughout, and God's-word terms consistently."],
+  ["ASV",  "American Standard Version",        10, 12, 1901,    0, "The American revision of the KJV, and the root the NASB and ESV both grew from."],
+  ["DBT",  "Darby Bible Translation",          11, 12, 1890,    0, "J. N. Darby's own rendering, made for close study rather than for reading aloud."],
+  ["ERV",  "English Revised Version",          12, 12, 1885,    0, "The first official revision of the KJV, and the first English Bible off the older Greek manuscripts."],
+  ["ISR",  "The Scriptures (ISR)",             13, 11, 1993, 2009, "Sacred Name tradition — Hebrew names and the divine Name are left untranslated."],
+  ["KJV",  "King James Version",               15, 12, 1611, 1769, "Translated 1604–1611 on the Received Text; the 1769 revision is the one everyone actually reads."],
+  ["DRB",  "Douay-Rheims Bible",               16, 12, 1610, 1899, "Translated from the Latin Vulgate, not the Greek — the Catholic English Bible for three centuries."],
+  ["NKJV", "New King James Version",           18,  8, 1982,    0, "The KJV's wording modernised on the same Received Text — the same Bible, four grades easier."],
+  ["NHEB", "New Heart English Bible",          18, 10, 2009,    0, "A public-domain modernisation of the ASV, free to copy and quote without permission."],
+  ["ESV",  "English Standard Version",         20,  8, 2001, 2016, "In the ASV–RSV line: literal wherever English allows it, and quietly readable where it does not."],
+  ["AMP",  "Amplified Bible",                  22, 11, 1965, 2015, "Brackets the other shades a Hebrew or Greek word carries instead of choosing one of them."],
+  ["BSB",  "Berean Standard Bible",            26,  8, 2016, 2022, "Literal but modern, and released to the public domain — free to use, print and redistribute."],
+  ["HCSB", "Holman Christian Standard Bible",  32,  8, 2004, 2009, "Holman's optimal equivalence: literal unless clarity demands otherwise. Superseded by the CSB."],
+  ["NET",  "NET Bible",                        35,  9, 2005, 2019, "Ships with 60,000+ translators' notes that show the hard choices instead of hiding them."],
+  ["CSB",  "Christian Standard Bible",         38,  7, 2017, 2020, "The HCSB revised — the same optimal-equivalence aim in smoother, plainer English."],
+  ["ISV",  "International Standard Version",   40,  7, 2011,    0, "Literal in the prose and poetic in the poetry — it sets the poetry as verse on the page."],
+  ["ARA",  "Aramaic Bible in Plain English",   42,  8, 2007, 2010, "Translated from the Aramaic Peshitta rather than the Greek — a different source text, not just a different style."],
+  ["NIV",  "New International Version",        45,  8, 1978, 2011, "The mainstream middle: meaning first, form kept wherever it survives the crossing."],
+  ["OEB",  "Open English Bible",               46,  8, 2010,    0, "Public domain and still in progress — the one modern translation you may freely remix."],
+  ["GWT",  "GOD'S WORD Translation",           58,  5, 1995,    0, "Closest natural equivalence — every sentence rebuilt as an English sentence."],
+  ["NLT",  "New Living Translation",           62,  6, 1996, 2015, "Meaning in ordinary English. Began as a revision of a paraphrase, but is a translation from the originals."],
+  ["GNT",  "Good News Translation",            70,  6, 1976, 1992, "Written in a deliberately small vocabulary, for readers whose first language is not English."],
+  ["CEV",  "Contemporary English Version",     75,  5, 1995, 2006, "Built to be understood the first time it is heard read aloud, not the second time it is studied."]
+];
+/* The bands the approach numbers fall into. Half-open [lo, hi) so every number
+   lands in exactly one, and the last one runs past 100 so a 100 has a home. */
+const TX_BANDS = [
+  [0,  25, "Word for word",
+   "The shape of the Hebrew and Greek sentence survives into English. Best for close study; hardest to read at length."],
+  [25, 50, "Literal, made readable",
+   "Literal unless plain English demands otherwise — the middle its translators call optimal or mediating equivalence."],
+  [50, 75, "Thought for thought",
+   "The sentence is rebuilt in natural English so the meaning arrives whole. Best for reading a book at a sitting."],
+  [75, 101, "Freest",
+   "Rendered to be understood on first hearing. Closest to paraphrase, and the furthest from the original wording."]
+];
+const txBand = p => TX_BANDS.findIndex(b => p >= b[0] && p < b[1]);
+/* Sort orders. Approach is the default because it is the axis the tab exists for,
+   and it is the only one that groups into bands — the others are a flat ranking,
+   so their headings would be lies. */
+const TX_SORTS = [
+  ["appr",  "Word for word first", (a, b) => a[2] - b[2] || a[4] - b[4]],
+  ["free",  "Freest first",        (a, b) => b[2] - a[2] || a[4] - b[4]],
+  ["read",  "Easiest to read",     (a, b) => a[3] - b[3] || a[2] - b[2]],
+  ["old",   "Oldest first",        (a, b) => a[4] - b[4]],
+  ["new",   "Newest first",        (a, b) => (b[5] || b[4]) - (a[5] || a[4]) || b[4] - a[4]],
+  ["name",  "A–Z",                 (a, b) => a[1].localeCompare(b[1])]
+];
+let txSort = "appr";
+
+/* Grade → bar width. Twelve is the top of the scale the publishers quote, and
+   everything at 12 is there because its English is four centuries old. */
+const txMeter = g => Math.round(Math.min(g, 12) / 12 * 100);
+
+function txRow(r, terms){
+  const hi = s => terms.length ? highlight(esc(s), terms) : esc(s);
+  const here = TRANS.indexOf(r[0]) >= 0;
+  return '<div class="tx-row' + (here ? ' here' : '') + '">' +
+    '<span class="tx-code">' + hi(r[0]) + '</span>' +
+    '<span class="tx-name">' + hi(r[1]) +
+      (here ? ' <span class="tx-here">· in this Bible</span>' : '') + '</span>' +
+    '<span class="tx-appr" title="' + esc(String(r[2])) + ' of 100 — 0 is word for word, 100 is freest">' +
+      '<span class="tx-track"><i style="left:' + r[2] + '%"></i></span>' +
+      esc(TX_BANDS[txBand(r[2])][2]) + '</span>' +
+    '<span class="tx-read" title="US reading grade"><b>Grade ' + r[3] + '</b>' +
+      '<span class="tx-meter"><i style="width:' + txMeter(r[3]) + '%"></i></span></span>' +
+    '<span class="tx-year"><b>' + r[4] + '</b>' + (r[5] ? '<br>rev. ' + r[5] : '') + '</span>' +
+    '<span class="tx-note">' + hi(r[6]) + '</span></div>';
+}
+
+function renderTranslations(filter){
+  const terms = parseTerms(filter);
+  let rows = TX;
+  if (terms.length){
+    // The band name and the years are searchable too, so "word for word" and
+    // "1611" both find what a reader plainly means by them.
+    rows = TX.filter(r => {
+      const blob = (r[0] + " " + r[1] + " " + r[6] + " " + TX_BANDS[txBand(r[2])][2] +
+        " " + r[4] + " " + (r[5] || "")).toLowerCase();
+      return terms.every(w => termRe(w, "i").test(blob));
+    });
+  }
+  const sort = TX_SORTS.find(s => s[0] === txSort) || TX_SORTS[0];
+  rows = rows.slice().sort(sort[2]);
+
+  const pick = '<div class="tx-pick">' + TX_SORTS.map(s =>
+    '<button data-txsort="' + s[0] + '" aria-pressed="' + (s[0] === txSort) + '">' +
+    esc(s[1]) + '</button>').join("") + '</div>';
+  const legend = '<div class="tx-legend">' + TX_BANDS.map(b =>
+    '<div><b>' + esc(b[2]) + '</b><span>' + esc(b[3]) + '</span></div>').join("") + '</div>';
+
+  $status.innerHTML = terms.length
+    ? '<strong>' + rows.length + '</strong> translation' + (rows.length === 1 ? '' : 's') +
+      ' matching ' + terms.map(w => '“' + esc(w) + '”').join(" + ")
+    : '<strong>' + TX.length + '</strong> English translations, ' + esc(sort[1]).toLowerCase();
+
+  if (!rows.length){
+    $res.innerHTML = pick + '<div class="empty"><div class="big">⚖️</div>' +
+      'No translation matches that — try an abbreviation (NASB), a name (King James), ' +
+      'a band (thought for thought) or a year.</div>';
+    return;
+  }
+
+  let list = "";
+  if (txSort === "appr" || txSort === "free"){
+    // Grouped: the heading earns its place only when the sort actually runs along
+    // the band axis. Walk the rows in order and open a heading when the band turns.
+    let band = -1;
+    for (const r of rows){
+      const b = txBand(r[2]);
+      if (b !== band){ band = b; list += '<p class="tx-band">' + esc(TX_BANDS[b][2]) + '</p>'; }
+      list += txRow(r, terms);
+    }
+  } else {
+    list = rows.map(r => txRow(r, terms)).join("");
+  }
+
+  $res.innerHTML = pick + legend + '<div class="tx-list">' + list + '</div>' +
+    '<p class="tx-foot">Neither end of the spectrum is the right end — the same passage read in one from each ' +
+    'band tells you more than any single version can. Reading grades are the publishers\' own figures and the ' +
+    'standard readability studies; the spectrum positions are where scholars broadly place each version, so read ' +
+    'a gap of a few points as noise and a gap of thirty as real.</p>';
+}
+
 /* ── wiring ──────────────────────────────────────────────────── */
 let runGen = 0;  // discards a render whose data load was overtaken by newer input
 async function run(){
   const input = $q.value.trim();
   if (source === "timeline"){ renderTimeline(input); return; }   // renders even with an empty box
+  // Translations renders on an empty box too — the table IS the tab — and needs no
+  // payload at all, so it never awaits and never has a loading state.
+  if (source === "translations"){ renderTranslations(input); return; }
   if (source === "churchhistory"){ renderChurchHistory(input); return; } // ditto — empty box shows the whole tree
   if (source === "onthisday"){ renderOnThisDay(input); return; } // ditto — empty box shows today
+  /* Marks renders on an empty box too — the list IS the tab — and awaits verse
+     text the way the Bible tab does, guarded by the same staleness token. */
+  if (source === "marks"){ await renderMarksIndex(input); return; }
   /* Maps renders on an empty box too, but its basemap is a sidecar — so it awaits
      its payload the way the Bible and Words tabs do, guarded by the same staleness
      token, and says why rather than drawing an empty frame if it never arrives. */
   if (source === "maps"){
     const mgen = ++runGen;
-    if (!mapsModeOn(mapsMode)) mapsMode = "moments";
+    /* Fall back to the first mode this vault can actually draw, not to "moments" —
+       which is itself off without the region basemap, and would send a plates-only
+       vault to a tab that can only report a missing file. */
+    if (!mapsModeOn(mapsMode)){
+      const first = MAPS_MODES.find(([k]) => mapsModeOn(k));
+      if (!first){
+        $status.textContent = "No maps in this vault yet.";
+        $res.innerHTML = '<div class="empty"><div class="big">\uD83D\uDDFA\uFE0F</div>' +
+          'Download the maps from the plugin\u2019s settings to fill this tab.</div>';
+        return;
+      }
+      mapsMode = first[0];
+    }
+    /* Plates come first because they are the one mode that needs no basemap: they
+       are photographs, not projections. Loading the coastlines to show a scan would
+       be paying for a layer the plate cannot use, and — worse — a vault with the
+       plates but no basemap would be told the map outlines failed and shown nothing,
+       when the thing it actually has is sitting right there. */
+    if (mapsMode === "plates"){
+      if (!_plates){
+        $status.textContent = "Loading the plates…";
+        try { _plates = await loadPayload("pl"); }
+        catch (e){
+          if (mgen !== runGen) return;
+          $status.textContent = String((e && e.message) || e);
+          $res.innerHTML = mapsPicker() + '<div class="empty"><div class="big">📜</div>' +
+            esc(String((e && e.message) || e)) + '</div>';
+          return;
+        }
+        if (mgen !== runGen) return;
+      }
+      if (_plateOpen != null) plateShow(_plateOpen); else renderPlates(input);
+      return;
+    }
     $status.textContent = "Loading the map…";
     // Each mode names the basemap it belongs to; the two are cached separately, so
     // switching back and forth costs one load each and nothing after that.
@@ -5701,10 +7191,12 @@ async function run(){
   }
   /* Commentary is the other sidecar-backed tab, and awaits its index the same way
      the Words tab awaits the dictionary — same staleness token, same retry on a
-     failed read. It has nothing to show on an empty box: the index is a way in to
-     16 MB of prose, not a browsable list. */
+     failed read. The empty box is not a browsable list — the index is a way into
+     16 MB of prose — so it answers the question a reader has before they can type
+     one: who wrote this commentary, when, and why. That comes off the counts
+     already in the page, so it costs no load at all. */
   if (source === "commentary"){
-    if (!$q.value.trim()){ $status.textContent = ""; $res.innerHTML = ""; return; }
+    if (!$q.value.trim()){ renderCommentaryIntro(); return; }
     const cgen = ++runGen;
     if (!_cmx){
       $status.textContent = "Loading the commentary index…";
@@ -5801,7 +7293,10 @@ $tabs.forEach(b => { const id = TAB_PAYLOAD[b.dataset.s]; if (id && !document.ge
 /* Maps is the one tab gated on a SIDECAR rather than an inline payload: what it
    needs is the basemap, which never rides in the page. TAB_PAYLOAD can't express
    that — there is no <script id="bm"> to look for — so the manifest answers it. */
-$tabs.forEach(b => { if (b.dataset.s === "maps" && !STUDY.bm) b.hidden = true; });
+/* The Maps tab needs one surface, not the basemap specifically: a vault that took
+   the plates pack but not the basemap still has maps to show, and hiding the tab
+   would bury the thing it just downloaded. */
+$tabs.forEach(b => { if (b.dataset.s === "maps" && !STUDY.bm && !STUDY.pl) b.hidden = true; });
 const $visTabs = $tabs.filter(b => !b.hidden);
 
 const SMALL_SCREEN = window.matchMedia("(max-width: 640px)");
@@ -5848,7 +7343,7 @@ function selectGroup(g, focusInput){
 }
 $groups.forEach(g => g.addEventListener("click", () => selectGroup(g.dataset.g, true)));
 layoutTabs();
-const HELP_ID = { bible: "help-bible", articles: "help-articles", topics: "help-topics", faq: "help-faq", prayers: "help-prayers", history: "help-history", timeline: "help-timeline", churchhistory: "help-churchhistory", onthisday: "help-otd", maps: "help-maps", words: "help-words", commentary: "help-commentary" };
+const HELP_ID = { bible: "help-bible", articles: "help-articles", topics: "help-topics", faq: "help-faq", prayers: "help-prayers", history: "help-history", timeline: "help-timeline", churchhistory: "help-churchhistory", onthisday: "help-otd", maps: "help-maps", words: "help-words", commentary: "help-commentary", marks: "help-marks", translations: "help-translations" };
 const PLACEHOLDER = {
   bible:     "John 3:16-18 · Psalm 23 · born again · shepherd…",
   articles:  "baptism · prayer · discipleship · \"spiritual gifts\"…",
@@ -5863,7 +7358,9 @@ const PLACEHOLDER = {
   // No phrase example here: the index stores words, not their order, so quoting a
   // phrase would search its words separately — advertising it would promise
   // precision this tab cannot keep.
-  commentary: "propitiation · leaven · Melchizedek · covenant blood…"
+  commentary: "propitiation · leaven · Melchizedek · covenant blood…",
+  marks:      "Filter your marks… Promises · Romans 8 · fear…",
+  translations: "Filter the table… NASB · King James · word for word · 1611…"
 };
 function selectSource(s, focusInput){
   source = s;
@@ -5973,8 +7470,14 @@ function applyMapsFocus(){
 /* The Maps tab's mode picker and journey tabs. Both re-run the tab rather than
    patching it, so the basemap swap and the payload load go through one path. */
 $res.addEventListener("click", e => {
+  // The Translations tab's sort picker. Re-runs the tab rather than patching it,
+  // for the same reason the map's mode picker does — one render path, one truth.
+  const tb = e.target.closest("[data-txsort]");
+  if (tb){ txSort = tb.dataset.txsort; run(); return; }
   const mb = e.target.closest("[data-mmode]");
-  if (mb){ mapsMode = mb.dataset.mmode; mapsJourney = 0; run(); return; }
+  // Switching modes drops any open plate: the picker is a choice of question, and
+  // coming back to Plates should offer the shelf rather than resume where you left.
+  if (mb){ mapsMode = mb.dataset.mmode; mapsJourney = 0; _plateOpen = null; _pv = null; run(); return; }
   const jb = e.target.closest("[data-jr]");
   if (jb){ mapsJourney = +jb.dataset.jr; run(); return; }
   const ab = e.target.closest("[data-al]");
@@ -6095,6 +7598,11 @@ document.addEventListener("keydown", e => {
   else if (e.key === "ArrowLeft" && curNav && curNav.prev) openVerse(curNav.t, curNav.prev[0], curNav.prev[1], null, -1);
   else if (e.key === "ArrowRight" && curNav && curNav.next) openVerse(curNav.t, curNav.next[0], curNav.next[1], null, 1);
 });
+
+/* Last, and deliberately not awaited: the reader's own marks. Nothing on the page
+   needs them to render — a chapter opened before they arrive is repainted by
+   loadMarks() itself — so a slow vault read must not hold the first paint. */
+loadMarks();
 </script>
 </body>
 </html>
