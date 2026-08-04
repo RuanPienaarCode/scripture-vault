@@ -166,9 +166,29 @@
   .srcgroups button[hidden]{display:none}
   .srcgroups button:hover{color:var(--ink)}
   .srcgroups button[aria-selected="true"]{color:var(--accent);border-bottom-color:var(--accent)}
-  /* source tabs — segmented control above the command bar, so the input owns its full row */
-  .srctabs{display:flex;flex-wrap:wrap;max-width:100%;width:fit-content;gap:2px;background:var(--panel-2);border:1px solid var(--line);
-    border-radius:9px;padding:2px;margin:0 0 9px}
+  /* source tabs — segmented control above the command bar, so the input owns its full row.
+
+     ONE ROW, ALWAYS, and it scrolls sideways when it doesn't fit. Wrapping looks
+     tidier in a wide pane and is the reason the whole page used to jump: a group
+     of six tabs wrapped to two lines where a group of two stayed on one, so
+     switching group moved the search box, the status line and every result 35px
+     up or down. In an Obsidian pane — which is usually narrower than 700px, where
+     the wrap begins — that fires on nearly every tab click. A strip that cannot
+     wrap cannot change height, so nothing below it can move.
+
+     overscroll-behavior-x keeps a swipe that runs off the end of the strip from
+     turning into a back-navigation, and the scrollbar is hidden because this is a
+     control, not a document — selectSource() scrolls the chosen tab into view so a
+     tab off the right edge is never silently unreachable. */
+  .srctabs{display:flex;flex-wrap:nowrap;max-width:100%;width:fit-content;gap:2px;background:var(--panel-2);border:1px solid var(--line);
+    border-radius:9px;padding:2px;margin:0 0 9px;
+    overflow-x:auto;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch;
+    scrollbar-width:none}
+  .srctabs::-webkit-scrollbar{display:none}
+  /* The strip is a scroll container now, so its buttons must not be squeezed to
+     fit — without this flex happily shrinks them and the labels ellipsise instead
+     of scrolling. */
+  .srctabs button{flex:0 0 auto}
   .srctabs button{display:inline-flex;align-items:center;gap:6px;background:none;border:none;
     color:var(--muted);font-family:var(--sans);font-size:13px;font-weight:300;cursor:pointer;
     padding:6px 12px;border-radius:7px;white-space:nowrap}
@@ -7376,6 +7396,12 @@ function selectSource(s, focusInput){
   // one help panel per tab — show the matching one, hide the rest
   Object.entries(HELP_ID).forEach(([k, id]) => { document.getElementById(id).hidden = k !== s; });
   $q.placeholder = PLACEHOLDER[s] || PLACEHOLDER.articles;
+  /* The strip scrolls sideways rather than wrapping (see .srctabs), so a tab can
+     sit past its right edge — reached by the ← / → keys or by opening a group whose
+     tabs run long. Bring it into view horizontally ONLY: block:"nearest" is what
+     keeps this from scrolling the page itself, which would undo the very jump the
+     one-row strip exists to prevent. */
+  if (home && home.scrollIntoView) home.scrollIntoView({ block: "nearest", inline: "nearest" });
   closePops();
   if (focusInput) $q.focus();
   run();
