@@ -151,8 +151,8 @@
     border-radius:var(--radius);background:var(--panel);padding:6px 8px 6px 14px;position:relative;flex-wrap:wrap}
   .cmd:focus-within{border-color:var(--accent)}
   .cmd .glyph{color:var(--muted-2);font-size:15px}
-  /* group tabs — the eleven source tabs are too many for one strip, so they sit in
-     four named groups (Study / History / Devotion / Reading) picked from this row.
+  /* group tabs — the source tabs are too many for one strip, so they sit in five
+     named groups (Study / History / Devotion / Reading / Notes) picked from this row.
      It sits above the source strip and shares its left edge, so the eye runs down
      one line from group to tabs to search box rather than jumping the width of the
      page. Only the chosen group's tabs show below. Bible is not in any group: it is
@@ -897,6 +897,13 @@
     padding:4px 11px;cursor:pointer}
   .mk-plain:hover{color:var(--ink);border-color:var(--accent)}
   .mk-plain[aria-pressed="true"]{color:var(--ink);border-color:var(--accent);background:var(--panel)}
+  /* Only ever seen when the clipboard was refused: the verse, ready to be copied
+     by hand. [hidden] needs saying because the display:block below would beat it. */
+  .mk-share{display:block;width:100%;box-sizing:border-box;min-height:62px;resize:vertical;
+    margin:8px 0 0;font-family:var(--sans);font-size:12.5px;font-weight:300;line-height:1.6;
+    color:var(--ink);background:var(--panel);border:1px solid var(--accent);
+    border-radius:9px;padding:8px 10px}
+  .mk-share[hidden]{display:none}
   .mk-note{display:block;width:100%;box-sizing:border-box;min-height:104px;resize:vertical;
     font-family:var(--sans);font-size:13px;font-weight:300;line-height:1.65;color:var(--ink);
     background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:9px 11px}
@@ -1536,6 +1543,7 @@
       <button role="tab" data-g="history" aria-selected="false">History</button>
       <button role="tab" data-g="devotion" aria-selected="false">Devotion</button>
       <button role="tab" data-g="reading" aria-selected="false">Reading</button>
+      <button role="tab" data-g="notes" aria-selected="false">Notes</button>
     </div>
     <div class="srctabs" role="tablist" aria-label="Search in">
       <button role="tab" data-s="bible" aria-selected="true">📖 Bible</button>
@@ -1550,9 +1558,10 @@
       <button role="tab" data-s="onthisday" data-g="history" aria-selected="false">📅 On This Day</button>
       <button role="tab" data-s="maps" data-g="history" aria-selected="false">🗺️ Maps</button>
       <button role="tab" data-s="prayers" data-g="devotion" aria-selected="false">🙏 Prayers</button>
-      <button role="tab" data-s="marks" data-g="devotion" aria-selected="false">🔖 My Marks</button>
       <button data-g="devotion" disabled>📆 Reading Plan <span class="soon">soon</span></button>
       <button role="tab" data-s="articles" data-g="reading" aria-selected="false">📄 Articles</button>
+      <button role="tab" data-s="marks" data-g="notes" aria-selected="false">🖍️ My Highlights</button>
+      <button role="tab" data-s="bookmarks" data-g="notes" aria-selected="false">🔖 Bookmarks</button>
     </div>
     <div class="cmd">
       <span class="glyph" aria-hidden="true">🔍</span>
@@ -1678,7 +1687,15 @@ __TRANS_MENU__
             <tr><td><code>romans 8</code></td><td>find by where the verse is</td></tr>
             <tr><td><code>fear</code></td><td>search the verses and your own notes together</td></tr>
           </table>
-          <p>Your highlights, bookmarks and notes. Make them in the reader: open a chapter, tap a verse, and the study card's <strong>Notes</strong> tab colours it, bookmarks it, or keeps what you wrote about it. A highlight has a name and a colour you choose, and marks are kept <em>by verse</em> — so a verse you colour in one translation is already coloured when you read it in another.</p>
+          <p>Every verse you have coloured, and every verse you have written a note on. Make them in the reader: open a chapter, tap a verse, and the study card's <strong>Notes</strong> tab colours it or keeps what you wrote about it. A highlight has a name and a colour you choose, and marks are kept <em>by verse</em> — so a verse you colour in one translation is already coloured when you read it in another. Verses you have <em>bookmarked</em> have their own tab beside this one.</p>
+        </div>
+        <div id="help-bookmarks" hidden>
+          <table>
+            <tr><td><code>(nothing)</code></td><td>leave the box empty for everything you've bookmarked</td></tr>
+            <tr><td><code>romans 8</code></td><td>find by where the verse is</td></tr>
+            <tr><td><code>fear</code></td><td>search the verses and your own notes together</td></tr>
+          </table>
+          <p>The verses you flagged to come back to. Bookmark one in the reader: open a chapter, tap a verse, and press <strong>🔖 Bookmark</strong> on the study card's <strong>Notes</strong> tab. Like highlights, bookmarks are kept <em>by verse</em> rather than by translation, so a verse bookmarked in one version is bookmarked in all of them.</p>
         </div>
         <div id="help-commentary" hidden>
           <table>
@@ -1922,6 +1939,12 @@ async function loadMarks(){
   if (raw === null) raw = readLocalMarks();
   MARKS = normalizeMarks(raw);
   repaintMarks();
+  /* This read is deliberately not awaited at boot (see the call at the bottom), so
+     a reader can be standing in My Highlights or Bookmarks when it lands — and
+     those two tabs render from MARKS and nothing else. Re-run so they fill in
+     rather than sitting on the "nothing marked yet" they were true about a moment
+     ago. Every other tab renders from a payload and is unaffected. */
+  if (MARKS_TAB[source]) run();
 }
 
 /* Discrete edits (a highlight, a bookmark) save at once; typing a note is
@@ -4686,8 +4709,9 @@ function renderMap(data, bi, ch, v){
      · a swatch or bookmark toggle updates attributes IN PLACE, because a full
        redraw would replace the textarea and lose whatever is half-typed in it;
      · anything that changes the set LIST redraws, and commits the note first.  */
-function mountNotesTab(box, bi, ch, v){
+function mountNotesTab(box, t, bi, ch, v){
   const key = verseKey(bi, ch, v);
+  const ref = BOOKS[bi] + " " + ch + ":" + v;
   let editing = null;        // null = editor closed, else { id:setId|null, name, color }
   let confirmDel = false;    // Delete asks once before it takes verses' colour away
 
@@ -4699,6 +4723,69 @@ function mountNotesTab(box, bi, ch, v){
     return body.querySelector('.rv[data-v="' + v + '"]');
   };
   const paint = () => { const el = verseEl(); if (el) markVerse(el, key); };
+
+  /* What gets shared. The reader's own words are their business; what leaves this
+     page is the verse and where it is from, in the shape someone would actually
+     paste into a message or a post:
+
+       For God so loved the world, that he gave his only Son…
+       — John 3:16 (ESV)
+
+     No quotation marks around it, deliberately. A verse in the middle of a
+     discourse already CARRIES one — the ESV opens John 3:16 with “ and does not
+     close it until 3:21 — so wrapping the text would print two in a row and leave
+     the pair unbalanced. The em-dashed reference underneath is what says this is
+     a quotation, and it says it without touching the translation's own punctuation.
+
+     The text is taken off the paragraph the reader is looking at rather than out
+     of D(t), so it is exactly what they just read — and .rvn, the verse number in
+     the margin, is dropped so the number doesn't land twice. The payload is the
+     fallback for the case where the panel has outlived the chapter behind it. */
+  function shareText(){
+    let text = "";
+    const el = verseEl();
+    if (el){
+      const clone = el.cloneNode(true);
+      const num = clone.querySelector(".rvn");
+      if (num) num.remove();
+      text = clone.textContent.replace(/\s+/g, " ").trim();
+    }
+    if (!text){
+      try {
+        const row = D(t).find(r => r[0] === bi && r[1] === ch && r[2] === v);
+        if (row) text = row[3];
+      } catch (e){ /* payload not loaded — the reference alone is still worth copying */ }
+    }
+    return (text ? text + "\n" : "") + "— " + ref + " (" + t + ")";
+  }
+
+  /* Three tiers, because one clipboard call is not enough on the surfaces this
+     page runs on. navigator.clipboard is the modern path; execCommand("copy") is
+     what answers when it is missing; and on Obsidian iOS both are commonly refused
+     inside a WKWebView, which is what the selectable box in draw() is for — the
+     same "hand the copy to the OS" fallback the plugin's own settings use. */
+  async function copyToClipboard(str){
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText){
+        await navigator.clipboard.writeText(str);
+        return true;
+      }
+    } catch (e){ /* refused — fall through */ }
+    try {
+      const ta = document.createElement("textarea");
+      ta.value = str;
+      // Off-screen rather than hidden: a display:none field cannot be selected,
+      // and selection is what execCommand copies.
+      ta.setAttribute("readonly", "");
+      ta.style.cssText = "position:fixed;top:-1000px;left:-1000px;opacity:0";
+      document.body.appendChild(ta);
+      ta.select();
+      ta.setSelectionRange(0, str.length);
+      const ok = document.execCommand("copy");
+      ta.remove();
+      return !!ok;
+    } catch (e){ return false; }
+  }
 
   const say = (msg, bad) => {
     const el = box.querySelector(".mk-said");
@@ -4749,9 +4836,13 @@ function mountNotesTab(box, bi, ch, v){
       '<div class="mk-row" role="group" aria-label="Highlight this verse">' + swatchRow() + '</div>' +
       '<div class="mk-row" style="margin-top:8px">' +
         '<button class="mk-plain mk-bm" aria-pressed="' + !!MARKS.bm[key] + '">🔖 Bookmark</button>' +
+        '<button class="mk-plain mk-copy">⧉ Copy verse</button>' +
         '<button class="mk-plain mk-colours" aria-pressed="' + !!editing + '">✎ Colours</button>' +
-      '</div>' + editorHtml() +
-      '<label class="mk-lab" for="mkNote">Your note on ' + esc(BOOKS[bi] + " " + ch + ":" + v) + '</label>' +
+      '</div>' +
+      // Shown only when the clipboard refuses — see copyToClipboard()'s third tier.
+      '<textarea class="mk-share" readonly aria-label="Verse to copy" hidden></textarea>' +
+      editorHtml() +
+      '<label class="mk-lab" for="mkNote">Your note on ' + esc(ref) + '</label>' +
       '<textarea class="mk-note" id="mkNote" spellcheck="true" maxlength="' + NOTE_MAX + '" ' +
         'placeholder="What this verse says to you…">' + esc(note ? note.t : "") + '</textarea>' +
       '<p class="mk-said" role="status"></p>';
@@ -4791,6 +4882,28 @@ function mountNotesTab(box, bi, ch, v){
       bm.setAttribute("aria-pressed", String(!!MARKS.bm[key]));
       paint();
       commit(0, MARKS.bm[key] ? "Bookmarked" : "Bookmark removed");
+    });
+    /* Copying is the one control here that writes nothing — it neither touches
+       MARKS nor saves, so it never redraws and never disturbs a half-typed note. */
+    const cp = box.querySelector(".mk-copy");
+    if (cp) cp.addEventListener("click", async () => {
+      const str = shareText();
+      const share = box.querySelector(".mk-share");
+      const ok = await copyToClipboard(str);
+      if (ok){
+        if (share) share.hidden = true;
+        say("Verse copied — paste it wherever you like.");
+        return;
+      }
+      // Refused. Put the text on screen, already selected, and let the OS take it
+      // from there: a reader on iOS can copy from a field even where the page cannot.
+      if (share){
+        share.value = str;
+        share.hidden = false;
+        share.focus();
+        share.setSelectionRange(0, str.length);
+      }
+      say("Your device blocked the clipboard — copy the selected text above.", true);
     });
     const col = box.querySelector(".mk-colours");
     if (col) col.addEventListener("click", () => {
@@ -4880,7 +4993,7 @@ function mountNotesTab(box, bi, ch, v){
 async function renderStudyBody(box, tab, t, bi, ch, v){
   // Notes has no payload to wait on — it renders what is already in memory, so it
   // returns before the "Loading…" below would ever be seen.
-  if (tab === "mk"){ mountNotesTab(box, bi, ch, v); return; }
+  if (tab === "mk"){ mountNotesTab(box, t, bi, ch, v); return; }
   box.innerHTML = '<p class="muted">Loading…</p>';
   // xr, bx and mp are whole-Bible sidecars; il and cm are one per book.
   // References prefers the catchword-anchored payload and falls back to the flat
@@ -6858,28 +6971,45 @@ function renderOtdSearch(terms, filter){
   }).join("") + '</div></div>';
 }
 
-/* ── the Marks tab ────────────────────────────────────────────────────────────
-   Everything the reader has marked, in canonical order, with the verse it was
-   marked on. One row per verse rather than three lists: a verse commonly carries
-   a colour AND a bookmark AND a note, and three lists would report it three
-   times while making "what did I mark in Romans" three searches.
+/* ── the Marks tabs ───────────────────────────────────────────────────────────
+   Two tabs off one store, both in canonical order, with the verse each mark was
+   made on. My Highlights carries the colours and the written notes; Bookmarks
+   carries the flags. They are separate tabs because they answer separate
+   questions — "what have I coloured or written on" and "what did I put a pin in
+   to come back to" — but a verse carrying both still gets ONE row in each, never
+   one row per kind of mark.
 
-   The verse text is read in whichever translation the chip is set to, so this
-   list — like the marks themselves — is not tied to the version it was made in. */
+   The verse text is read in whichever translation the chip is set to, so these
+   lists — like the marks themselves — are not tied to the version they were made
+   in. */
 function unmarkKey(k){
   const n = +k, v = n % 256, rest = (n - v) / 256, ch = rest % 256;
   return { bi: (rest - ch) / 256, ch, v };
 }
-async function renderMarksIndex(filter){
+const MARKS_TAB = {
+  marks: {
+    glyph: "🖍️",
+    noun: "highlighted verse",
+    // A note without a colour is still something the reader WROTE on this verse,
+    // and it has nowhere else to live — so it belongs on this list too.
+    keys: () => Object.keys(MARKS.hl).concat(Object.keys(MARKS.nt)),
+    empty: 'Nothing highlighted yet. Open a chapter, tap a verse, and the study card’s <strong>Notes</strong> tab will colour it or keep your note on it. Marks are kept by verse, so they show in every translation.',
+  },
+  bookmarks: {
+    glyph: "🔖",
+    noun: "bookmarked verse",
+    keys: () => Object.keys(MARKS.bm),
+    empty: 'Nothing bookmarked yet. Open a chapter, tap a verse, and press <strong>🔖 Bookmark</strong> on the study card’s <strong>Notes</strong> tab. Bookmarks are kept by verse, so they show in every translation.',
+  },
+};
+async function renderMarksIndex(filter, mode){
   const gen = ++runGen;
-  const keys = Object.keys(MARKS.hl).concat(Object.keys(MARKS.bm), Object.keys(MARKS.nt));
-  const uniq = [...new Set(keys)].sort((a, b) => a - b);
+  const kind = MARKS_TAB[mode] || MARKS_TAB.marks;
+  const uniq = [...new Set(kind.keys())].sort((a, b) => a - b);
   if (!uniq.length){
     $status.textContent = marksFrozen ? "Your marks could not be read." : "";
-    $res.innerHTML = '<div class="empty"><div class="big">🔖</div>' +
-      (marksFrozen ? esc(marksFrozen)
-        : 'Nothing marked yet. Open a chapter, tap a verse, and the study card’s <strong>Notes</strong> tab will highlight it, bookmark it, or keep your note on it. Marks are kept by verse, so they show in every translation.') +
-      '</div>';
+    $res.innerHTML = '<div class="empty"><div class="big">' + kind.glyph + '</div>' +
+      (marksFrozen ? esc(marksFrozen) : kind.empty) + '</div>';
     return;
   }
   // Verse text comes from the translation the chip is on; "All" has no one answer,
@@ -6918,17 +7048,21 @@ async function renderMarksIndex(filter){
     rows.push({ k, r, set, note, text, ref });
   }
 
+  // The counts are the whole store, not this tab's slice: standing in one tab, the
+  // useful thing to know is what the other one is holding.
   const n = { hl: Object.keys(MARKS.hl).length, bm: Object.keys(MARKS.bm).length, nt: Object.keys(MARKS.nt).length };
   const chips = '<div class="mkx-sum">' +
     '<span>' + n.hl + ' highlighted</span>' +
     '<span>' + n.bm + ' bookmarked</span>' +
     '<span>' + n.nt + ' with notes</span></div>';
 
+  const plural = c => kind.noun + (c === 1 ? '' : 's');
   $status.innerHTML = terms.length
-    ? '<strong>' + rows.length + '</strong> marked verse' + (rows.length === 1 ? '' : 's') + ' matching “' + esc(filter) + '”'
-    : '<strong>' + uniq.length + '</strong> marked verse' + (uniq.length === 1 ? '' : 's');
+    ? '<strong>' + rows.length + '</strong> ' + plural(rows.length) + ' matching “' + esc(filter) + '”'
+    : '<strong>' + uniq.length + '</strong> ' + plural(uniq.length);
   if (!rows.length){
-    $res.innerHTML = chips + '<div class="empty"><div class="big">🔖</div>No marked verse matches that.</div>';
+    $res.innerHTML = chips + '<div class="empty"><div class="big">' + kind.glyph +
+      '</div>No ' + kind.noun + ' matches that.</div>';
     return;
   }
   $res.innerHTML = chips + '<div class="mkx-list">' + rows.map(row => {
@@ -7110,7 +7244,7 @@ async function run(){
   if (source === "onthisday"){ renderOnThisDay(input); return; } // ditto — empty box shows today
   /* Marks renders on an empty box too — the list IS the tab — and awaits verse
      text the way the Bible tab does, guarded by the same staleness token. */
-  if (source === "marks"){ await renderMarksIndex(input); return; }
+  if (source === "marks" || source === "bookmarks"){ await renderMarksIndex(input, source); return; }
   /* Maps renders on an empty box too, but its basemap is a sidecar — so it awaits
      its payload the way the Bible and Words tabs do, guarded by the same staleness
      token, and says why rather than drawing an empty frame if it never arrives. */
@@ -7363,7 +7497,7 @@ function selectGroup(g, focusInput){
 }
 $groups.forEach(g => g.addEventListener("click", () => selectGroup(g.dataset.g, true)));
 layoutTabs();
-const HELP_ID = { bible: "help-bible", articles: "help-articles", topics: "help-topics", faq: "help-faq", prayers: "help-prayers", history: "help-history", timeline: "help-timeline", churchhistory: "help-churchhistory", onthisday: "help-otd", maps: "help-maps", words: "help-words", commentary: "help-commentary", marks: "help-marks", translations: "help-translations" };
+const HELP_ID = { bible: "help-bible", articles: "help-articles", topics: "help-topics", faq: "help-faq", prayers: "help-prayers", history: "help-history", timeline: "help-timeline", churchhistory: "help-churchhistory", onthisday: "help-otd", maps: "help-maps", words: "help-words", commentary: "help-commentary", marks: "help-marks", bookmarks: "help-bookmarks", translations: "help-translations" };
 const PLACEHOLDER = {
   bible:     "John 3:16-18 · Psalm 23 · born again · shepherd…",
   articles:  "baptism · prayer · discipleship · \"spiritual gifts\"…",
@@ -7379,7 +7513,8 @@ const PLACEHOLDER = {
   // phrase would search its words separately — advertising it would promise
   // precision this tab cannot keep.
   commentary: "propitiation · leaven · Melchizedek · covenant blood…",
-  marks:      "Filter your marks… Promises · Romans 8 · fear…",
+  marks:      "Filter your highlights… Promises · Romans 8 · fear…",
+  bookmarks:  "Filter your bookmarks… Romans 8 · mercy · fear…",
   translations: "Filter the table… NASB · King James · word for word · 1611…"
 };
 function selectSource(s, focusInput){
