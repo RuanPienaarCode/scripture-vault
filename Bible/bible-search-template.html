@@ -920,6 +920,10 @@
   .ref-region{fill:var(--muted);letter-spacing:.14em;font-weight:400;opacity:.85}
   .ref-water{fill:var(--map-river);font-style:italic}
   .mp-pin circle{fill:var(--accent);stroke:var(--map-sea);stroke-width:.5;vector-effect:none}
+  /* A dot is a tenth the radius of a labelled pin, so its outline has to be measured
+     in screen pixels rather than map units — at .5 user units the dark ring ate the
+     whole dot and a hundred gold points rendered as a hundred holes. */
+  .mp-dotted circle{stroke-width:1px;vector-effect:non-scaling-stroke}
   /* A pin pushed off its true point keeps a thread back to it — see spreadPins(). */
   .mp-leader{stroke:var(--accent);stroke-width:1;opacity:.5;vector-effect:non-scaling-stroke}
   /* The halo that lifts a label off the coastline. vector-effect is essential, not
@@ -3345,7 +3349,11 @@ function mapView(o){
   // outward can't end up outside the frame it was measured in.
   const box0 = fitBox(truth, o.min || 60, o.pad == null ? 0.3 : o.pad, bm);
   const span = Math.max(box0[2], box0[3]);
-  const r = span / (numbered ? 55 : dotted ? 200 : 90);
+  /* Numbered pins have to shrink as they multiply. A journey is ten or twelve stops
+     and reads well at span/55; Judah's border description is thirty places in the
+     same amount of land, and at that size they spread into a solid disc of circles
+     that hides the very shape they are drawn to show. */
+  const r = span / (numbered ? Math.max(55, 26 + pointsIn.length * 2) : dotted ? 200 : 90);
   const fs = span / (numbered ? 60 : 26);
   /* Dense maps are NOT spread. Pushing sixty European origins apart at world scale
      opens the cluster across the Sahara and the Atlantic — it invents beginnings in
@@ -3382,7 +3390,7 @@ function mapSvg(id){
   const [, , bw, bh] = m.box;
   const span = Math.max(bw, bh);
   // Furniture scales with the window, or a zoomed-in map paints boulders.
-  const r = span / (m.numbered ? 55 : m.dotted ? 200 : 90);
+  const r = span / (m.numbered ? Math.max(55, 26 + m.points.length * 2) : m.dotted ? 200 : 90);
   const fs = span / (m.numbered ? 60 : 26);
   const pts = m.dotted ? m.truth.map(pt => pt.slice()) : spreadPins(m.truth, r);
   m.drawn = pts; m.dr = r;
@@ -3420,11 +3428,11 @@ function mapSvg(id){
     const p = m.points[i];
     const inner = m.dotted ? ""
       : m.numbered
-      ? '<text x="' + x.toFixed(1) + '" y="' + (y + fs * 0.36).toFixed(1) +
-        '" style="font-size:' + fs.toFixed(2) + 'px">' + esc(p.label) + '</text>'
+      ? '<text x="' + x.toFixed(1) + '" y="' + (y + Math.min(fs, r * 1.25) * 0.36).toFixed(1) +
+        '" style="font-size:' + Math.min(fs, r * 1.25).toFixed(2) + 'px">' + esc(p.label) + '</text>'
       : '<text x="' + labels[i].x.toFixed(1) + '" y="' + labels[i].y.toFixed(1) +
         '" style="font-size:' + fs.toFixed(2) + 'px">' + esc(p.label) + '</text>';
-    return '<g class="' + (m.numbered ? "mh-pin" : "mp-pin") + '" data-mi="' + i + '"' +
+    return '<g class="' + (m.numbered ? "mh-pin" : m.dotted ? "mp-pin mp-dotted" : "mp-pin") + '" data-mi="' + i + '"' +
       (p.card ? ' tabindex="0" role="button"' : '') +
       ' aria-label="' + esc(p.aria || p.label) + '">' + pinLeader([x, y], m.truth[i]) +
       '<circle cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="' + r.toFixed(2) + '"/>' +
@@ -4225,13 +4233,15 @@ const MAPS_MODES = [
   ["moments", "🕰️ History"],
   ["journeys", "🚶 Journeys"],
   ["places", "📍 Places"],
+  ["allotments", "🧭 Allotments"],
   ["church", "⛪ Church origins"],
   ["otd", "📅 On This Day"],
 ];
 // A mode is only offered when its payload shipped: journeys need jr, and the two
 // world maps need hm — the same "no payload, no tab" contract the strip uses.
 const mapsModeOn = (m) =>
-  m === "moments" ? true : m === "journeys" ? !!STUDY.jr : m === "places" ? !!STUDY.mp : !!STUDY.hm;
+  m === "moments" ? true : m === "journeys" ? !!STUDY.jr
+  : m === "places" ? !!STUDY.mp : m === "allotments" ? !!STUDY.al : !!STUDY.hm;
 function mapsPicker(){
   const on = MAPS_MODES.filter(([k]) => mapsModeOn(k));
   if (on.length < 2) return "";
@@ -4403,6 +4413,92 @@ function markStopRow(i){
   if (!row) return;
   $res.querySelectorAll(".mh-row.on").forEach(x => x.classList.remove("on"));
   row.classList.add("on");
+}
+
+/* ── the tribal allotments ────────────────────────────────────────────────
+   The honest remainder of "period territories". Drawn boundaries for the biblical
+   world need either a licence this vault will not take or a cartographer's sources
+   it does not have — but Joshua 13–19 IS the text's own account of where each
+   tribe's land ran, and most of the places in it are already geocoded.
+
+   So: points, numbered in the order Joshua names them, and never joined. Joining
+   them would need two inventions the rest of this project refuses — the text names
+   seas and regions as limits, which carry one representative coordinate apiece and
+   would run Judah's border into the middle of the Mediterranean, and where Joshua
+   names a place nobody has identified, closing the outline means guessing the line.
+   The named limits are listed under the map as words, which is what they are. */
+const BOOK_INDEX_JOSHUA = BOOKS.indexOf("Joshua");
+let mapsTribe = 0;
+function renderAllotments(filter, data){
+  const list = data.a || [];
+  const terms = filter ? parseTerms(filter) : [];
+  const blob = a => (a.tribe + " " + a.ref + " " + a.note + " " +
+    a.points.map(pt => pt.n).join(" ") + " " + (a.edges || []).join(" ")).toLowerCase();
+  const hits = terms.length ? list.filter(a => terms.every(w => termRe(w, "i").test(blob(a)))) : list;
+  if (!hits.length){
+    $status.innerHTML = 'No allotment matching “' + esc(filter) + '”.';
+    $res.innerHTML = mapsPicker() + '<div class="empty"><div class="big">🧭</div>No tribe or place of that name in Joshua 13–19.</div>';
+    return;
+  }
+  if (mapsTribe >= hits.length) mapsTribe = 0;
+  const a = hits[mapsTribe];
+  const t = pickTrans(null);
+  const ref = parseRef(a.ref);
+  const map = mapView({
+    points: a.points.map((pt, i) => ({
+      lat: pt.lat, lon: pt.lon, label: String(i + 1), aria: (i + 1) + ". " + pt.n,
+      card: '<div class="map-card"><div class="mc-w">' + esc(a.tribe) + ' · Joshua ' + a.ch + ':' + pt.v + '</div>' +
+        '<div class="mc-t">' + esc(pt.n) + '</div>' + allotChips(pt, a, t) + '</div>',
+    })),
+    /* No `routes`: these are the places the text names, not a line it draws. And
+       dots, not numbered pins — a tribal border runs fifty miles, so its thirty
+       places sit close together, and numbering them means circles big enough to
+       spread apart, which destroys the very geography the map is for. The order
+       lives in the list beside the map, where it costs the shape nothing. */
+    mode: "dot", min: 70, pad: 0.2, ref: true, bi: BOOK_INDEX_JOSHUA,
+    aria: a.tribe + " — " + a.points.length + " places Joshua names",
+    onPin: (i) => { markStopRow(i); },
+  });
+  $status.innerHTML = terms.length
+    ? '<strong>' + hits.length + '</strong> allotment' + (hits.length === 1 ? '' : 's') + ' matching “' + esc(filter) + '”'
+    : 'What each tribe was given — the places Joshua names, where they can be located';
+  const tabs = '<div class="jr-pick">' + hits.map((x, i) =>
+    '<button data-al="' + i + '" aria-pressed="' + (i === mapsTribe) + '">' + esc(x.tribe) + '</button>').join("") + '</div>';
+  const rows = a.points.map((pt, i) =>
+    '<div class="mh-row" id="al-' + i + '" data-si="' + i + '">' +
+    '<div class="mh-n">' + (i + 1) + '</div>' +
+    '<div class="mh-body"><div class="mh-head"><span class="mh-where">' + esc(pt.n) + '</span>' +
+      '<span class="mh-when">Joshua ' + a.ch + ':' + pt.v + '</span></div>' +
+      allotChips(pt, a, t) + '</div></div>').join("");
+  /* The limits, as words. A reader should be able to see that Judah ran "to the
+     Great Sea" without the map pretending to know where on it that was. */
+  const edges = (a.edges || []).length
+    ? '<div class="mh-rest"><div class="mh-resth">Named as limits, not plotted</div>' +
+      '<p class="jr-note">Joshua also runs this border to ' +
+      esc(a.edges.map(e => e).join(", ")) +
+      ' — seas and regions rather than points on the ground, so they are named here instead of pinned.</p></div>'
+    : "";
+  $res.innerHTML = mapsPicker() + tabs +
+    '<div class="jr-head"><span class="mh-when">' + esc(a.ref) + '</span>' +
+    (a.kind === "towns" ? '<span class="jr-sea">town list</span>' : '') +
+    '<p class="jr-note">' + highlight(esc(a.note), terms) + '</p>' +
+    '<p class="jr-caution">⚠ These are the places the text names, plotted where they can be located — not a drawn boundary. ' +
+    'Several places Joshua names have never been identified, and joining the rest into an outline would be a guess.</p></div>' +
+    '<div class="mh">' + map + '<div class="mh-list">' + rows + '</div>' + edges + '</div>' +
+    '<p class="study-src">Joshua 13–19 · locations from openbible.info · CC-BY</p>';
+  bindMaps();
+  applyMapsFocus();
+}
+// A waypoint's links out: the verse that names it, and its place note when there is one.
+function allotChips(pt, a, t){
+  const chips = [];
+  if (validCh(BOOK_INDEX_JOSHUA, a.ch))
+    chips.push('<a class="tl-chip" href="' + obsUrl(t, BOOKS[BOOK_INDEX_JOSHUA], a.ch, pt.v) + '" data-open="verse" data-t="' + esc(t) +
+      '" data-bi="' + BOOK_INDEX_JOSHUA + '" data-ch="' + a.ch + '" data-v="' + pt.v +
+      '">📖 Joshua ' + a.ch + ':' + pt.v + '</a>');
+  if (pt.place)
+    chips.push('<a class="tl-chip" href="' + vaultUrl(pt.place) + '" title="Open the place note">📄 ' + esc(pt.n) + '</a>');
+  return chips.length ? '<div class="tl-links">' + chips.join("") + '</div>' : "";
 }
 
 /* ── church origins, and the calendar located ─────────────────────────────
@@ -5551,7 +5647,8 @@ async function run(){
     // The other three each read one more sidecar. A failure says which and stops,
     // rather than drawing an empty frame and letting it look like there is nothing
     // to show.
-    const id = mapsMode === "journeys" ? "jr" : mapsMode === "places" ? "mp" : "hm";
+    const id = mapsMode === "journeys" ? "jr" : mapsMode === "places" ? "mp"
+      : mapsMode === "allotments" ? "al" : "hm";
     let data;
     try { data = await loadPayload(id); }
     catch (e){
@@ -5563,6 +5660,7 @@ async function run(){
     }
     if (mgen !== runGen) return;
     if (mapsMode === "journeys") renderJourneys(input, data);
+    else if (mapsMode === "allotments") renderAllotments(input, data);
     else if (mapsMode === "places"){ referenceLayer(data); renderPlacesMap(input, data); }
     else if (mapsMode === "church") renderChurchMap(input, data);
     else renderOtdMap(input, data);
@@ -5864,6 +5962,8 @@ $res.addEventListener("click", e => {
   if (mb){ mapsMode = mb.dataset.mmode; mapsJourney = 0; run(); return; }
   const jb = e.target.closest("[data-jr]");
   if (jb){ mapsJourney = +jb.dataset.jr; run(); return; }
+  const ab = e.target.closest("[data-al]");
+  if (ab){ mapsTribe = +ab.dataset.al; run(); return; }
   // A journey stop's row taps back to its pin, the same way a moment's row does.
   if (e.target.closest("[data-map]") || e.target.closest("[data-open]")) return;
   const srow = e.target.closest(".mh-row[data-si]");
