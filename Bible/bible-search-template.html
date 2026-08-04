@@ -2596,7 +2596,7 @@ function readerMapBlock(mp, t, bi, ch, scope){
       (chapter.length ? " in this chapter" : " in this book") + '</summary>' +
     '<div class="chmap-body">' + toggle +
     mapView({
-      points, min: 55, pad: 0.3, ref: true,
+      points, min: 55, pad: 0.3, ref: true, bi,
       /* Past about two dozen the labels stop being readable and start being a wall
          of text over the coastline — Joshua 15 alone would draw 162 of them. Beyond
          that the map shows the distribution and a tap gives the name. */
@@ -3225,9 +3225,12 @@ function referenceLayer(mp){
     const rank = counts.get(i) || 0;
     if (!rank) return;                       // never named — nothing to orient by
     const [x, y] = project(row[1], row[2], _bmCache.bm || _basemap);
-    out.push({ x, y, name: row[0], kind: KIND[row[3]] || "town", rank });
+    // `i` is kept so the per-book index can be consulted later — see referenceFor.
+    out.push({ i, x, y, name: row[0], kind: KIND[row[3]] || "town", rank });
   });
   out.sort((a, b) => b.rank - a.rank);
+  // Built here too, so a passage-aware map never has to wait for it.
+  placeIndex(mp);
   return (_refLayer = out);
 }
 // Built from the place index, which the map surfaces on the biblical basemap load
@@ -3242,12 +3245,31 @@ async function ensureRef(){
 /* What to draw, for one window. Two budgets, because they are different problems:
    dots are cheap and can be dense, labels collide and must be rationed. Both are
    spent on the most-named places first — the Bible's own sense of what matters,
-   which is a better editorial rule than population would be. */
-function referenceFor(box, exclude, fs, taken){
+   which is a better editorial rule than population would be.
+
+   `bi` makes that ranking follow the PASSAGE. Ranked across the whole Bible, the
+   Iron Age wins everywhere: reading Matthew, the map furnished Judea with MOAB,
+   EDOM, AMMON and GILEAD — four territories Matthew never mentions, drawn from a
+   period a thousand years before the passage. So a place the open book names is
+   ranked above one it does not, and ordered among its peers by how often that book
+   names it. Matthew then gets GALILEE, SYRIA and Capernaum; Joshua still gets the
+   territories it spends chapters listing.
+
+   It is a re-ranking, not a filter. A book that names almost nowhere (Philemon
+   names nothing at all) simply falls back to the whole-Bible order and keeps its
+   furniture, rather than being handed an empty map. */
+function referenceFor(box, exclude, fs, taken, bi){
   if (!_refLayer) return { dots: [], labels: [] };
   const [bx, by, bw, bh] = box;
   const inside = _refLayer.filter(r =>
     r.x >= bx && r.x <= bx + bw && r.y >= by && r.y <= by + bh && !exclude.has(r.name));
+  const book = bi == null || !_placeIdx ? null : _placeIdx.byBook.get(bi);
+  if (book && book.size){
+    /* The offset has to exceed any possible whole-Bible rank, or a place named once
+       here would lose to Jerusalem's 955 and the re-ranking would do nothing. */
+    const score = r => (book.has(r.i) ? 1e6 + book.get(r.i) : r.rank);
+    inside.sort((a, b) => score(b) - score(a));
+  }
   const dots = inside.filter(r => r.kind === "town").slice(0, 220);
   /* Rectangle collision, not a grid. A grid cell can only say "something is already
      near here", and labels are much wider than they are tall — CANA and GALILEE sat
@@ -3261,14 +3283,26 @@ function referenceFor(box, exclude, fs, taken){
   const hits = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
   const placed = (taken || []).slice();
   const labels = [];
+  /* Re-ranking alone still padded the tail with the wrong era: Matthew's own places
+     in one window run out after a handful, and the remaining budget went back to
+     the whole-Bible order — Zobah, Kedar, Goshen. So once a passage is in view the
+     fallback gets a much smaller allowance of its own. Enough to keep the map
+     oriented where the book is silent, not enough to refurnish it in another
+     millennium. A map with six right labels beats one with six right and twelve
+     wrong. */
+  const FALLBACK = book && book.size ? 6 : 18;
+  let spare = FALLBACK;
   for (const r of inside){
     if (labels.length >= 18) break;
+    const known = !!(book && book.has(r.i));
+    if (!known && spare <= 0) continue;
     // Regions are letter-spaced and uppercased, so they run wider per character.
     const per = r.kind === "region" ? 0.78 : 0.54;
     const rect = { x: r.x, y: r.y - fs * 0.6, w: r.name.length * fs * per + fs * 0.8, h: fs * 1.25 };
     if (placed.some(q => hits(rect, q))) continue;
     placed.push(rect);
     labels.push(r);
+    if (!known) spare--;
   }
   return { dots, labels };
 }
@@ -3372,7 +3406,7 @@ function mapSvg(id){
     // The pins themselves are obstacles too, labelled or not.
     pts.forEach(([x, y]) => claimed.push({ x: x - r, y: y - r, w: r * 2, h: r * 2 }));
     const rfs = fs * 0.55;
-    const { dots, labels: refLabels } = referenceFor(m.box, own, rfs, claimed);
+    const { dots, labels: refLabels } = referenceFor(m.box, own, rfs, claimed, m.o.bi);
     const rr = Math.max(r * 0.34, span / 420);
     ref = '<g class="ref-layer">' +
       dots.map(d => '<circle class="ref-dot" cx="' + d.x.toFixed(1) + '" cy="' + d.y.toFixed(1) +
@@ -3840,7 +3874,8 @@ function renderMap(data, bi, ch, v){
      missing while every other map input is present. */
   const map = mapView({
     points: places.map(p => ({ lat: p[1], lon: p[2], label: p[0], card: placeCard(p) })),
-    min: 60, pad: 0.35, ref: true, aria: "Map of " + places.map(p => p[0]).join(", "),
+    min: 60, pad: 0.35, ref: true, bi,
+    aria: "Map of " + places.map(p => p[0]).join(", "),
   });
   return map + '<div class="mp-list">' + rows + '</div>' +
     '<p class="study-src">Identified locations from openbible.info · CC-BY · ' +
@@ -4313,6 +4348,10 @@ function renderJourneys(filter, data){
   for (let i = 1; i < j.stops.length; i++)
     routes.push({ stops: [i - 1, i], sea: !!j.stops[i].sea });
   const map = mapView({ points, routes, mode: "number", min: 90, pad: 0.14, ref: true,
+    // A journey is told in one book far more often than not — Acts for Paul's three,
+    // Genesis for Abraham — so the modal book of its stops is the right context. A
+    // route that genuinely spans books just gets whichever tells most of it.
+    bi: modalBook(j.stops.map(st => st.ref)),
     aria: j.name + " — " + j.stops.length + " stops", onPin: (i) => { markStopRow(i); } });
   $status.innerHTML = terms.length
     ? '<strong>' + hits.length + '</strong> journey' + (hits.length === 1 ? '' : 's') + ' matching “' + esc(filter) + '”'
@@ -4333,6 +4372,20 @@ function renderJourneys(filter, data){
     '<p class="study-src">Stops resolved against openbible.info · CC-BY · ' +
     'coastlines from Natural Earth (public domain)</p>';
 }
+/* Which book a set of references mostly belongs to. Used to give a journey the same
+   passage-aware furniture a chapter gets — Paul's second journey is Acts, so its map
+   is furnished with the Aegean places Acts names rather than Iron Age Moab. */
+function modalBook(refs){
+  const tally = new Map();
+  for (const r of refs){
+    const p = r ? parseRef(r) : null;
+    if (p) tally.set(p.bi, (tally.get(p.bi) || 0) + 1);
+  }
+  let best = null, n = 0;
+  for (const [bi, c] of tally) if (c > n){ n = c; best = bi; }
+  return best;
+}
+
 // A stop's links out: the passage it happened in, and its place note when there is one.
 function stopChips(st, t){
   const chips = [];
