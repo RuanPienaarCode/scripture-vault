@@ -919,11 +919,13 @@
     stroke:var(--map-sea);stroke-width:2px;stroke-linejoin:round;vector-effect:non-scaling-stroke}
   .ref-region{fill:var(--muted);letter-spacing:.14em;font-weight:400;opacity:.85}
   .ref-water{fill:var(--map-river);font-style:italic}
-  .mp-pin circle{fill:var(--accent);stroke:var(--map-sea);stroke-width:.5;vector-effect:none}
-  /* A dot is a tenth the radius of a labelled pin, so its outline has to be measured
-     in screen pixels rather than map units — at .5 user units the dark ring ate the
-     whole dot and a hundred gold points rendered as a hundred holes. */
-  .mp-dotted circle{stroke-width:1px;vector-effect:non-scaling-stroke}
+  /* Every pin outline is measured in SCREEN pixels. An SVG stroke-width is in user
+     units by default, so at the deepest zoom half a unit became a forty-pixel dark
+     ring around each pin — the same class of bug as the label halos, and the reason
+     zooming in used to make the map worse rather than better. */
+  .mp-pin circle{fill:var(--accent);stroke:var(--map-sea);stroke-width:1.5px;
+    vector-effect:non-scaling-stroke}
+  .mp-dotted circle{stroke-width:1px}
   /* A pin pushed off its true point keeps a thread back to it — see spreadPins(). */
   .mp-leader{stroke:var(--accent);stroke-width:1;opacity:.5;vector-effect:non-scaling-stroke}
   /* The halo that lifts a label off the coastline. vector-effect is essential, not
@@ -959,7 +961,8 @@
      The map is the header of the view, not a thumbnail beside it: this tab exists
      to show distance, and distance needs the width. */
   .mh .mp-svg{margin:0 0 16px}
-  .mh-pin circle{fill:var(--panel);stroke:var(--accent);stroke-width:1.2;vector-effect:none;cursor:pointer}
+  .mh-pin circle{fill:var(--panel);stroke:var(--accent);stroke-width:1.6px;
+    vector-effect:non-scaling-stroke;cursor:pointer}
   .mh-pin text{fill:var(--accent);font-family:var(--mono);text-anchor:middle;cursor:pointer;
     paint-order:stroke;stroke:var(--panel);stroke-width:1.5px;stroke-linejoin:round;
     vector-effect:non-scaling-stroke}
@@ -3130,7 +3133,9 @@ function fitBox(pts, min, padRatio, bm){
    drawn with a hairline back to where they actually belong — the map must not
    quietly claim Qumran is in the Mediterranean. */
 function spreadPins(pts, r){
-  const out = [], min = r * 2.05;
+  // 2.6 radii apart, not 2.05: at 2.05 two pushed-apart pins were touching rather
+  // than separate, and Jerusalem and Zion share a coordinate exactly.
+  const out = [], min = r * 2.6;
   for (const [x, y] of pts){
     let px = x, py = y;
     for (let k = 1; k <= 48; k++){
@@ -3487,7 +3492,10 @@ function mapZoomTo(id, i){
   const m = _maps[id];
   if (!m) return;
   const [x, y] = m.truth[i];
-  const side = Math.max(Math.min(m.home[2], m.home[3]) / 3.2, 45);
+  /* A quarter of the opening window, and never shallower than a locality. The old
+     floor of 45 units meant tapping a pin on a study-panel map barely moved: it
+     landed at a 375 km window, where places ten kilometres apart still touched. */
+  const side = Math.max(Math.min(m.home[2], m.home[3]) / 4, MAP_MIN_SPAN * 2);
   const w = Math.min(side, m.bm.w), h = Math.min(side, m.bm.h);
   const box = [
     Math.min(Math.max(x - w / 2, 0), m.bm.w - w),
@@ -3555,7 +3563,7 @@ function mapZoomOut(id){
   if (!m) return;
   mapClose(id);
   const [x, y, w, h] = m.box;
-  const f = 1.9;
+  const f = 2;
   const nw = Math.min(w * f, m.home[2]), nh = Math.min(h * f, m.home[3]);
   if (nw >= m.home[2] - 0.5 && nh >= m.home[3] - 0.5){ mapAnimate(id, m.home.slice()); return; }
   mapAnimate(id, [
@@ -3577,10 +3585,15 @@ function mapZoomOut(id){
    labels on every pointermove would be a re-render per frame; instead the attribute
    moves during the gesture and the map is redrawn once it settles, which is also
    when the new window's shapes are needed. */
-// Units. Past this the basemap has nothing left to show, so zoom stops here.
-// (Comment above rather than trailing: tools/page-js.test.js slices declarations by
-// reading to the first line ending in ";", and a trailing comment swallows the next.)
-const MAP_MIN_SPAN = 18;
+/* How far in the zoom can go, in map units. Set by what a reader needs to tell two
+   places apart, not by a round number: a pin is a constant ~7 screen pixels whatever
+   the zoom, so two places separate only when the WINDOW is small enough. Bethany sits
+   0.27 units from Jerusalem — two and a half kilometres — and at the old floor of 18
+   that was nine pixels apart under thirteen-pixel pins, which is the overlap that
+   made this feel broken. Four units (~35 km) puts them forty pixels apart.
+   (Comment above rather than trailing: tools/page-js.test.js slices declarations by
+   reading to the first line ending in ";", and a trailing comment swallows the next.) */
+const MAP_MIN_SPAN = 4;
 
 // The live view: attribute only, no re-render. Used during a gesture.
 function mapSetBox(id, box){
@@ -3821,7 +3834,9 @@ document.addEventListener("click", e => {
   if (zb){
     const k = zb.dataset.mzoom;
     if (k === "home") mapHome(id);
-    else if (k === "in"){ mapClose(id); mapZoomBy(id, 1.6); }
+    // 2× a press: from the whole biblical world to the deepest window is five
+    // presses rather than nine, which is the difference between a control and a chore.
+    else if (k === "in"){ mapClose(id); mapZoomBy(id, 2); }
     else mapZoomOut(id);
     return;
   }
