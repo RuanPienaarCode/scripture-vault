@@ -22,7 +22,17 @@
      in the [data-theme="light"] block below; every colour flows through these tokens. */
   :root{
     --bg:#0b0e18; --panel:#111629; --panel-2:#151b31; --line:#20263c;
-    --ink:#e8e6dc; --muted:#8b90a8; --muted-2:#565b74;
+    /* The quiet ladder — --ink 13.61:1, --muted 7.01:1, --muted-2 4.64:1, each
+       measured against the WORST of the four dark grounds these ever land on
+       (--bg, --panel, --panel-2, --code-bg). The strand and family hues below were
+       audited to AA long ago; this base pair never was, and --muted-2 measured
+       2.55–2.88:1 — under the 4.5:1 body floor and under even the 3:1 large-text
+       floor — while carrying 54 rules of the page's SMALLEST type (the 10px plate
+       key, the 10.5px map coordinates, the 11px footers and hints, the search
+       placeholder). Both tiers moved, not just the failing one: lifting --muted-2
+       alone to 4.5 lands it on top of the old --muted and collapses the two quiet
+       levels into one. Three distinct steps is the point. */
+    --ink:#e8e6dc; --muted:#a0a5c1; --muted-2:#7c84a8;
     --accent:#d9b45a; --accent-2:#7d90ff;
     --mk-bg:rgba(217,180,90,.20); --mk-ink:#f0d68f;
     --bg-glow:#12172b; --bar-bg:rgba(11,14,24,.88); --code-bg:#0d1120;
@@ -50,11 +60,19 @@
   /* ── Ivory Gold — the same gold ↔ periwinkle, darkened to hold contrast on warm paper ── */
   :root[data-theme="light"]{
     --bg:#f7f4ec; --panel:#fffdf8; --panel-2:#f0ece1; --line:#ddd6c6;
-    --ink:#171a24; --muted:#575b6b; --muted-2:#686c7e;
-    --accent:#8a6a1c; --accent-2:#3f4fc4;
+    /* The light ladder — --ink 14.45:1, --muted 5.61:1, --muted-2 4.60:1, worst of
+       the four paper grounds. --muted-2 was #686c7e, which measured 4.33 on
+       --code-bg and 4.41 on --panel-2: nearly right, and still under the 4.5 its
+       10–11px text needs. A shade darker clears it without closing on --muted. */
+    --ink:#171a24; --muted:#575b6b; --muted-2:#64687a;
+    /* --accent darkened a shade: at #8a6a1c it measured 4.28:1 on --panel-2 and
+       4.20:1 on --code-bg, and it is 11px text on both (the pressed states of the
+       commentator, chapter-map-scope and translations pickers all sit on
+       --code-bg). #82641a clears 4.5 on every ground. --accent-line follows it. */
+    --accent:#82641a; --accent-2:#3f4fc4;
     --mk-bg:rgba(217,180,90,.45); --mk-ink:#3d2f06;
     --bg-glow:#fffdf7; --bar-bg:rgba(247,244,236,.9); --code-bg:#efeadd;
-    --on-accent:#fffdf8; --accent-line:rgba(138,106,28,.42);
+    --on-accent:#fffdf8; --accent-line:rgba(130,100,26,.42);
     --target-bg:rgba(217,180,90,.30);
     /* Darkened strand accents. The dark-mode hues measured 2.65–3.71:1 on the cream
        --panel (#fffdf8) — under the 4.5:1 these need as small coloured label text.
@@ -158,12 +176,10 @@
      page. Only the chosen group's tabs show below. Bible is not in any group: it is
      always in the strip, always first. */
   .srcgroups{display:flex;flex-wrap:wrap;justify-content:flex-start;gap:14px;margin:0 4px 7px}
-  .srcgroups[hidden]{display:none}
   .srcgroups button{background:none;border:none;cursor:pointer;padding:2px 1px 4px;
     color:var(--muted-2);font-family:var(--sans);font-size:12px;font-weight:300;
     letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;
     border-bottom:1.5px solid transparent}
-  .srcgroups button[hidden]{display:none}
   .srcgroups button:hover{color:var(--ink)}
   .srcgroups button[aria-selected="true"]{color:var(--accent);border-bottom-color:var(--accent)}
   /* source tabs — segmented control above the command bar, so the input owns its full row.
@@ -193,9 +209,9 @@
     color:var(--muted);font-family:var(--sans);font-size:13px;font-weight:300;cursor:pointer;
     padding:6px 12px;border-radius:7px;white-space:nowrap}
   /* A layer whose payload wasn't emitted (empty or disabled) hides its tab; a
-     Bible-only page hides the whole strip. These beat the display rules above. */
-  .srctabs[hidden]{display:none}
-  .srctabs button[hidden]{display:none}
+     Bible-only page hides the whole strip. Both ride the global
+     [hidden]{display:none!important} — the local restatements that used to sit
+     here were dead the moment that rule gained its !important. */
   .srctabs button:hover{color:var(--ink)}
   .srctabs button[aria-selected="true"]{background:var(--panel);color:var(--accent);font-weight:400;
     box-shadow:var(--shadow-tab)}
@@ -412,9 +428,8 @@
   .ch-fambtn:hover{border-color:var(--accent)}
   .ch-fambtn .ch-caret{color:var(--muted-2);font-size:10px;line-height:1}
   .ch-fammenu{position:absolute;z-index:8;top:calc(100% + 6px);left:0;min-width:292px;
-    max-height:min(56vh,400px);overflow:auto;overscroll-behavior:contain;
+    max-height:400px;overflow:auto;overscroll-behavior:contain;   /* flat px — vh measures the iframe */
     background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow-pop);padding:5px}
-  .ch-fammenu[hidden]{display:none}
   .ch-famopt{display:flex;align-items:center;gap:9px;width:100%;text-align:left;font-family:var(--sans);
     font-size:13px;font-weight:300;color:var(--muted);background:none;border:none;border-radius:8px;
     padding:7px 10px;cursor:pointer}
@@ -449,11 +464,11 @@
        repainting their artwork. */
   img.ch-emb{object-fit:contain}
   img.ch-emb.inv-d{filter:invert(1)}
-  img.ch-emb.plate-d{background:#f2efe7;border-radius:4px;padding:1px;box-sizing:border-box}
+  img.ch-emb.plate-d{background:#f2efe7;border-radius:4px;padding:1px}
   :root[data-theme="light"] img.ch-emb.inv-d{filter:none}
   :root[data-theme="light"] img.ch-emb.plate-d{background:none;padding:0}
   :root[data-theme="light"] img.ch-emb.inv-l{filter:invert(1)}
-  :root[data-theme="light"] img.ch-emb.plate-l{background:#2b2f36;border-radius:4px;padding:1px;box-sizing:border-box}
+  :root[data-theme="light"] img.ch-emb.plate-l{background:#2b2f36;border-radius:4px;padding:1px}
   .ch-clear{font-family:var(--sans);font-size:12px;font-weight:300;color:var(--accent);background:none;border:none;
     cursor:pointer;padding:4px 6px;text-decoration:underline}
   .ch-span{font-size:11px;font-weight:300;color:var(--muted-2);letter-spacing:.02em}
@@ -511,11 +526,19 @@
   .ch-perspbody p:last-child{margin-bottom:0}
   /* the chart canvas — a map pane: fixed-height window, grab-to-pan, zoomable */
   .chd-frame{position:relative;margin-top:8px}
-  /* Height is capped against the pane, not just 72vh: the chart owns its gestures
-     (touch-action:none + a non-passive wheel handler), so anything it covers is
-     unreachable. At 72vh the poster plus its legend, intro and hint ran past the
-     bottom of a 640px-tall pane, leaving zero page below it to scroll to — the
-     calc() reserves ~220px for the furniture above and below. */
+  /* Height matters because the chart owns its gestures (touch-action:none + a
+     non-passive wheel handler), so anything it covers is unreachable: at 72vh the
+     poster plus its legend, intro and hint ran past the bottom of a 640px-tall
+     pane, leaving zero page below it to scroll to.
+
+     A FLAT 560px is the real cap, with 72vh only as a ceiling on top of it. This
+     was min(72vh, calc(100vh - 220px)) — but BOTH of those terms are vh, so the
+     "cap against the pane" it claimed to be was nothing of the sort inside the
+     plugin's iframe: when fitFrame() overshoots the pane on mobile, the iframe is
+     taller than what the reader can see and both terms overshoot together. Same
+     trap .mapwrap .mp-svg dodges with a flat 520px and the wide-pane .study-body
+     dodges with a flat 560px — a predictable number beats a viewport unit that is
+     either right or silently wrong with no way to tell from inside the frame. */
   /* overscroll-behavior is `contain auto`, not plain `contain`: sideways stays
      contained (an over-swipe there is the browser's back gesture), but the vertical
      axis has to chain — it is now the ONLY thing stopping the chart trapping the
@@ -523,7 +546,7 @@
      (see chWirePanZoom), so when the poster is swiped past its top or bottom edge
      `auto` is what hands the rest of the gesture to the page. */
   .chd-wrap{overflow:auto;overscroll-behavior:contain auto;border:1px solid var(--line);border-radius:12px;
-    background:var(--panel);height:min(72vh,calc(100vh - 220px));min-height:260px;
+    background:var(--panel);height:560px;max-height:72vh;min-height:260px;
     cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;
     scrollbar-width:none;-ms-overflow-style:none}     /* pan by dragging/swiping — hide the scrollbars */
   .chd-wrap::-webkit-scrollbar{width:0;height:0;display:none}
@@ -553,7 +576,6 @@
     width:min(560px,92%);max-height:74%;overflow:auto;overscroll-behavior:contain;
     background:var(--panel);border:1px solid var(--line);border-top:4px solid var(--accent);border-radius:14px;
     box-shadow:var(--shadow-pop);padding:20px 24px 22px}
-  .chd-pop[hidden]{display:none}
   .chd-pop .pclose{position:absolute;top:12px;right:12px;background:none;border:1px solid var(--line);color:var(--muted);
     width:32px;height:32px;border-radius:999px;cursor:pointer;font-size:16px;line-height:1}
   .chd-pop .pclose:hover{border-color:var(--accent);color:var(--ink)}
@@ -583,7 +605,7 @@
      branch lands in one or two lines, and the height then genuinely holds the
      three the clamp allows. Longest word in the data ("Congregationalists",
      ~112px) still clears the line, so nothing hyphen-breaks. */
-  .chd-node{position:absolute;box-sizing:border-box;font-family:var(--sans);text-align:left;cursor:pointer;
+  .chd-node{position:absolute;font-family:var(--sans);text-align:left;cursor:pointer;
     display:flex;flex-direction:column;gap:3px;
     background:var(--panel-2);border:1px solid var(--line);border-top:3px solid var(--muted);border-radius:8px;
     padding:6px 9px 7px;overflow:hidden;z-index:1;transition:opacity .18s ease,border-color .15s ease}
@@ -737,16 +759,19 @@
   button.rnav:hover{border-color:var(--accent);color:var(--ink)}
   .reader-body .rv{margin:10px 0;padding-left:2em;text-indent:-2em;font-weight:300;line-height:1.8}
   .reader-body .rvn{font-family:var(--mono);font-size:11px;color:var(--muted-2);font-weight:500;margin-right:10px}
-  /* The two highlighted states — the verse you searched for (.target) and the verse
-     you tapped to open the study card (.studying) — share their geometry.
+  /* The three highlighted states — the verse you searched for (.target), the verse
+     you tapped to open the study card (.studying), and a verse the reader has
+     highlighted (.hl) — share their geometry.
      A plain .rv hangs its number in 2em of padding against a matching -2em indent,
      which lands the digits exactly on the border-box edge. That is invisible while
      nothing is painted behind them, but the moment a highlight has a background the
      number sits hard against its left edge — and .studying's 2px inset rule draws
      straight over the digits, clipping them. Both states therefore re-cut the box:
      2.3em of padding against a shallower -1.3em indent leaves the number 1em clear
-     of the edge. One rule for both so the pair cannot drift apart again. */
-  .reader-body .rv.target,.reader-body .rv.studying{
+     of the edge. ONE rule for all three so they cannot drift apart again — .hl
+     used to restate the same three declarations in its own block below, which is
+     precisely the drift this rule exists to prevent. */
+  .reader-body .rv.target,.reader-body .rv.studying,.reader-body .rv.hl{
     padding:11px 14px 11px 2.3em;text-indent:-1.3em;margin:10px 0}
   .reader-body .rv.target{background:var(--target-bg);border-left:2px solid var(--accent);
     border-radius:0 6px 6px 0;scroll-margin-top:20px}
@@ -767,11 +792,10 @@
      render on the iOS 15 WebKit floor, where color-mix() is absent and a rule
      using it is dropped whole — which would leave a highlight with no colour.
 
-     .hl re-cuts the box exactly as .target and .studying do above, and for the
-     same reason: the moment anything is painted behind a verse, its hanging
-     number needs the 1em of clearance. */
-  .reader-body .rv.hl{padding:11px 14px 11px 2.3em;text-indent:-1.3em;margin:10px 0;
-    background:var(--hl-tint);box-shadow:inset 3px 0 0 var(--hl);border-radius:0 6px 6px 0}
+     .hl re-cuts the box exactly as .target and .studying do — it shares their
+     geometry rule above, and carries only its colour here. */
+  .reader-body .rv.hl{background:var(--hl-tint);box-shadow:inset 3px 0 0 var(--hl);
+    border-radius:0 6px 6px 0}
   :root[data-theme="light"] .reader-body .rv.hl{background:var(--hl-tint-l)}
   /* --muted-2 is pitched to be quiet against the page's own ground, and a colour
      washed over that ground takes it under. One step up, so a highlighted verse
@@ -898,13 +922,13 @@
   .mk-plain:hover{color:var(--ink);border-color:var(--accent)}
   .mk-plain[aria-pressed="true"]{color:var(--ink);border-color:var(--accent);background:var(--panel)}
   /* Only ever seen when the clipboard was refused: the verse, ready to be copied
-     by hand. [hidden] needs saying because the display:block below would beat it. */
-  .mk-share{display:block;width:100%;box-sizing:border-box;min-height:62px;resize:vertical;
+     by hand. The display:block here loses to the global [hidden] rule's
+     !important, so hiding it needs nothing extra. */
+  .mk-share{display:block;width:100%;min-height:62px;resize:vertical;
     margin:8px 0 0;font-family:var(--sans);font-size:12.5px;font-weight:300;line-height:1.6;
     color:var(--ink);background:var(--panel);border:1px solid var(--accent);
     border-radius:9px;padding:8px 10px}
-  .mk-share[hidden]{display:none}
-  .mk-note{display:block;width:100%;box-sizing:border-box;min-height:104px;resize:vertical;
+  .mk-note{display:block;width:100%;min-height:104px;resize:vertical;
     font-family:var(--sans);font-size:13px;font-weight:300;line-height:1.65;color:var(--ink);
     background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:9px 11px}
   .mk-note:focus{outline:2px solid var(--accent);outline-offset:1px}
@@ -918,7 +942,7 @@
      this page has to reach, and ten swatches are a faster choice anyway. */
   .mk-edit{margin:10px 0 0;padding:10px 11px;border:1px solid var(--line);border-radius:9px;
     background:var(--panel)}
-  .mk-edit input[type="text"]{width:100%;box-sizing:border-box;font-family:var(--sans);
+  .mk-edit input[type="text"]{width:100%;font-family:var(--sans);
     font-size:12.5px;font-weight:300;color:var(--ink);background:var(--code-bg);
     border:1px solid var(--line);border-radius:7px;padding:6px 9px;margin:0 0 9px}
   .mk-edit input[type="text"]:focus{outline:2px solid var(--accent);outline-offset:1px}
@@ -1111,22 +1135,33 @@
   .mapwrap .mp-svg{margin:0;touch-action:none;cursor:grab;max-height:520px}
   .mapwrap.grabbing .mp-svg{cursor:grabbing}
   .mapwrap.grabbing .mp-pin,.mapwrap.grabbing .mh-pin{pointer-events:none}
-  /* One row under the map: what you can do on the left, the controls on the right.
-     Wraps to two lines on a narrow pane rather than crushing the buttons. */
-  .map-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;
-    flex-wrap:wrap;margin:7px 2px 0}
+  /* The hint runs under the map; the CONTROLS float over its top-right corner, in
+     the same place and the same dress as the Church History chart's .chd-toolbar.
+     Every pan/zoom surface on this page now puts its buttons in one corner, so the
+     gesture vocabulary and the control position are both learned once.
+
+     This used to sit in flow below the map, on the argument that a map is tall
+     enough that its lower half needs page-scrolling and a pinned corner scrolls
+     away with it. That premise no longer holds: .mp-svg is capped at 520px and
+     .pl-stage IS 520px, so the whole surface — and its corner — is on screen at
+     once. Overlaying also gives the map back the ~33px the button row was taking
+     out of that cap. */
+  .map-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:7px 2px 0}
   .map-hint{font-family:var(--sans);font-size:11px;font-weight:300;color:var(--muted-2);
     margin:0;letter-spacing:.02em}
-  .map-tools{display:flex;gap:4px;margin-left:auto}
-  .map-btn{width:26px;height:26px;display:flex;align-items:center;justify-content:center;
+  /* Same geometry, backdrop and elevation as .chd-toolbar — they are the same
+     control in two places and must not read as two different ones. */
+  .map-tools{position:absolute;top:10px;right:10px;z-index:5;display:flex;gap:3px;align-items:center;
+    background:var(--bar-bg);border:1px solid var(--line);border-radius:10px;padding:3px;
+    box-shadow:var(--shadow-tab);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+  .map-btn{min-width:28px;height:28px;display:flex;align-items:center;justify-content:center;
     font-family:var(--sans);font-size:13px;line-height:1;color:var(--muted);
-    background:var(--panel);border:1px solid var(--line);border-radius:7px;cursor:pointer;
-    opacity:.85}
-  .map-btn:hover:not(:disabled){color:var(--accent);border-color:var(--accent);opacity:1}
+    background:none;border:none;border-radius:7px;cursor:pointer;padding:0}
+  .map-btn:hover:not(:disabled){color:var(--ink);background:var(--panel-2)}
   /* A control that cannot do anything says so, rather than looking live and
      silently refusing — zoom-out at the home window is the case that matters. */
   .map-btn:disabled{opacity:.3;cursor:default}
-  .map-btn[aria-pressed="true"]{color:var(--accent);border-color:var(--accent);opacity:1}
+  .map-btn[aria-pressed="true"]{color:var(--accent);background:var(--panel-2)}
   /* Full screen. Native requestFullscreen is attempted, but the page normally runs
      inside the plugin's pane where it is refused — so position:fixed does the real
      work and fills the pane. Flex so the map takes the height it is given. */
@@ -1140,7 +1175,6 @@
   .map-pop{position:absolute;z-index:4;max-width:min(280px,72%);
     background:var(--panel);border:1px solid var(--accent-line);border-radius:10px;
     padding:11px 13px 12px;box-shadow:var(--shadow-pop);font-size:12.5px;line-height:1.55}
-  .map-pop[hidden]{display:none}
   .map-pop-x{position:absolute;top:4px;right:5px;background:none;border:none;
     color:var(--muted-2);font-size:12px;cursor:pointer;padding:2px 4px;font-family:var(--sans)}
   .map-pop-x:hover{color:var(--ink)}
@@ -1350,29 +1384,22 @@
     background:var(--panel);border:1px solid var(--line);border-radius:7px;padding:4px 9px;cursor:pointer}
   .pl-offer button:hover{color:var(--accent);border-color:var(--accent)}
 
-  /* ── narrow screens (phones, and the Obsidian mobile pane) ──────────────────
-     The desktop layout assumes ~860px. Below ~640px three things break rather
-     than merely tighten, so they're corrected here, not just scaled down:
-       1. Popovers carry min-widths (280/320px) and hang off a position:sticky
-          bar. Once taller than the space below the bar their bottom is
-          unreachable — scrolling moves the page, not the pinned bar. The help
-          popover lost its last 4 rows on a 640px-tall screen. They become
-          full-width and internally scrollable instead.
-       2. The reader's chapter-nav buttons are white-space:nowrap; two long book
-          names ("1 Thessalonians 4" / "2 Thessalonians 1") need 307px inside a
-          248px panel, so the "next" button ran 24px off-screen at 320px.
-       3. The reader head is a single flex row, which squeezed the chapter title
-          into a 111px column (3 lines) and pushed Back past the panel edge.
-     Keyed on height as well as width, because (1) is really a height failure that
-     merely correlates with narrow screens. On a pane 700×380 — iPhone Pro Max in
-     landscape, or an iPad split view — the browse popover stayed anchored under the
-     sticky bar and its Go button sat 41px below the fold, unreachable. */
-  @media (max-width:640px), (max-height:560px){
-    main{padding:24px 16px 72px}
-    h1{font-size:32px;margin:10px 0 8px}
-    .lede{font-size:14px}
-    header.hero{padding:4px 0 6px}
+  /* ── short panes: reachability only ─────────────────────────────────────────
+     Popovers carry min-widths (280/320px) and hang off a position:sticky bar.
+     Once taller than the space below the bar their bottom is unreachable —
+     scrolling moves the page, not the pinned bar. The help popover lost its last
+     4 rows on a 640px-tall screen; on a pane 700×380 (iPhone Pro Max in landscape,
+     or an iPad split view) the browse popover's Go button sat 41px below the fold.
+     That is a HEIGHT failure which merely correlates with narrow screens, so it is
+     keyed on both axes — and it is the ONLY thing in this query.
 
+     Everything else that used to live here (the h1 size, main's padding, the
+     two-row command bar, the wrapping reader head) is a WIDTH response, and the
+     height arm was handing all of it to any short window: a 1400×500 desktop got
+     phone typography and a full-width chip row for no reason. Those rules moved to
+     the width-only block below. The ▭ toggle was already split out for exactly
+     this reason — this finishes the job it started. */
+  @media (max-width:640px), (max-height:560px){
     /* Popovers become bottom sheets — the only anchoring that always fits.
        Hanging them off the bar can't work here: unscrolled, the bar sits ~340px
        down and a 341px-tall popover runs off the bottom; scrolled, it pins to
@@ -1385,20 +1412,46 @@
        one, which is also cheaper to composite on a phone.
        The min-width overrides need the specificity of the rules they beat. */
     .searchbar{backdrop-filter:none;-webkit-backdrop-filter:none;background:var(--bg)}
+    /* Keep each example intact — the narrow first column otherwise breaks them
+       mid-token ("John 3:16–" / "18", '"born' / 'again"'), which reads as two
+       separate examples. */
+    .helppop td:first-child{white-space:nowrap}
+    /* A flat 380px, not 70vh. This is the block whose whole job is reachability on
+       a short pane, and vh is measured against the IFRAME — the one box that is
+       NOT the pane when fitFrame() overshoots. A sheet 70% of an overshooting
+       iframe is exactly the unreachable popover this rule exists to fix. 380px
+       clears the shortest arm this query fires on (max-height:560px) with room for
+       the 8px offsets, and the internal scroller handles anything longer. */
+    .pop,.pop.browsepop,.pop.helppop{
+      position:fixed;top:auto;bottom:8px;left:8px;right:8px;
+      min-width:0;max-width:none;max-height:380px;
+      overflow-y:auto;overscroll-behavior:contain}
+  }
+
+  /* ── narrow screens (phones, and the Obsidian mobile pane) ──────────────────
+     The desktop layout assumes ~860px. Below ~640px two things break rather than
+     merely tighten, so they're corrected here, not just scaled down:
+       1. The reader's chapter-nav buttons are white-space:nowrap; two long book
+          names ("1 Thessalonians 4" / "2 Thessalonians 1") need 307px inside a
+          248px panel, so the "next" button ran 24px off-screen at 320px.
+       2. The reader head is a single flex row, which squeezed the chapter title
+          into a 111px column (3 lines) and pushed Back past the panel edge.
+     Both are failures of WIDTH — a 700px-wide pane has neither, however short it
+     is — which is why this block is width-only. */
+  @media (max-width:640px){
+    main{padding:24px 16px 72px}
+    h1{font-size:32px;margin:10px 0 8px}
+    .lede{font-size:14px}
+    header.hero{padding:4px 0 6px}
     /* Grouping already cuts the strip to Bible + at most four tabs, which wraps to
        two tidy rows here. The group row loses its uppercase tracking to stay on one. */
     .srcgroups{gap:10px}
     .srcgroups button{font-size:11px;letter-spacing:.04em}
     /* The top-right tool cluster follows main's tighter mobile padding. */
     .pagetools{top:22px;right:16px}
-    /* Keep each example intact — the narrow first column otherwise breaks them
-       mid-token ("John 3:16–" / "18", '"born' / 'again"'), which reads as two
-       separate examples. */
-    .helppop td:first-child{white-space:nowrap}
-    .pop,.pop.browsepop,.pop.helppop{
-      position:fixed;top:auto;bottom:8px;left:8px;right:8px;
-      min-width:0;max-width:none;max-height:70vh;
-      overflow-y:auto;overscroll-behavior:contain}
+    /* On a phone the page is forced full width and the ▭ toggle is hidden — it
+       only helps the wide desktop poster views, and mobile already fills the screen. */
+    #chipWidth{display:none}
 
     /* Reader: a head that wraps instead of squeezing. (No max-height/padding in
        vh here any more — the reader is page flow now, see the .reader rules.) */
@@ -1428,17 +1481,6 @@
        single wrapped chip reads as an orphan). Height is untouched — the 44px
        touch target below comes from min-height, not padding. */
     button.chip{padding:8px 11px}
-  }
-
-  /* Width-only, deliberately NOT folded into the block above. That block gained a
-     `(max-height:560px)` arm so the popovers become reachable bottom sheets on a
-     short pane — but the ▭ full-width toggle is about horizontal room, and it is
-     genuinely useful on a wide desktop window that merely happens to be short.
-     Hiding it there would take away a working control to fix an unrelated bug. */
-  @media (max-width:640px){
-    /* On a phone the page is forced full width and the ▭ toggle is hidden — it
-       only helps the wide desktop poster views, and mobile already fills the screen. */
-    #chipWidth{display:none}
   }
 
   /* Touch targets: the chips, tabs and result links are sized for a mouse
@@ -1485,8 +1527,11 @@
        describes. align-items:center keeps the label centred in the taller pill. */
     .tl-chip{min-height:44px;display:inline-flex;align-items:center}
     .tl-links{gap:8px}
-    .ch-chip,.ch-clear,.chd-zbtn,.otd-nav button,.chd-pop .pclose{min-height:44px}
-    .chd-zbtn,.otd-nav button,.chd-pop .pclose{min-width:44px}
+    /* .map-btn joins them: the map controls were 26px squares and had never been
+       given a touch target at all. Now that they sit in the same corner and the
+       same shell as .chd-zbtn they get the same 44px minimum too. */
+    .ch-chip,.ch-clear,.chd-zbtn,.map-btn,.otd-nav button,.chd-pop .pclose{min-height:44px}
+    .chd-zbtn,.map-btn,.otd-nav button,.chd-pop .pclose{min-width:44px}
     /* the close button grew from 32px to 44px — give the title back its clearance */
     .chd-pop h3{margin-right:46px}
     /* inline links — expand the hit box, not the type. The timeline "open", the
@@ -1519,6 +1564,11 @@
     html{scroll-behavior:auto}
     .chd-node,.verse,.hit-verse{transition:none}
     .chd-node.ch-pulse{animation:none;outline:2px solid var(--accent)}
+    /* The perspectives caret is a rotate — exactly the kind of transform this
+       query exists to stop — and the On This Day map chip and the lede bubble
+       fade. The caret still has to SAY open/closed, so only the transition goes;
+       the [open] rotation itself stays and simply lands instantly. */
+    .ch-perspitem>summary::before,.otd-map,.lede{transition:none}
   }
 </style>
 </head>
@@ -2199,9 +2249,8 @@ $ledeInfo.addEventListener("click", (e) => {
 document.addEventListener("click", (e) => {
   if (e.target !== $ledeInfo && !e.target.closest(".lede")) { ledeLatched = false; showLede(false); }
 });
-document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape" && ledeLatched) { ledeLatched = false; showLede(false); }
-});
+// Esc closing the lede is handled by the one unified Escape handler at the foot of
+// this file, not here — see the comment there for why there is only one.
 
 // The plugin calls this once after mount, off the critical path — warms the
 // translation(s) the current scope needs so the first search hits parsed data
@@ -4160,23 +4209,22 @@ function mapView(o){
      rather than a <foreignObject> inside it. That keeps the card's links and chips
      ordinary anchors the page's existing delegates already understand. */
   return '<div class="mapwrap" data-map="' + id + '">' + mapSvg(id) +
-    /* The controls sit BELOW the map, in flow, not floating over its top-right
-       corner. A map is tall enough that reaching its lower half means scrolling the
-       page — and a floating control scrolls away with the corner it is pinned to,
-       which is how they came to be "hidden". Under the map they are always the next
-       thing after it, wherever you are in it.
+    /* The controls float over the map's TOP-RIGHT corner — the same corner, dress
+       and order the Church History chart uses (see .chd-toolbar). One pan/zoom
+       vocabulary across every surface that has one, learned once.
 
        Two of them have to LOOK like what they do: the zoom-out and reset are
        disabled at the home window, because a live-looking button that does nothing
-       reads as broken. ⛶ is full screen, matching the Church History chart. */
+       reads as broken. ⛶ is full screen, matching the chart. Sibling of the SVG,
+       not a child of .map-bar, so it positions against .mapwrap. */
+    '<div class="map-tools">' +
+      '<button class="map-btn" data-mzoom="out" aria-label="Zoom out" disabled>−</button>' +
+      '<button class="map-btn" data-mzoom="in" aria-label="Zoom in">+</button>' +
+      '<button class="map-btn" data-mzoom="home" aria-label="Show the whole map" disabled>⤢</button>' +
+      '<button class="map-btn" data-mfull="1" aria-pressed="false" aria-label="Expand the map to full screen">⛶</button>' +
+    '</div>' +
     '<div class="map-bar">' +
       '<p class="map-hint">Drag to pan · pinch or ⌘/Ctrl-scroll to zoom · tap a pin for its story</p>' +
-      '<div class="map-tools">' +
-        '<button class="map-btn" data-mzoom="in" aria-label="Zoom in">+</button>' +
-        '<button class="map-btn" data-mzoom="out" aria-label="Zoom out" disabled>–</button>' +
-        '<button class="map-btn" data-mzoom="home" aria-label="Show the whole map" disabled>⤢</button>' +
-        '<button class="map-btn" data-mfull="1" aria-pressed="false" aria-label="Expand the map to full screen">⛶</button>' +
-      '</div>' +
     '</div>' +
     '<div class="map-pop" hidden></div></div>';
 }
@@ -4464,7 +4512,11 @@ function mapBindGestures(wrap){
     mapClose(id);
   };
   wrap.addEventListener("pointerdown", e => {
-    if (e.target.closest(".map-bar") || e.target.closest(".map-pop")) return;
+    // .map-tools is inside the wrap now (it floats over the map's corner), so it
+    // needs the same exemption .map-bar had — a press on a zoom button must not
+    // start a pan. Mirrors the .chd-toolbar guard in chWirePanZoom.
+    if (e.target.closest(".map-tools") || e.target.closest(".map-bar") ||
+        e.target.closest(".map-pop")) return;
     if (e.pointerType === "mouse" && e.button !== 0) return;
     /* Do NOT capture here. A captured pointer retargets the resulting CLICK to the
        capturing element, so capturing every press would send every tap to the
@@ -4645,13 +4697,9 @@ document.addEventListener("click", e => {
   }
   mapClose(id);                                       // a tap on open sea dismisses
 });
+// Enter/Space activates a focused pin. Esc is NOT handled here — see the single
+// unified Escape handler at the foot of this file.
 document.addEventListener("keydown", e => {
-  if (e.key === "Escape"){
-    const full = document.querySelector(".mapwrap.full");
-    if (full){ mapFull(full.dataset.map, false); return; }
-    Object.keys(_maps).forEach(mapClose);
-    return;
-  }
   if (e.key !== "Enter" && e.key !== " ") return;
   const pin = e.target.closest && e.target.closest("[data-mi]");
   if (!pin) return;
@@ -5430,10 +5478,26 @@ function plateClamp(){
   _pv.x = w <= sw ? (sw - w) / 2 : Math.min(0, Math.max(sw - w, _pv.x));
   _pv.y = h <= sh ? (sh - h) / 2 : Math.min(0, Math.max(sh - h, _pv.y));
 }
+/* The five nodes plateApply and syncPlateTools touch, looked up once per open plate
+   instead of once per pointermove. They hang off _pv because that is exactly their
+   lifetime — a new object per plate opened, nulled on close — so there is no cache
+   to invalidate by hand. isConnected re-queries if a render swapped the DOM out
+   from under a still-live _pv. */
+function plateEls(){
+  if (_pv.els && _pv.els.img.isConnected) return _pv.els;
+  const img = document.querySelector(".pl-img");
+  const wrap = document.querySelector('[data-map="plate"]');
+  if (!img || !wrap) return null;
+  return (_pv.els = { img, wrap,
+    out: wrap.querySelector('[data-pzoom="out"]'),
+    home: wrap.querySelector('[data-pzoom="home"]'),
+    zin: wrap.querySelector('[data-pzoom="in"]') });
+}
 function plateApply(){
-  const img = document.querySelector(".pl-img"); if (!img || !_pv) return;
+  if (!_pv) return;
+  const els = plateEls(); if (!els) return;
   plateClamp();
-  img.style.transform = "translate(" + _pv.x + "px," + _pv.y + "px) scale(" + _pv.scale + ")";
+  els.img.style.transform = "translate(" + _pv.x + "px," + _pv.y + "px) scale(" + _pv.scale + ")";
   syncPlateTools();
 }
 /* Zoom about the stage centre, or about a point when one is given (a pinch, or a
@@ -5455,13 +5519,12 @@ function plateZoomBy(f, cx, cy){
 }
 // Same contract as the vector maps: a control that cannot do anything says so.
 function syncPlateTools(){
-  const wrap = document.querySelector('[data-map="plate"]'); if (!wrap || !_pv) return;
+  if (!_pv) return;
+  const els = plateEls(); if (!els) return;
   const home = Math.abs(_pv.scale - _pv.fit) < 1e-6;
-  const out = wrap.querySelector('[data-pzoom="out"]'), hb = wrap.querySelector('[data-pzoom="home"]');
-  const zin = wrap.querySelector('[data-pzoom="in"]');
-  if (out) out.disabled = home;
-  if (hb) hb.disabled = home;
-  if (zin) zin.disabled = _pv.scale >= 5 - 1e-6;
+  if (els.out) els.out.disabled = home;
+  if (els.home) els.home.disabled = home;
+  if (els.zin) els.zin.disabled = _pv.scale >= 5 - 1e-6;
 }
 
 /* Drag to pan, pinch or ctrl/⌘-wheel to zoom — the same gesture vocabulary the
@@ -5518,14 +5581,15 @@ function plateFrame(p){
     '<div class="mapwrap" data-map="plate">' +
       '<div class="pl-stage"><img class="pl-img" alt="' + esc(p.title) +
         '" draggable="false" src="" width="' + p.w + '" height="' + p.h + '"></div>' +
+      /* Same corner, same order as the vector maps and the chart. */
+      '<div class="map-tools">' +
+        '<button class="map-btn" data-pzoom="out" aria-label="Zoom out" disabled>−</button>' +
+        '<button class="map-btn" data-pzoom="in" aria-label="Zoom in">+</button>' +
+        '<button class="map-btn" data-pzoom="home" aria-label="Fit the whole plate" disabled>⤢</button>' +
+        '<button class="map-btn" data-mfull="1" aria-pressed="false" aria-label="Expand the plate to full screen">⛶</button>' +
+      '</div>' +
       '<div class="map-bar">' +
         '<p class="map-hint">Drag to pan · pinch or ⌘/Ctrl-scroll to zoom</p>' +
-        '<div class="map-tools">' +
-          '<button class="map-btn" data-pzoom="in" aria-label="Zoom in">+</button>' +
-          '<button class="map-btn" data-pzoom="out" aria-label="Zoom out" disabled>–</button>' +
-          '<button class="map-btn" data-pzoom="home" aria-label="Fit the whole plate" disabled>⤢</button>' +
-          '<button class="map-btn" data-mfull="1" aria-pressed="false" aria-label="Expand the plate to full screen">⛶</button>' +
-        '</div>' +
       '</div>' +
       '<p class="pl-cred">' + esc(_plates.source) + '</p>' +
     '</div>';
@@ -6560,19 +6624,33 @@ let chZ = 1, chPanned = false, chApplyZoom = null;
    to whatever keeps a name uncut. All three sit at 1 above MID, so the full-detail
    tier is byte-identical to what it always was. */
 const CH_LOD_TARGET = 10.5, CH_LOD_MAXK = 1.5, CH_LOD_MID = 0.72, CH_LOD_FAR = 0.55;
+/* Memoised on the VALUES it would write, not on z. Every one of these custom
+   properties is read through calc() by all ~200 .chd-node descendants, so a write
+   invalidates style for the whole subtree — and during a pinch this used to run on
+   every pointermove (120 Hz on iOS), recomputing the entire poster's style several
+   times per frame. Above CH_LOD_MID all three are the constant "1", and rounding to
+   3dp means small drags below it often land on the same strings too, so the guard
+   skips most of the work outright. _chLod is cleared by chWirePanZoom, which
+   rebuilds the elements this cached against. */
+let _chLod = null;
 function chLod(z){
-  const wrap = document.getElementById("chdWrap");
-  const canvas = document.getElementById("chdCanvas");
-  if (!wrap || !canvas) return;
   const mid = z < CH_LOD_MID, far = z < CH_LOD_FAR;
-  const k = mid ? Math.min(CH_LOD_MAXK, Math.max(1, CH_LOD_TARGET / (z * 12.5))) : 1;
-  canvas.style.setProperty("--lodk", k.toFixed(3));
-  canvas.style.setProperty("--lodz", mid ? (1 / z).toFixed(3) : "1");
+  const k = (mid ? Math.min(CH_LOD_MAXK, Math.max(1, CH_LOD_TARGET / (z * 12.5))) : 1).toFixed(3);
+  const kz = mid ? (1 / z).toFixed(3) : "1";
   // era labels: aim for ~13px on screen, capped at 3× so a long era label can't grow
   // wide enough to run into the band beside it.
-  canvas.style.setProperty("--lodl", mid ? Math.min(3, Math.max(1, 13 / (z * 12))).toFixed(3) : "1");
+  const kl = mid ? Math.min(3, Math.max(1, 13 / (z * 12))).toFixed(3) : "1";
+  if (_chLod && _chLod.k === k && _chLod.kz === kz && _chLod.kl === kl &&
+      _chLod.mid === mid && _chLod.far === far) return;
+  const wrap = (_chLod && _chLod.wrap) || document.getElementById("chdWrap");
+  const canvas = (_chLod && _chLod.canvas) || document.getElementById("chdCanvas");
+  if (!wrap || !canvas) return;
+  canvas.style.setProperty("--lodk", k);
+  canvas.style.setProperty("--lodz", kz);
+  canvas.style.setProperty("--lodl", kl);
   wrap.classList.toggle("z-mid", mid);
   wrap.classList.toggle("z-far", far);
+  _chLod = { k, kz, kl, mid, far, wrap, canvas };
 }
 function chWirePanZoom(){
   const wrap = document.getElementById("chdWrap");
@@ -6580,15 +6658,20 @@ function chWirePanZoom(){
   const canvas = document.getElementById("chdCanvas");
   const pct = document.querySelector(".chd-zpct");
   chZ = 1; canvas.style.transform = "scale(1)";
+  _chLod = null;                    // these are fresh elements — drop the cached pair
   // Zoom, keeping one content point pinned under one wrap-viewport point (cx,cy).
   // `pt` is that point in CONTENT coords. Omitted — the wheel case — it's whatever
   // is under the cursor right now, so the poster grows toward the pointer. Pinch
   // passes the point it captured when the fingers went down: the midpoint moves
   // during a pinch, and re-deriving the anchor from the moving midpoint would keep
   // re-pinning the poster under the fingers instead of letting it travel with them.
-  chApplyZoom = (z, cx, cy, pt) => {
+  /* `rect` is optional and purely an optimisation: the pinch and wheel paths have
+     already measured the wrap for their own arithmetic, and measuring it a second
+     time here forces a fresh layout right after the previous frame's transform and
+     scroll writes. Passing it through makes the hot path one measurement, not two. */
+  chApplyZoom = (z, cx, cy, pt, rect) => {
     z = Math.max(0.35, Math.min(2.4, z));
-    const r = wrap.getBoundingClientRect();
+    const r = rect || wrap.getBoundingClientRect();
     cx = cx == null ? r.width / 2 : cx;
     cy = cy == null ? r.height / 2 : cy;
     const contentX = pt ? pt.x : (wrap.scrollLeft + cx) / chZ;
@@ -6612,6 +6695,14 @@ function chWirePanZoom(){
   let down = false, sx = 0, sy = 0, sl = 0, st = 0;
   const pts = new Map();
   let pinch = null;             // {dist, z, pt} captured when the second finger lands
+  // newest pending pinch state + its rAF handle — see the pointermove pinch branch
+  let pinchNext = null, pinchRaf = null;
+  const flushPinch = () => {
+    pinchRaf = null;
+    if (!pinchNext) return;
+    const a = pinchNext; pinchNext = null;
+    chApplyZoom(a[0], a[1], a[2], a[3], a[4]);
+  };
   const twoPts = () => { const a = [...pts.values()]; return [a[0], a[1]]; };
   // Anchor a pinch on the content point under the fingers' midpoint, in wrap coords.
   const startPinch = () => {
@@ -6646,11 +6737,19 @@ function chWirePanZoom(){
     if (!pts.has(e.pointerId)) return;
     pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (pinch && pts.size >= 2){
+      /* Coalesced to one apply per FRAME. A pinch fires pointermove at the device's
+         input rate — 120 Hz on a recent iPhone — and each apply writes a transform,
+         resizes the sizer, rewrites both scroll offsets and (via chLod) invalidates
+         style for every node on the poster. Doing that two or three times between
+         paints is work no one ever sees. Only the newest pinch state matters, so it
+         overwrites rather than queues, and the rect is measured once here and handed
+         down rather than taken again inside chApplyZoom. */
       const [p, q] = twoPts();
       const r = wrap.getBoundingClientRect();
       const dist = Math.max(1, Math.hypot(p.x - q.x, p.y - q.y));
-      chApplyZoom(pinch.z * (dist / pinch.dist),
-                  (p.x + q.x) / 2 - r.left, (p.y + q.y) / 2 - r.top, pinch.pt);
+      pinchNext = [pinch.z * (dist / pinch.dist),
+                   (p.x + q.x) / 2 - r.left, (p.y + q.y) / 2 - r.top, pinch.pt, r];
+      if (pinchRaf == null) pinchRaf = requestAnimationFrame(flushPinch);
       return;
     }
     if (!down) return;
@@ -6664,6 +6763,10 @@ function chWirePanZoom(){
     if (chPanned){ wrap.scrollLeft = sl - dx; wrap.scrollTop = st - dy; }
   });
   const end = e => {
+    // Land the last coalesced pinch frame before the gesture is torn down, so the
+    // poster ends where the fingers left it rather than one frame behind — and so a
+    // queued frame can never apply itself into the NEXT gesture.
+    if (pinchRaf != null){ cancelAnimationFrame(pinchRaf); flushPinch(); }
     const had = pts.delete(e.pointerId);
     try { wrap.releasePointerCapture(e.pointerId); } catch (_) {}
     if (!had) return;
@@ -6705,7 +6808,7 @@ function chWirePanZoom(){
     else if (e.deltaMode === 2) dy *= wrap.clientHeight;  // pages → ~px
     const step = Math.max(-0.25, Math.min(0.25, -dy * 0.01));
     const r = wrap.getBoundingClientRect();
-    chApplyZoom(chZ * (1 + step), e.clientX - r.left, e.clientY - r.top);
+    chApplyZoom(chZ * (1 + step), e.clientX - r.left, e.clientY - r.top, null, r);
   }, { passive: false });
 }
 // Fill and show the floating popup for a branch: date, family, title, description,
@@ -6846,7 +6949,7 @@ function chGoto(id){
   chRevealPop();
 }
 /* The popup is anchored to the BOTTOM of .chd-frame, and the frame is as tall as the
-   pane allows (min(72vh, 100vh - 220px)). That 220px reserve assumes the chart sits
+   pane allows (a flat 560px, capped at 72vh). That fixed height assumes the chart sits
    near the top of the page — but the heading, tabs, filter box, two intro paragraphs
    and the family selector above it come to ~570px in a narrow pane. So in the
    Obsidian side pane (and on a phone) the card opened correctly and landed entirely
@@ -7722,17 +7825,8 @@ function chFamMenu(on){
 document.addEventListener("click", e => {
   if (!e.target.closest(".ch-famsel")) chFamMenu(false);
 });
-/* Esc unwinds the chart one layer at a time — open dropdown, then the branch popup,
-   then full screen. Unwinding in one keypress would drop a user out of full screen
-   just because they wanted to shut a popup. */
-document.addEventListener("keydown", e => {
-  if (e.key !== "Escape") return;
-  const menu = document.getElementById("chFamMenu");
-  if (menu && !menu.hidden){ chFamMenu(false); return; }
-  const pop = document.getElementById("chdPop");
-  if (pop && !pop.hidden){ chClosePop(); return; }
-  if (document.querySelector(".chd-frame.full")) chFull(false);
-});
+/* The chart's Esc layers (dropdown → branch popup → full screen) live in the one
+   unified Escape handler at the foot of this file. */
 /* Arrow keys walk the genealogy. Bound to $res, so it only fires while focus is on
    the chart itself (a node button) — typing in the search box keeps its own caret
    movement, and the reader's own ←/→ chapter paging is untouched because that
@@ -7748,16 +7842,58 @@ $res.addEventListener("keydown", e => {
   chSel = on.dataset.node;
   chStep(dir);
 });
-// Esc leaves the reader; ← / → page between chapters. (There is no backdrop to
+// ← / → page between chapters while the reader is open. (There is no backdrop to
 // click any more — the reader is a page, and Back is always on screen.)
 document.addEventListener("keydown", e => {
-  if ($reader.hidden){
-    if (e.key === "Escape" && anyPopOpen()) closePops();
-    return;
-  }
-  if (e.key === "Escape") closeReader();
-  else if (e.key === "ArrowLeft" && curNav && curNav.prev) openVerse(curNav.t, curNav.prev[0], curNav.prev[1], null, -1);
+  if ($reader.hidden) return;
+  if (e.key === "ArrowLeft" && curNav && curNav.prev) openVerse(curNav.t, curNav.prev[0], curNav.prev[1], null, -1);
   else if (e.key === "ArrowRight" && curNav && curNav.next) openVerse(curNav.t, curNav.next[0], curNav.next[1], null, 1);
+});
+
+/* ── Escape: ONE handler, one layer per press ────────────────────────────────
+   This was four separate document-level listeners — lede, maps, Church History,
+   reader — each written as though it were the only one. They all fire on every
+   press, and a `return` only leaves its OWN handler, so a single Escape ran the
+   lot. Concretely: with a chapter open and a place popup showing on its map, one
+   press closed the popup AND left the chapter. The maps handler was worse than
+   that — its `Object.keys(_maps).forEach(mapClose)` was unconditional, so
+   dismissing the Church History family dropdown silently shut every map popup on
+   the page as well.
+
+   The chart handler already had the right instinct and said so: "Unwinding in one
+   keypress would drop a user out of full screen just because they wanted to shut a
+   popup." It just couldn't hold the line on its own. Now every layer is in one
+   ordered list, innermost first, and the first match wins and stops — which is the
+   rule that comment was describing all along.
+
+   Order is transience: a thing you opened a moment ago and a thing you have been
+   reading for ten minutes should not cost the same keypress. */
+document.addEventListener("keydown", e => {
+  if (e.key !== "Escape") return;
+
+  // 1. the lede bubble — the lightest thing on the page
+  if (ledeLatched){ ledeLatched = false; showLede(false); return; }
+
+  // 2. Church History: family dropdown, then the branch popup
+  const fam = document.getElementById("chFamMenu");
+  if (fam && !fam.hidden){ chFamMenu(false); return; }
+  const chPop = document.getElementById("chdPop");
+  if (chPop && !chPop.hidden){ chClosePop(); return; }
+
+  // 3. a command-bar popover (only reachable when the reader is not covering it)
+  if ($reader.hidden && anyPopOpen()){ closePops(); return; }
+
+  // 4. ONE open place popup, not all of them — a press closes a layer, not a mode
+  const openMap = Object.keys(_maps).find(id => _maps[id] && _maps[id].open != null);
+  if (openMap){ mapClose(openMap); return; }
+
+  // 5. full screen, either surface
+  const mfull = document.querySelector(".mapwrap.full");
+  if (mfull){ mapFull(mfull.dataset.map, false); return; }
+  if (document.querySelector(".chd-frame.full")){ chFull(false); return; }
+
+  // 6. and only then does Escape leave the chapter
+  if (!$reader.hidden) closeReader();
 });
 
 /* Last, and deliberately not awaited: the reader's own marks. Nothing on the page
