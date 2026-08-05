@@ -155,10 +155,12 @@
     padding:12px 15px;box-shadow:var(--shadow-tab);
     opacity:0;visibility:hidden;transition:opacity .12s ease}
   /* One class, set by JS for hover, keyboard focus and tap alike. Deliberately not
-     :has(.ledeinfo:hover) — the release preflight guards this file against older
-     WebKit, and a single class costs nothing and works everywhere. A hover-only
-     tooltip would be unreachable by keyboard and unopenable on a phone anyway, so
-     the JS path has to exist regardless. */
+     :has(.ledeinfo:hover) — that pseudo-class is absent on the iOS 15 WebKit floor
+     (see the_stylesheet_never_mixes_a_floor_pseudo_class_into_a_shared_selector_list
+     in tools/page-js.test.js, which is what actually holds this line honest), and a
+     single class costs nothing and works everywhere. A hover-only tooltip would be
+     unreachable by keyboard and unopenable on a phone anyway, so the JS path has to
+     exist regardless. */
   .hero.lede-open .lede{opacity:1;visibility:visible}
 
   /* command bar — one row owns the whole region; filters are chips with popovers */
@@ -181,7 +183,8 @@
     letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;
     border-bottom:1.5px solid transparent}
   .srcgroups button:hover{color:var(--ink)}
-  .srcgroups button[aria-selected="true"]{color:var(--accent);border-bottom-color:var(--accent)}
+  /* aria-pressed, not aria-selected: these are toggles in a toolbar, not tabs. */
+  .srcgroups button[aria-pressed="true"]{color:var(--accent);border-bottom-color:var(--accent)}
   /* source tabs — segmented control above the command bar, so the input owns its full row.
 
      ONE ROW, ALWAYS, and it scrolls sideways when it doesn't fit. Wrapping looks
@@ -227,8 +230,14 @@
      and WebKit paint a native cancel ✕ that draws in the platform's grey and ignores
      the palette entirely (a light glyph on the dark theme, and vice versa). We have
      no use for it — the bar clears on Esc — so reset the widget and drop the button. */
+  /* No outline:none here, deliberately. It used to sit in this block, and at ID
+     specificity (1,0,0) it beat the input:focus ring below (0,1,1) — so the focus
+     rule the stylesheet carried for the search box had in fact never painted, and
+     a keyboard user tabbing back into #q got nothing. The UA outline only appears
+     on focus anyway, which is exactly the state the :focus pair below governs, so
+     dropping the reset costs nothing in the resting state and restores the ring. */
   #q{flex:1;min-width:150px;font-size:18px;font-family:var(--sans);font-weight:200;letter-spacing:.01em;
-    color:var(--ink);background:transparent;border:none;outline:none;padding:12px 6px;
+    color:var(--ink);background:transparent;border:none;padding:12px 6px;
     appearance:none;-webkit-appearance:none}
   #q::-webkit-search-cancel-button{display:none}
   #q::placeholder{color:var(--muted-2);font-weight:300}
@@ -272,9 +281,26 @@
     padding:1px 6px;border-radius:6px}
   .helppop p{margin:8px 0 0}
   /* `input` belongs in this list: #q kills the UA outline outright, so a keyboard
-     user tabbing back into the search box otherwise had no focus indication at all. */
-  a:focus-visible,button:focus-visible,input:focus-visible,summary:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+     user tabbing back into the search box otherwise had no focus indication at all.
+
+     Written as :focus + :focus:not(:focus-visible) rather than :focus-visible alone,
+     because an engine that doesn't know the pseudo-class throws away the WHOLE rule
+     rather than the one selector — and on the iOS 15 WebKit floor this page targets,
+     :focus-visible only arrives in 15.4. A bare :focus-visible ring is therefore no
+     ring at all for the 15.0–15.3 band. The pair degrades the right way round: old
+     engines keep rule one and drop rule two (a ring on every focus, which is the
+     safe failure), new engines apply both and land exactly where :focus-visible
+     alone did. :not() is deliberate — unlike :is() it is NOT forgiving, which is
+     what makes rule two vanish on the engines that need rule one to stand. */
+  a:focus,button:focus,input:focus,summary:focus,select:focus{outline:2px solid var(--accent);outline-offset:2px}
+  a:focus:not(:focus-visible),button:focus:not(:focus-visible),input:focus:not(:focus-visible),summary:focus:not(:focus-visible),select:focus:not(:focus-visible){outline:none}
   [hidden]{display:none!important}
+  /* Present to a screen reader, absent to everyone else. clip-path would be the
+     modern spelling; the clip rect is kept because it is the one that works all
+     the way down to the iOS 15 floor this page targets. Not display:none, which
+     would take it out of the accessibility tree along with everything else. */
+  .sr-only{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;
+    clip:rect(0 0 0 0);white-space:nowrap;border:0}
   /* used by the reader's error/empty paragraphs — it had never actually been defined */
   .muted{color:var(--muted-2);font-size:13px}
 
@@ -1247,7 +1273,10 @@
   .otd-map{position:absolute;top:6px;right:6px;font-family:var(--sans);font-size:10.5px;
     color:var(--muted-2);background:var(--panel);border:1px solid var(--line);border-radius:999px;
     padding:2px 8px;cursor:pointer;opacity:0;transition:opacity .12s ease}
-  .otd-wrap:hover .otd-map,.otd-map:focus-visible{opacity:1}
+  /* Split rather than one list: on an engine without :focus-visible the whole rule
+     would be dropped and the chip would never appear on hover either. */
+  .otd-wrap:hover .otd-map{opacity:1}
+  .otd-map:focus-visible{opacity:1}
   .otd-map:hover{color:var(--accent);border-color:var(--accent)}
   /* Hover reveals it on a pointer; a touch device has no hover, so show it always. */
   @media (hover:none){.otd-map{opacity:1}}
@@ -1261,8 +1290,12 @@
   .mh-pin text{fill:var(--accent);font-family:var(--mono);text-anchor:middle;cursor:pointer;
     paint-order:stroke;stroke:var(--panel);stroke-width:1.5px;stroke-linejoin:round;
     vector-effect:non-scaling-stroke}
-  .mh-pin:hover circle,.mh-pin:focus-visible circle{fill:var(--accent)}
-  .mh-pin:hover text,.mh-pin:focus-visible text{fill:var(--on-accent);stroke:var(--accent)}
+  /* Hover and focus kept apart: sharing a selector list means an engine that doesn't
+     know :focus-visible loses the pin highlight on hover as well. */
+  .mh-pin:hover circle{fill:var(--accent)}
+  .mh-pin:hover text{fill:var(--on-accent);stroke:var(--accent)}
+  .mh-pin:focus-visible circle{fill:var(--accent)}
+  .mh-pin:focus-visible text{fill:var(--on-accent);stroke:var(--accent)}
   .mh-pin:focus-visible{outline:none}
   .mh-pin.on circle{fill:var(--accent)}
   .mh-pin.on text{fill:var(--on-accent);stroke:var(--accent)}
@@ -1355,7 +1388,10 @@
   .pl-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(232px,1fr));gap:10px;margin:0 0 14px}
   .pl-card{text-align:left;background:var(--panel);border:1px solid var(--line);border-radius:10px;
     padding:11px 13px 12px;cursor:pointer;font-family:inherit;color:inherit;display:block;width:100%}
-  .pl-card:hover,.pl-card:focus-visible{border-color:var(--accent);outline:none}
+  /* Split for the same reason as the map pins — a shared list would take the hover
+     border down with it on an engine that doesn't know :focus-visible. */
+  .pl-card:hover{border-color:var(--accent)}
+  .pl-card:focus-visible{border-color:var(--accent);outline:none}
   .pl-card h4{font-family:var(--sans);font-size:12.5px;font-weight:500;margin:0 0 4px;line-height:1.4}
   .pl-card .pl-when{font-family:var(--mono);font-size:10.5px;color:var(--accent);
     letter-spacing:.03em;margin:0 0 5px}
@@ -1588,30 +1624,33 @@
   </div>
 
   <div class="searchbar">
-    <div class="srcgroups" role="tablist" aria-label="Tab groups">
-      <button role="tab" data-g="study" aria-selected="true">Study</button>
-      <button role="tab" data-g="history" aria-selected="false">History</button>
-      <button role="tab" data-g="devotion" aria-selected="false">Devotion</button>
-      <button role="tab" data-g="reading" aria-selected="false">Reading</button>
-      <button role="tab" data-g="notes" aria-selected="false">Notes</button>
+    <!-- A toolbar of toggles, not a tablist: these five control WHICH TABS the strip
+         below shows, not a panel of their own. Calling them tabs promised a screen
+         reader a panel that does not exist, and aria-pressed says what they do. -->
+    <div class="srcgroups" role="toolbar" aria-label="Tab groups" aria-controls="srctabs">
+      <button data-g="study" aria-pressed="true" tabindex="0">Study</button>
+      <button data-g="history" aria-pressed="false" tabindex="-1">History</button>
+      <button data-g="devotion" aria-pressed="false" tabindex="-1">Devotion</button>
+      <button data-g="reading" aria-pressed="false" tabindex="-1">Reading</button>
+      <button data-g="notes" aria-pressed="false" tabindex="-1">Notes</button>
     </div>
-    <div class="srctabs" role="tablist" aria-label="Search in">
-      <button role="tab" data-s="bible" aria-selected="true">📖 Bible</button>
-      <button role="tab" data-s="words" data-g="study" aria-selected="false">🔤 Words</button>
-      <button role="tab" data-s="topics" data-g="study" aria-selected="false">🏷️ Topics</button>
-      <button role="tab" data-s="faq" data-g="study" aria-selected="false">❓ FAQ</button>
-      <button role="tab" data-s="commentary" data-g="study" aria-selected="false">📚 Commentary</button>
-      <button role="tab" data-s="translations" data-g="study" aria-selected="false">⚖️ Translations</button>
-      <button role="tab" data-s="timeline" data-g="history" aria-selected="false">🕰️ Timeline</button>
-      <button role="tab" data-s="history" data-g="history" aria-selected="false">📜 History</button>
-      <button role="tab" data-s="churchhistory" data-g="history" aria-selected="false">⛪ Church History</button>
-      <button role="tab" data-s="onthisday" data-g="history" aria-selected="false">📅 On This Day</button>
-      <button role="tab" data-s="maps" data-g="history" aria-selected="false">🗺️ Maps</button>
-      <button role="tab" data-s="prayers" data-g="devotion" aria-selected="false">🙏 Prayers</button>
+    <div class="srctabs" id="srctabs" role="tablist" aria-label="Search in">
+      <button role="tab" id="tab-bible" data-s="bible" aria-controls="results" aria-selected="true" tabindex="0">📖 Bible</button>
+      <button role="tab" id="tab-words" data-s="words" data-g="study" aria-controls="results" aria-selected="false" tabindex="-1">🔤 Words</button>
+      <button role="tab" id="tab-topics" data-s="topics" data-g="study" aria-controls="results" aria-selected="false" tabindex="-1">🏷️ Topics</button>
+      <button role="tab" id="tab-faq" data-s="faq" data-g="study" aria-controls="results" aria-selected="false" tabindex="-1">❓ FAQ</button>
+      <button role="tab" id="tab-commentary" data-s="commentary" data-g="study" aria-controls="results" aria-selected="false" tabindex="-1">📚 Commentary</button>
+      <button role="tab" id="tab-translations" data-s="translations" data-g="study" aria-controls="results" aria-selected="false" tabindex="-1">⚖️ Translations</button>
+      <button role="tab" id="tab-timeline" data-s="timeline" data-g="history" aria-controls="results" aria-selected="false" tabindex="-1">🕰️ Timeline</button>
+      <button role="tab" id="tab-history" data-s="history" data-g="history" aria-controls="results" aria-selected="false" tabindex="-1">📜 History</button>
+      <button role="tab" id="tab-churchhistory" data-s="churchhistory" data-g="history" aria-controls="results" aria-selected="false" tabindex="-1">⛪ Church History</button>
+      <button role="tab" id="tab-onthisday" data-s="onthisday" data-g="history" aria-controls="results" aria-selected="false" tabindex="-1">📅 On This Day</button>
+      <button role="tab" id="tab-maps" data-s="maps" data-g="history" aria-controls="results" aria-selected="false" tabindex="-1">🗺️ Maps</button>
+      <button role="tab" id="tab-prayers" data-s="prayers" data-g="devotion" aria-controls="results" aria-selected="false" tabindex="-1">🙏 Prayers</button>
       <button data-g="devotion" disabled>📆 Reading Plan <span class="soon">soon</span></button>
-      <button role="tab" data-s="articles" data-g="reading" aria-selected="false">📄 Articles</button>
-      <button role="tab" data-s="marks" data-g="notes" aria-selected="false">🖍️ My Highlights</button>
-      <button role="tab" data-s="bookmarks" data-g="notes" aria-selected="false">🔖 Bookmarks</button>
+      <button role="tab" id="tab-articles" data-s="articles" data-g="reading" aria-controls="results" aria-selected="false" tabindex="-1">📄 Articles</button>
+      <button role="tab" id="tab-marks" data-s="marks" data-g="notes" aria-controls="results" aria-selected="false" tabindex="-1">🖍️ My Highlights</button>
+      <button role="tab" id="tab-bookmarks" data-s="bookmarks" data-g="notes" aria-controls="results" aria-selected="false" tabindex="-1">🔖 Bookmarks</button>
     </div>
     <div class="cmd">
       <span class="glyph" aria-hidden="true">🔍</span>
@@ -1779,7 +1818,13 @@ __TRANS_MENU__
   </div>
 
   <p id="status" role="status" aria-live="polite"></p>
-  <section id="results" aria-label="Search results"></section>
+  <!-- One heading, rewritten per tab, doing two jobs. It names the panel (so the
+       tab strip finally controls something a screen reader can be sent to), and it
+       is the only h2 on a page that is otherwise one h1 and 8000 lines — which is
+       what heading-by-heading navigation had to work with before. Visually hidden
+       because the selected tab already says the same thing on screen. -->
+  <h2 id="viewHeading" class="sr-only">Bible</h2>
+  <section id="results" role="tabpanel" aria-labelledby="viewHeading"></section>
 
   <!-- The reader lives INSIDE main, as a sibling page: body.reading hides the
        other children and this takes the page over. It is deliberately not a
@@ -1812,12 +1857,28 @@ const BOOKS = __BOOKS__;
    always go through D()/notes(). */
 const _dcache = {};
 const _dloading = {};  // trans → in-flight Promise, so parallel callers share one read
+/* One place to turn a payload — inline <script> or sidecar string — into data.
+   Every failure here is a build or a sync fault rather than anything the reader
+   did, so the message names WHICH payload: a bare "Unexpected token < in JSON"
+   out of a half-synced sidecar is the least actionable error this page can raise.
+   A missing element and unparseable text are the same failure to a caller, so
+   they share one throw. Callers that legitimately expect an absent payload keep
+   their own `if (!el)` ahead of this and never reach it. */
+function payload(id, txt){
+  if (txt == null){
+    const el = document.getElementById(id);
+    if (!el) throw new Error('The "' + id + '" payload is not in this page — the layer that needs it should have been hidden at build time.');
+    txt = el.textContent;
+  }
+  try { return JSON.parse(txt); }
+  catch (e) { throw new Error('The "' + id + '" payload is not valid JSON — it may still be syncing, or the build that wrote it was interrupted.'); }
+}
 function D(t){ /* trans -> [ [bookIdx, chapter, verse, text], ... ] canonical order */
   let d = _dcache[t];
   if (!d){
     const el = document.getElementById("bd-" + t);
     if (!el) throw new Error(t + " is not loaded — await ensureData() first");
-    d = _dcache[t] = JSON.parse(el.textContent);
+    d = _dcache[t] = payload("bd-" + t, el.textContent);
   }
   return d;
 }
@@ -1831,7 +1892,7 @@ function ensureData(list){
     if (!_dloading[t]){
       const host = window.bibleSearchLoadData;
       _dloading[t] = host
-        ? host("bd-" + t).then(txt => { _dcache[t] = JSON.parse(txt); })
+        ? host("bd-" + t).then(txt => { _dcache[t] = payload("bd-" + t, txt); })
         : Promise.reject(new Error("This page loads its verse text through the Bible Search plugin — open it inside Obsidian, or rebuild with --inline for a standalone file."));
       _dloading[t].catch(() => { delete _dloading[t]; });
     }
@@ -1849,11 +1910,11 @@ const _pcache = {}, _ploading = {};
 function loadPayload(id){
   if (_pcache[id]) return Promise.resolve(_pcache[id]);
   const el = document.getElementById(id);
-  if (el) return Promise.resolve(_pcache[id] = JSON.parse(el.textContent));
+  if (el) return Promise.resolve(_pcache[id] = payload(id, el.textContent));
   if (!_ploading[id]){
     const host = window.bibleSearchLoadData;
     _ploading[id] = host
-      ? host(id).then(txt => (_pcache[id] = JSON.parse(txt)))
+      ? host(id).then(txt => (_pcache[id] = payload(id, txt)))
       : Promise.reject(new Error("This layer loads from the vault through the Bible Search plugin — open this page inside Obsidian."));
     // Clear the slot on failure so the next open retries: the usual cause is a
     // sidecar that hasn't finished syncing from iCloud yet, which fixes itself.
@@ -2043,7 +2104,7 @@ const NOTE_ICON = { articles: "📄", topics: "🏷️", faq: "❓", prayers: "�
 const _noteCache = {}, _noteLC = {};
 function notes(coll){ /* [ title, author, date, topics, excerpt, path, url, body, source ] */
   const id = NOTE_ID[coll];
-  if (!_noteCache[id]) _noteCache[id] = JSON.parse(document.getElementById(id).textContent);
+  if (!_noteCache[id]) _noteCache[id] = payload(id);
   return _noteCache[id];
 }
 // Any vault path → the obsidian:// URL that opens it. encodeURIComponent is what
@@ -2079,7 +2140,7 @@ function ensureLex(){
   if (!_lexLoading){
     const host = window.bibleSearchLoadData;
     _lexLoading = host
-      ? host("lex").then(txt => { _lex = JSON.parse(txt); })
+      ? host("lex").then(txt => { _lex = payload("lex", txt); })
       : Promise.reject(new Error("The dictionary loads through the Bible Search plugin — open this page inside Obsidian."));
     _lexLoading.catch(() => { _lexLoading = null; });
   }
@@ -2712,7 +2773,7 @@ function ensureCmx(){
   if (!_cmxLoading){
     const host = window.bibleSearchLoadData;
     _cmxLoading = host
-      ? host("cmx").then(txt => { _cmx = JSON.parse(txt); })
+      ? host("cmx").then(txt => { _cmx = payload("cmx", txt); })
       : Promise.reject(new Error("The commentary index loads through the Bible Search plugin — open this page inside Obsidian."));
     _cmxLoading.catch(() => { _cmxLoading = null; });
   }
@@ -5101,11 +5162,16 @@ function openStudy(t, bi, ch, v, verseEl){
     '<div class="study-ref"><button class="study-back">' +
       esc(BOOKS[bi] + " " + ch + ":" + v) + ' ↑</button><span class="spacer"></span>' +
       '<button class="study-close" aria-label="Close study panel">✕</button></div>' +
-    '<div class="study-tabs" role="tablist">' +
+    /* Fixed ids are safe here: openStudy() calls closeStudy() before it builds,
+       so exactly one study panel is ever in the document. */
+    '<div class="study-tabs" role="tablist" aria-label="Study">' +
     tabs.map(([k, label]) =>
-      '<button role="tab" data-tab="' + k + '" aria-selected="' + (k === studyTab) + '">' +
+      '<button role="tab" id="studytab-' + k + '" data-tab="' + k +
+      '" aria-controls="study-body" aria-selected="' + (k === studyTab) +
+      '" tabindex="' + (k === studyTab ? 0 : -1) + '">' +
       esc(label) + '</button>').join("") +
-    '</div><div class="study-body"></div>';
+    '</div><div class="study-body" id="study-body" role="tabpanel" aria-labelledby="studytab-' +
+      studyTab + '"></div>';
   /* Appended to .reader, so the card is a SIBLING of .reader-panel rather than a
      child of the reading column. openReader() replaces .reader's innerHTML on every
      chapter change, so the card cannot outlive the chapter it describes. */
@@ -5127,8 +5193,11 @@ function openStudy(t, bi, ch, v, verseEl){
     b.addEventListener("click", () => {
       studyTab = b.dataset.tab;
       studyAt.tab = studyTab;
-      panel.querySelectorAll('[role="tab"]').forEach(o =>
-        o.setAttribute("aria-selected", String(o === b)));
+      panel.querySelectorAll('[role="tab"]').forEach(o => {
+        o.setAttribute("aria-selected", String(o === b));
+        o.tabIndex = o === b ? 0 : -1;          // roving tabindex, as on the main strip
+      });
+      box.setAttribute("aria-labelledby", b.id);
       renderStudyBody(box, studyTab, t, bi, ch, v);
     }));
   panel.querySelector(".study-close").addEventListener("click", closeStudy);
@@ -6211,7 +6280,7 @@ const CH_COLS = ["catholic","forerunner","lutheran","anglican","reformed","radic
 const CH_NW = 168, CH_NH = 88, CH_VGAP = 13, CH_BANDPAD = 42, CH_BANDGAP = 18;
 function chData(){
   if (_ch) return _ch;
-  _ch = JSON.parse(document.getElementById("cd").textContent);
+  _ch = payload("cd");
   _ch.byId = Object.fromEntries(_ch.nodes.map(n => [n.id, n]));
   _ch.eraLabel = Object.fromEntries(_ch.eras.map(e => [e.id, e.label]));
   _ch.famLabel = Object.fromEntries(_ch.families.map(f => [f.id, f.label]));
@@ -6977,7 +7046,7 @@ function chRevealPop(){
    use. The balance logic mirrors tools/gen-history-calendar.js: Protestant /
    evangelical first, Roman Catholic capped, curated entries always lead. */
 let _otd = null;
-function otd(){ if (!_otd) _otd = JSON.parse(document.getElementById("od").textContent); return _otd; }
+function otd(){ if (!_otd) _otd = payload("od"); return _otd; }
 // Fixed-date events grouped by strand. Colours reuse the existing section classes.
 const OTD_CATS = [["Scripture","feat"],["Christian calendar","miss"],["Church history","prot"]];
 function otdEntry(e, terms){
@@ -7537,6 +7606,7 @@ document.querySelectorAll("#popTest [data-ot]").forEach(btn => btn.addEventListe
 
 // source tabs → mode + chip visibility + help swap
 const $tabs = Array.from(document.querySelectorAll(".srctabs [data-s]"));
+const $viewHeading = document.getElementById("viewHeading");
 // A layer is present only if the builder emitted its payload <script>. Hide any
 // tab whose payload is absent (empty or disabled layer); Timeline renders from
 // the History payload, so it shares "hd". Bible is always present. With nothing
@@ -7585,7 +7655,14 @@ let group = $visGroups.length ? $visGroups[0].dataset.g : null;
 // Show one group's tabs and hide the rest. Payload-hidden tabs stay hidden either
 // way — .tab-off is a separate axis from [hidden] so neither can clobber the other.
 function layoutTabs(){
-  $groups.forEach(g => g.setAttribute("aria-selected", g.dataset.g === group ? "true" : "false"));
+  $groups.forEach(g => {
+    const on = g.dataset.g === group;
+    g.setAttribute("aria-pressed", on ? "true" : "false");
+    // Roving tabindex: the toolbar is ONE tab stop and the arrow keys move inside
+    // it. Without this the five groups and fifteen tabs were twenty separate stops
+    // between the page and its own content.
+    g.tabIndex = on ? 0 : -1;
+  });
   $groupTabs.forEach(b => b.classList.toggle("tab-off", b.dataset.g !== group));
 }
 // The tabs currently in the strip: Bible plus the open group's, in DOM order.
@@ -7623,7 +7700,16 @@ const PLACEHOLDER = {
 function selectSource(s, focusInput){
   source = s;
   const bible = source === "bible";
-  $tabs.forEach(b => b.setAttribute("aria-selected", b.dataset.s === s ? "true" : "false"));
+  $tabs.forEach(b => {
+    const on = b.dataset.s === s;
+    b.setAttribute("aria-selected", on ? "true" : "false");
+    b.tabIndex = on ? 0 : -1;   // roving tabindex, as on the group row above
+  });
+  /* The panel's name, and the page's only h2. Both come off the tab's own label
+     with the leading emoji stripped — it is decoration on screen and noise read
+     aloud, and the words after it are already the name of the view. */
+  const tabEl = $tabs.find(b => b.dataset.s === s);
+  if (tabEl) $viewHeading.textContent = tabEl.textContent.replace(/^[^A-Za-z]+/, "").trim();
   // A source can also be chosen from outside the strip; open its group so the
   // selected tab is actually on screen. Bible belongs to none and changes nothing.
   const home = $tabs.find(b => b.dataset.s === s);
