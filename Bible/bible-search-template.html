@@ -5189,17 +5189,31 @@ function openStudy(t, bi, ch, v, verseEl){
   if (!sideBySide) panel.scrollIntoView({ block: "nearest", behavior: "instant" });
 
   const box = panel.querySelector(".study-body");
-  panel.querySelectorAll('.study-tabs button[role="tab"]').forEach(b =>
-    b.addEventListener("click", () => {
-      studyTab = b.dataset.tab;
-      studyAt.tab = studyTab;
-      panel.querySelectorAll('[role="tab"]').forEach(o => {
-        o.setAttribute("aria-selected", String(o === b));
-        o.tabIndex = o === b ? 0 : -1;          // roving tabindex, as on the main strip
-      });
-      box.setAttribute("aria-labelledby", b.id);
-      renderStudyBody(box, studyTab, t, bi, ch, v);
-    }));
+  const studyBtns = Array.from(panel.querySelectorAll('.study-tabs button[role="tab"]'));
+  function pickStudyTab(b){
+    studyTab = b.dataset.tab;
+    studyAt.tab = studyTab;
+    studyBtns.forEach(o => {
+      o.setAttribute("aria-selected", String(o === b));
+      o.tabIndex = o === b ? 0 : -1;            // roving tabindex, as on the main strip
+    });
+    box.setAttribute("aria-labelledby", b.id);
+    renderStudyBody(box, studyTab, t, bi, ch, v);
+  }
+  studyBtns.forEach(b => b.addEventListener("click", () => pickStudyTab(b)));
+  /* The arrow keys are not a nicety here — they are the ONLY way in. A roving
+     tabindex puts tabindex="-1" on every unselected tab, so without this handler
+     five of the six study tabs are unreachable by keyboard entirely. The two
+     strips at the top of the page have carried their own copy of this since they
+     were written; this one was added when the roving tabindex was. */
+  panel.querySelector(".study-tabs").addEventListener("keydown", e => {
+    if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+    e.preventDefault();
+    const i = studyBtns.findIndex(b => b.dataset.tab === studyTab);
+    const next = studyBtns[(i + (e.key === "ArrowRight" ? 1 : studyBtns.length - 1)) % studyBtns.length];
+    pickStudyTab(next);
+    next.focus();
+  });
   panel.querySelector(".study-close").addEventListener("click", closeStudy);
   renderStudyBody(box, studyTab, t, bi, ch, v);
 }
