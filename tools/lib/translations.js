@@ -31,12 +31,26 @@ const NON_TRANSLATION = new Set([
   "Commentary", "Book Intros", "Reference", "Templates", "search-data",
 ]);
 
+// What a translation folder may be called. Deliberately narrow, and it is a
+// CONTRACT, not a style preference — three things downstream already assume it:
+//   1. the sidecar is written as Bible/search-data/bd-<TRANS>.json, and the
+//      plugin's iframe bridge only accepts /^bd-[A-Za-z0-9]{1,24}$/, so a name
+//      outside this set produces a sidecar the page is never allowed to load;
+//   2. chapter files are matched as "Ruth 1 (BSB).md" with an [A-Za-z0-9] suffix;
+//   3. the name is interpolated into the generated page's HTML *and* into a
+//      <script> body, so a folder called `KJV</script><script>…` would otherwise
+//      close the script element early. The builders escape it as well — this is
+//      the first of the two gates, not the only one.
+// A folder that fails this is skipped and reported, never silently half-indexed.
+const TRANSLATION_NAME = /^[A-Za-z0-9]{1,24}$/;
+
 function detectTranslations(vault) {
   const base = path.join(vault, "Bible");
   if (!fs.existsSync(base)) return [];
   return fs.readdirSync(base, { withFileTypes: true })
     .filter(e => e.isDirectory() && !NON_TRANSLATION.has(e.name) && !e.name.startsWith("."))
     .map(e => e.name)
+    .filter(name => TRANSLATION_NAME.test(name))
     .filter(name => ORDER.some(b => fs.existsSync(path.join(base, name, b))))
     .sort((a, b) => {
       const ia = PREFERRED.indexOf(a), ib = PREFERRED.indexOf(b);
@@ -64,4 +78,4 @@ function detectAnchor(vault, translations) {
 // How a chapter file is named in this translation: "Ruth 1.md" vs "Ruth 1 (BSB).md".
 const suffixFor = (trans, anchor) => (trans === anchor ? "" : ` (${trans})`);
 
-module.exports = { ORDER, PREFERRED, NON_TRANSLATION, detectTranslations, detectAnchor, suffixFor };
+module.exports = { ORDER, PREFERRED, NON_TRANSLATION, TRANSLATION_NAME, detectTranslations, detectAnchor, suffixFor };

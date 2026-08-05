@@ -8,6 +8,7 @@
 // the template supports both shapes.
 const fs = require("fs");
 const path = require("path");
+const crypto = require("crypto");   // only to fingerprint the commentary index's inputs
 
 const INLINE = process.argv.includes("--inline");
 const [VAULT, TEMPLATE, OUT] = process.argv.slice(2).filter(a => a !== "--inline");
@@ -99,19 +100,36 @@ function fmList(fm, key){
    are the marker because prose cannot contain them and JSON.stringify escapes them to \uXXXX,
    so the payload stays plain ASCII. The format is a contract with the template’s stripLinks()
    and noteSegments() — change it in both or not at all. Anything that INDEXES or EXCERPTS a
-   body must run it through stripLinks() first. */
+   body must run it through stripLinks() first.
+
+   BLOCK MARKERS use the same trick one range up. A paragraph may OPEN with a prefix naming
+   what kind of block it is; a paragraph without one is prose — which is what every paragraph
+   used to be, so a payload built before this still reads correctly:
+     \u0004<level><text>                heading, level "2".."6" exactly as written in the markdown
+     \u0005<depth><kind><text>          list item, depth "0".."9", kind "u"nordered / "o"rdered
+     \u0006<kind><cell>\u0007<cell>…       table row, kind "h"eader / "d"ata
+   Without these the reader could not tell a table from prose, so the six lines of a markdown
+   table arrived as one run-on paragraph with its "| --- |" divider intact, and every bullet
+   list came through as a single line. The format is a contract with the template's
+   stripLinks() and renderNoteBody() — change it in both or not at all. */
 const LINK_MARK = (target, alias) => "\u0001" + target + "\u0002" + alias + "\u0003";
-const stripLinks = s => String(s).replace(/\u0001([^\u0001\u0002\u0003]*)\u0002([^\u0001\u0002\u0003]*)\u0003/g, "$2");
+const B_HEAD = "\u0004", B_ITEM = "\u0005", B_ROW = "\u0006", B_CELL = "\u0007";
+/* The plain-text view of a body: no link targets, no block scaffolding. Cells are joined
+   with " · " rather than run together, so a flattened table row still reads as a row. */
+const stripLinks = s => String(s)
+  .replace(/\u0001([^\u0001\u0002\u0003]*)\u0002([^\u0001\u0002\u0003]*)\u0003/g, "$2")
+  .replace(/\u0007/g, " · ")
+  .replace(/^(?:\u0004[2-6]|\u0005[0-9][uo]|\u0006[hd])/gm, "");
 // Convert an article's markdown body to clean reading paragraphs (joined by "\n").
-// Drops the breadcrumb + excerpt callout, keeps prose and headings, strips md syntax.
+// Drops the breadcrumb + excerpt callout; keeps prose, headings, lists and tables.
 function toParagraphs(body){
   // A wikilink with an empty alias ("[[Faith|]]") carries no display text — drop it
   // rather than emit a marker whose anchor would render as nothing to click.
   // Inside a markdown TABLE the pipe must be escaped ("[[Genesis 9 (ESV)#^11\|Genesis 9:11]]")
-  // or the cell splits early — correct Obsidian, and the only way to link from a table. The
-  // split below happens on the raw pipe, so the backslash lands at the END OF THE TARGET and
-  // the marker points at a note that does not exist. Strip it here: a trailing backslash is
-  // never part of a real note name, so this cannot swallow a legitimate target.
+  // or the cell splits early — correct Obsidian, and the only way to link from a table. cells()
+  // below puts that pipe back before clean() ever sees the text, so the escape no longer reaches
+  // here; the trailing-backslash strip stays as the backstop for any other path in, because a
+  // target ending in a backslash resolves to no note and does it looking perfectly healthy.
   const wiki = (target, alias) => {
     const t = target.replace(/\s+/g, " ").trim().replace(/\\+$/, "").trim();
     const a = alias.replace(/\s+/g, " ").trim();
@@ -125,21 +143,89 @@ function toParagraphs(body){
     .replace(/\[([^\]]*)\]\((?:\\.|[^)\\])*\)/g, "$1") // md links → text (url may contain \( \))
     .replace(/[*_`]/g, "")                            // emphasis marks
     .replace(/\s+/g, " ").trim();
+  /* A markdown table's cell divider is a raw "|", but a wikilink inside a cell must escape
+     its own ("[[Genesis 9 (ESV)#^11\\|Genesis 9:11]]") or the cell would split mid-link.
+     Park the escaped ones on a character prose cannot contain, split, then put them back
+     BEFORE clean() runs — so the wikilink regex sees the pipe it expects. No lookbehind:
+     this function is a verbatim twin of the plugin's, which parses on iOS 15 WebKit. */
+  const cells = row => row.replace(/^\s*\|/, "").replace(/\|\s*$/, "")
+    .replace(/\\\|/g, "\u0000").split("|")
+    .map(c => clean(c.replace(/\u0000/g, "|")));
+  const isDivider = cs => cs.length > 0 && cs.every(c => /^:?-{1,}:?$/.test(c));
+  // Tabs indent as far as four spaces, which is how Obsidian writes them.
+  const indentOf = s => (s.match(/^[ \t]*/)[0].replace(/\t/g, "    ")).length;
+  const ITEM_RE = /^([-*+]|\d+[.)])\s+(.*)$/;
+
   const lines = body.split("\n");
   const paras = [];
   let buf = [], inCallout = false;
+  let tbl = [];        // raw rows of the table being read, emitted when it ends
+  let stack = null;    // indent widths of the list being read, one per open depth
   const flush = () => { if (buf.length){ const p = clean(buf.join(" ")); if (p) paras.push(p); buf = []; } };
+  /* A table is emitted whole because its first row is only a HEADER if the second row is
+     the "| --- |" divider — which cannot be known while that first row is being read. */
+  const flushTable = () => {
+    if (!tbl.length) return;
+    const rows = tbl.map(cells);
+    tbl = [];
+    const head = rows.length > 1 && isDivider(rows[1]) ? rows.shift() : null;
+    if (head){ rows.shift(); paras.push(B_ROW + "h" + head.join(B_CELL)); }
+    for (const r of rows){
+      if (isDivider(r)) continue;                 // a stray divider is scaffolding, not content
+      if (r.some(Boolean)) paras.push(B_ROW + "d" + r.join(B_CELL));
+    }
+  };
+  const flushList = () => { stack = null; };
+  const flushAll = () => { flush(); flushTable(); flushList(); };
+
   for (const line of lines){
     const t = line.trim();
-    if (t === ""){ inCallout = false; flush(); continue; }
+    if (t === ""){ inCallout = false; flushAll(); continue; }
     if (/^Part of\b/.test(t)) continue;                       // breadcrumb line
-    if (/^#\s+/.test(t)){ flush(); continue; }                // H1 = article title, already shown — drop
-    if (/^#{2,6}\s+/.test(t)){ flush(); const h = clean(t.replace(/^#{2,6}\s+/, "")); if (h) paras.push(h); continue; }
+    /* A "---" rule is furniture between a body and its footer link. Left in, it joins
+       the line under it and reaches the page — and the search index — as literal
+       "--- \u2190 On This Day index". */
+    if (/^(?:-{3,}|\*{3,}|_{3,})$/.test(t)){ flushAll(); continue; }
+    if (/^#\s+/.test(t)){ flushAll(); continue; }             // H1 = article title, already shown — drop
+    if (/^#{2,6}\s+/.test(t)){
+      flushAll();
+      const lv = t.match(/^#{2,6}/)[0].length;
+      const h = clean(t.replace(/^#{2,6}\s+/, ""));
+      if (h) paras.push(B_HEAD + lv + h);
+      continue;
+    }
     if (/^>\s*\[!/.test(t)){ inCallout = true; continue; }     // callout header → skip its block
     if (inCallout){ if (/^>/.test(t)) continue; inCallout = false; }
-    buf.push(t.replace(/^>\s?/, ""));                         // keep blockquote prose as normal text
+    const bare = t.replace(/^>\s?/, "");
+    // A table row. Requires a leading pipe, so prose that merely contains one stays prose.
+    if (/^\|/.test(bare)){ flush(); flushList(); tbl.push(bare); continue; }
+    const item = bare.match(ITEM_RE);
+    if (item){
+      flush(); flushTable();
+      /* Depth comes from the indent STACK, not from dividing the indent by a guessed
+         step: vault notes indent nested bullets by two spaces, by four, and by a tab. */
+      const w = indentOf(line);
+      if (!stack) stack = [w];
+      else {
+        while (stack.length > 1 && w < stack[stack.length - 1]) stack.pop();
+        if (w > stack[stack.length - 1]) stack.push(w);
+      }
+      const depth = Math.min(9, stack.length - 1);
+      const kind = /^\d/.test(item[1]) ? "o" : "u";
+      const txt = clean(item[2]);
+      if (txt) paras.push(B_ITEM + depth + kind + txt);
+      continue;
+    }
+    // An indented line under a bullet continues that bullet rather than starting a paragraph.
+    if (stack && indentOf(line) > 0 && paras.length && paras[paras.length - 1][0] === B_ITEM){
+      const add = clean(bare);
+      if (add) paras[paras.length - 1] += " " + add;
+      continue;
+    }
+    flushTable(); flushList();
+    buf.push(bare);                                           // keep blockquote prose as normal text
   }
-  flush();
+  flushAll();
   return paras;
 }
 
@@ -200,7 +286,11 @@ function collectNotes(rootAbs, label, sourceOf) {
       topics,
       // The excerpt is shown as plain text on result cards, so it is the one body-derived
       // field that must NOT carry link markers — slicing could even cut one in half.
-      fmValue(fm, "excerpt") || stripLinks(paras[0]).slice(0, 240),
+      // The first paragraph, whatever kind of block it came from — stripLinks() flattens
+      // a heading or a list item into readable text. Only a table's HEADER row is skipped:
+      // "Field \u00b7 Detail" names a table's columns and says nothing about the note.
+      fmValue(fm, "excerpt") ||
+        stripLinks(paras.find(p => p[0] !== B_ROW || p[1] !== "h") || paras[0]).slice(0, 240),
       rel.replace(/\.md$/, ""),
       safeUrl(fmValue(fm, "source") || firstUrl(bodyRaw)),
       paras.join("\n"),
@@ -272,6 +362,53 @@ function buildLexiconMeta() {
 const LEXICON = layerOn("words") ? buildLexiconMeta() : null;
 const LEX_N = LEXICON ? LEXICON.n : 0;
 console.log(`Words: ${LEX_N.toLocaleString()} dictionary entries, ${WORDS.length} written studies`);
+
+/* ── the commentary index (Commentary tab) ─────────────────────────
+   Same shape as the dictionary above, and for the same reason. The searchable
+   index over all 30 books of commentary is Bible/search-data/cmx.json — ~2.8 MB,
+   generated by tools/gen-search-commentary-index.js and NOT rebuilt here. What
+   ships in the page is its counts object, whose presence is what shows the tab.
+   Gated on the same "commentary" layer as the study panel's cm-* sidecars: turning
+   commentary off must take the tab with it, not leave a tab searching a layer the
+   reader can no longer open. */
+function buildCommentaryIndexMeta() {
+  const dir = path.join(VAULT, "Bible", "search-data");
+  const metaPath = path.join(dir, "cmx-meta.json");
+  if (!fs.existsSync(metaPath)) return null;   // never generated — tab stays off, silently
+  let meta = null;
+  try { meta = JSON.parse(fs.readFileSync(metaPath, "utf8")); }
+  catch { problems.push("cmx-meta.json is not valid JSON — Commentary search off"); return null; }
+  if (!meta || !meta.n) { problems.push("cmx-meta.json has an unexpected shape — Commentary search off"); return null; }
+  if (!fs.existsSync(path.join(dir, "cmx.json"))) {
+    problems.push("cmx.json missing from Bible/search-data/ — run tools/gen-search-commentary-index.js; Commentary search off");
+    return null;
+  }
+  /* A block's id is its POSITION in the index, so an index built against a
+     different set of cm-*.json files does not degrade — it points at the wrong
+     passage, and looks entirely healthy doing it. The fingerprint is the guard:
+     regenerate the commentary and forget the index, and the tab turns itself off
+     here rather than shipping confident wrong answers. Recomputed the same way
+     gen-search-commentary-index.js computes it — name:size over the cm-* set. */
+  const cm = fs.readdirSync(dir).filter(f => /^cm-\d+\.json$/.test(f))
+    .map(f => [f, +f.match(/^cm-(\d+)\.json$/)[1]])
+    .sort((a, b) => a[1] - b[1]);
+  const fingerprint = crypto.createHash("sha256").update(
+    cm.map(([f]) => `${f}:${fs.statSync(path.join(dir, f)).size}`).join("\n")
+  ).digest("hex").slice(0, 16);
+  if (meta.src && meta.src !== fingerprint) {
+    problems.push("cmx.json is stale — the commentary changed since it was indexed. " +
+      "Re-run tools/gen-search-commentary-index.js; Commentary search off");
+    return null;
+  }
+  /* `cov` — blocks, books and licence per commentator — is what the tab's opening
+     card is drawn from. Optional: an index generated before it existed still ships
+     a working tab, one that names its voices without sizing them. */
+  return { n: meta.n, books: meta.books, who: meta.who, cov: meta.cov || null };
+}
+const CMINDEX = layerOn("commentary") ? buildCommentaryIndexMeta() : null;
+const CM_N = CMINDEX ? CMINDEX.n : 0;
+console.log(`Commentary search: ${CM_N.toLocaleString()} passages` +
+  (CMINDEX ? ` across ${CMINDEX.books} books · ${CMINDEX.who.join(" + ")}` : " (index absent)"));
 
 /* ── On This Day (Christian-year calendar) ─────────────────────────
    Assembles the payload the On This Day tab renders from tools/data/on-this-day.js —
@@ -363,9 +500,11 @@ function studyManifest() {
   if (!fs.existsSync(DATA_DIR)) return m;
   for (const f of fs.readdirSync(DATA_DIR)) {
     if (f === "xr.json") { m.xr = layerOn("xrefs"); continue; }
-    /* xa.json is xr.json's richer twin — the same references, grouped under the TSK
-       catchword each belongs to. Same "xrefs" layer, because to a reader they are one
-       feature; the page prefers xa and falls back to xr's flat list when it is absent. */
+    /* xa.json is xr.json's richer twin — the same references, but grouped under
+       the TSK catchword each belongs to. Same "xrefs" layer, because to a reader
+       turning the layer off they are one feature. The References tab prefers xa
+       when it exists and falls back to xr's flat list when it does not, so a vault
+       that has never run gen-search-anchors.js loses nothing. */
     if (f === "xa.json") { m.xa = layerOn("xrefs"); continue; }
     if (f === "bx.json") { m.bx = layerOn("bookcontext"); continue; }
     if (f === "mp.json") { m.mp = layerOn("places"); continue; }
@@ -374,9 +513,10 @@ function studyManifest() {
     if (f === "jr.json") { m.jr = layerOn("places"); continue; }
     if (f === "hm.json") { m.hm = layerOn("places"); continue; }
     if (f === "al.json") { m.al = layerOn("places"); continue; }
-    /* Only the plate INDEX gates the tab. The scans (pl-<n>.json) are fetched one at a
-       time when a reader opens that plate, so listing them would claim the page loads
-       megabytes it never touches. */
+    /* pl.json is the plate INDEX only — the scans themselves are pl-<n>.json, one
+       per plate, and are never listed here. The page fetches a body when a reader
+       opens that plate, so listing them would be advertising ~5 MB the tab does not
+       load. Present index, present tab; the bodies answer for themselves. */
     if (f === "pl.json") { m.pl = layerOn("places"); continue; }
     const il = f.match(/^il-(\d+)\.json$/);
     if (il && layerOn("interlinear")) { m.il.push(+il[1]); continue; }
@@ -434,6 +574,10 @@ const LAYERS = [
      carries the footer prose, so the page never claims studies it didn't ship. */
   { id: "lx", data: LEXICON,   n: LEX_N,           foot: n => `a Hebrew and Greek dictionary (${n.toLocaleString()} words)`, noun: "a Hebrew and Greek dictionary" },
   { id: "wd", data: WORDS,     n: WORDS.length,    foot: () => "",                                   noun: "" },
+  /* "cx" is the commentary index's counts — the index itself is the cmx.json
+     sidecar, exactly like the dictionary. It reports passages rather than books
+     because that is what the tab searches. */
+  { id: "cx", data: CMINDEX,   n: CM_N,            foot: n => `searchable commentary (${n.toLocaleString()} passages)`, noun: "searchable commentary" },
   { id: "ad", data: ARTICLES,  n: ARTICLES.length, foot: n => `${n} teaching articles`,             noun: "teaching articles" },
   { id: "td", data: TOPICS,    n: TOPICS.length,   foot: n => `${n} topics`,                         noun: "topics" },
   { id: "fd", data: FAQ,       n: FAQ.length,      foot: n => `${n} FAQ answers`,                    noun: "FAQ answers" },
