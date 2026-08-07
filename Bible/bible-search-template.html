@@ -4548,6 +4548,152 @@ function mapZoomBy(id, factor, cx, cy, live){
   if (live) mapSetBox(id, next); else { mapSetBox(id, next); mapRedraw(id); }
 }
 
+/* ── the gesture recogniser ──────────────────────────────────────────────────
+   Three surfaces on this page pan and zoom: the vector maps (which move a
+   viewBox), the church-history poster (which moves scroll offsets), and the plate
+   viewer (which moves a transform). They differ only in what they APPLY; the part
+   in front of that — deciding whether a press is a tap, a drag or a pinch — is the
+   same problem three times, and it is the part with all the traps in it. Written
+   out three times it drifted, and the shortest copy was the one missing the fixes
+   the other two had learned. So it is written once, here, and the three callers
+   supply only their own arithmetic.
+
+   What this owns, and why each piece is not obvious:
+
+     · Pointers live in a Map rather than a pair of variables, because the moment a
+       second one lands the pan must be ABANDONED mid-drag and the gesture becomes
+       a pinch — otherwise the second finger reads as one wild pan jump.
+     · Capture is NOT taken on pointerdown. A captured pointer retargets the
+       resulting CLICK to the capturing element, so capturing every press sends
+       every tap to the wrapper and nothing underneath — a pin, a branch — ever
+       opens. Capture is taken only once a gesture is really a gesture: past the
+       4px threshold, and on the second finger.
+     · A pinch measures from where the pinch STARTED, not from the previous frame,
+       so the zoom tracks the fingers instead of compounding a rounding error every
+       frame. `scale` is therefore always relative to the press, and the caller
+       multiplies it by whatever it captured in onPinchStart.
+     · Applies are coalesced to one per FRAME. A pinch fires pointermove at the
+       device's input rate — 120 Hz on a recent iPhone — and an apply is
+       layout-heavy on all three surfaces. Only the newest state matters, so it
+       overwrites rather than queues, and the rect is measured once and handed down.
+     · Lifting one finger out of a pinch does NOT resume a pan with the other. The
+       remaining finger is wherever the pinch left it, and panning from there jumps.
+       The gesture is over; a fresh press starts the next one.
+
+   Options, all optional except onPan:
+     ignore         selector; a press starting inside it is left alone (toolbars)
+     onPanStart()   → state handed back to every onPan, or false to refuse
+     onPan(dx, dy, state)          dx/dy are cumulative from the press, not per frame
+     onPinchStart(mx, my, rect)    mx/my relative to el; → anchor, or false to refuse
+     onPinch(scale, mid, anchor, rect)   mid is in CLIENT coords; rect is el's
+     onGestureStart()   a tap has just become a drag or a pinch (close popups here)
+     onEnd(moved)       the gesture is over (settle, re-cull, redraw)
+
+   Returns the `moved` accessor: true while the gesture is, or has just been, a
+   drag or a pinch. Callers hang it where their click delegate can find it, and a
+   click delegate reads it to swallow the click a drag ends on. It clears itself on
+   the next tick so it can never swallow a later, unrelated click; `.clear()` is
+   there for a delegate that would rather consume it outright. */
+function bindGestures(el, o){
+  const opt = o || {};
+  const pts = new Map();
+  let down = false, sx = 0, sy = 0, start = null;
+  let pinch = null;            // {dist, anchor} captured when the second finger lands
+  let moved = false;
+  let next = null, raf = null; // newest pending pinch frame + its rAF handle
+
+  const two = () => { const a = [...pts.values()]; return [a[0], a[1]]; };
+  const capture = id => { try { el.setPointerCapture(id); } catch (_) {} };
+  const flush = () => {
+    raf = null;
+    if (!next) return;
+    const a = next; next = null;
+    opt.onPinch(a[0], a[1], a[2], a[3]);
+  };
+
+  const beginPinch = () => {
+    const [p, q] = two();
+    if (!p || !q || !opt.onPinch) return;
+    const r = el.getBoundingClientRect();
+    const anchor = opt.onPinchStart
+      ? opt.onPinchStart((p.x + q.x) / 2 - r.left, (p.y + q.y) / 2 - r.top, r)
+      : null;
+    if (anchor === false) return;
+    pinch = { dist: Math.max(1, Math.hypot(p.x - q.x, p.y - q.y)), anchor };
+    // Capture BOTH pointers, so a finger that slides off the surface mid-pinch
+    // keeps reporting. Safe here — a pinch is not meant to tap what is under it,
+    // so capture retargeting the click to `el` is the behaviour we want.
+    for (const id of pts.keys()) capture(id);
+    down = false; moved = true;
+    el.classList.remove("grabbing");
+    if (opt.onGestureStart) opt.onGestureStart();
+  };
+
+  el.addEventListener("pointerdown", e => {
+    if (opt.ignore && e.target.closest(opt.ignore)) return;
+    if (e.pointerType === "mouse" && e.button !== 0) return;      // left button only
+    pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pts.size === 2){ beginPinch(); return; }
+    if (pts.size > 2) return;
+    const s = opt.onPanStart ? opt.onPanStart() : null;
+    if (s === false) return;              // surface not ready — the press starts nothing
+    start = s; down = true; moved = false;
+    sx = e.clientX; sy = e.clientY;
+  });
+
+  el.addEventListener("pointermove", e => {
+    if (!pts.has(e.pointerId)) return;
+    pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pinch && pts.size >= 2){
+      const [p, q] = two();
+      const r = el.getBoundingClientRect();
+      const dist = Math.max(1, Math.hypot(p.x - q.x, p.y - q.y));
+      next = [dist / pinch.dist,
+              { x: (p.x + q.x) / 2, y: (p.y + q.y) / 2 }, pinch.anchor, r];
+      if (raf == null) raf = requestAnimationFrame(flush);
+      return;
+    }
+    if (!down) return;
+    const dx = e.clientX - sx, dy = e.clientY - sy;
+    if (!moved && Math.hypot(dx, dy) > 4){
+      moved = true;
+      el.classList.add("grabbing");
+      // now it IS a drag — capture so it survives leaving the surface, and let the
+      // retargeted click be swallowed by the moved guard rather than tap through
+      capture(e.pointerId);
+      if (opt.onGestureStart) opt.onGestureStart();
+    }
+    if (moved) opt.onPan(dx, dy, start);
+  });
+
+  const end = e => {
+    // Land the last coalesced pinch frame before the gesture is torn down, so the
+    // surface ends where the fingers left it rather than one frame behind — and so
+    // a queued frame can never apply itself into the NEXT gesture.
+    if (raf != null){ cancelAnimationFrame(raf); flush(); }
+    const had = pts.delete(e.pointerId);
+    try { el.releasePointerCapture(e.pointerId); } catch (_) {}
+    if (!had) return;
+    let over = false;
+    if (pinch){
+      if (pts.size < 2){ pinch = null; down = false; over = true; }
+      else beginPinch();                  // three fingers down to two: re-baseline
+    } else if (down){ down = false; over = true; }
+    el.classList.remove("grabbing");
+    if (over && opt.onEnd) opt.onEnd(moved);
+    // A drag may or may not be followed by a synthetic click. If it is, the click
+    // delegate consumes it (moved true); if it isn't, clear it on the next tick so
+    // it can never swallow a later, unrelated click.
+    if (moved && !pts.size) setTimeout(() => { moved = false; }, 0);
+  };
+  el.addEventListener("pointerup", end);
+  el.addEventListener("pointercancel", end);
+
+  const acc = () => moved;
+  acc.clear = () => { moved = false; };
+  return acc;
+}
+
 /* One pan/pinch driver per map. Bound once, on the wrapper, when the map is first
    drawn — _maps holds the state, so a re-render of the SVG inside does not need the
    listeners rebound. */
@@ -4555,95 +4701,39 @@ function mapBindGestures(wrap){
   if (wrap.dataset.bound) return;
   wrap.dataset.bound = "1";
   const id = wrap.dataset.map;
-  const pts = new Map();
-  let down = false, sx = 0, sy = 0, start = null, pinch = null, moved = false;
   const svgRect = () => {
     const svg = wrap.querySelector("svg");
     return svg ? svg.getBoundingClientRect() : null;
   };
-  const two = () => { const a = [...pts.values()]; return [a[0], a[1]]; };
-  const beginPinch = () => {
-    const [a, b] = two();
-    const m = _maps[id];
-    if (!a || !b || !m) return;
-    pinch = { dist: Math.max(1, Math.hypot(a.x - b.x, a.y - b.y)), box: m.box.slice() };
-    for (const pid of pts.keys()){ try { wrap.setPointerCapture(pid); } catch (_) {} }
-    // A pinch must never end up tapping the pin under it, and it is not a pan.
-    down = false; moved = true; wrap.classList.remove("grabbing");
-    mapClose(id);
-  };
-  wrap.addEventListener("pointerdown", e => {
+  wrap.mapMoved = bindGestures(wrap, {
     // .map-tools is inside the wrap now (it floats over the map's corner), so it
     // needs the same exemption .map-bar had — a press on a zoom button must not
     // start a pan. Mirrors the .chd-toolbar guard in chWirePanZoom.
-    if (e.target.closest(".map-tools") || e.target.closest(".map-bar") ||
-        e.target.closest(".map-pop")) return;
-    if (e.pointerType === "mouse" && e.button !== 0) return;
-    /* Do NOT capture here. A captured pointer retargets the resulting CLICK to the
-       capturing element, so capturing every press would send every tap to the
-       wrapper and no pin would ever open. Capture is taken only once a gesture is
-       really a gesture — past the 4px threshold below, and in beginPinch. */
-    pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    if (pts.size === 2){ beginPinch(); return; }
-    if (pts.size > 2) return;
-    const m = _maps[id];
-    if (!m) return;
-    down = true; moved = false;
-    sx = e.clientX; sy = e.clientY; start = m.box.slice();
-  });
-  wrap.addEventListener("pointermove", e => {
-    if (!pts.has(e.pointerId)) return;
-    pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    const m = _maps[id];
-    if (!m) return;
-    if (pinch && pts.size >= 2){
-      const [a, b] = two();
+    ignore: ".map-tools, .map-bar, .map-pop",
+    onGestureStart: () => mapClose(id),
+    // The box the gesture started from. Every frame is measured against THIS, not
+    // against the previous frame, so neither pan nor pinch accumulates drift.
+    onPanStart: () => { const m = _maps[id]; return m ? m.box.slice() : false; },
+    onPan: (dx, dy, box) => {
       const r = svgRect();
-      if (!r) return;
-      const dist = Math.max(1, Math.hypot(a.x - b.x, a.y - b.y));
-      // Measured from where the pinch STARTED, so the zoom tracks the fingers
-      // instead of compounding a rounding error every frame.
-      m.box = pinch.box.slice();
-      mapZoomBy(id, dist / pinch.dist, (a.x + b.x) / 2 - r.left, (a.y + b.y) / 2 - r.top, true);
-      return;
-    }
-    if (!down || !start) return;
-    const dx = e.clientX - sx, dy = e.clientY - sy;
-    if (!moved && Math.hypot(dx, dy) > 4){
-      moved = true;
-      wrap.classList.add("grabbing");
-      mapClose(id);
-      // now it IS a drag — capture so it survives leaving the map, and let the
-      // retargeted click be swallowed by the moved guard rather than tap a pin
-      try { wrap.setPointerCapture(e.pointerId); } catch (_) {}
-    }
-    if (!moved) return;
-    const r = svgRect();
-    if (!r || !r.width) return;
-    // Screen pixels → map units, so the map keeps pace with the finger exactly.
-    mapSetBox(id, mapClamp(_maps[id], [
-      start[0] - (dx / r.width) * start[2],
-      start[1] - (dy / r.height) * start[3], start[2], start[3],
-    ]));
+      if (!r || !r.width) return;
+      // Screen pixels → map units, so the map keeps pace with the finger exactly.
+      mapSetBox(id, mapClamp(_maps[id], [
+        box[0] - (dx / r.width) * box[2],
+        box[1] - (dy / r.height) * box[3], box[2], box[3],
+      ]));
+    },
+    onPinchStart: () => { const m = _maps[id]; return m ? m.box.slice() : false; },
+    onPinch: (scale, mid, box) => {
+      const m = _maps[id], r = svgRect();
+      if (!m || !r) return;
+      m.box = box.slice();
+      mapZoomBy(id, scale, mid.x - r.left, mid.y - r.top, true);
+    },
+    // Panning and pinching draw live off the cached geometry; the re-cull that
+    // decides which pins and labels belong on screen waits for the hand to stop.
+    onEnd: moved => { if (moved) mapRedraw(id); },
   });
-  const end = e => {
-    const had = pts.delete(e.pointerId);
-    try { wrap.releasePointerCapture(e.pointerId); } catch (_) {}
-    if (!had) return;
-    /* Lifting one finger out of a pinch does NOT resume a pan with the other — the
-       remaining finger is wherever the pinch left it, and panning from there jumps.
-       The gesture is over; a fresh press starts the next one. */
-    if (pinch){ if (pts.size < 2){ pinch = null; down = false; mapRedraw(id); } else beginPinch(); }
-    else if (down){ down = false; if (moved) mapRedraw(id); }
-    wrap.classList.remove("grabbing");
-    // A drag may or may not be followed by a synthetic click. If it is, the click
-    // handler consumes it (moved true) and clears the flag; if it isn't, clear it on
-    // the next tick so it can never swallow a later, unrelated click.
-    if (moved && !pts.size) setTimeout(() => { moved = false; }, 0);
-  };
-  wrap.addEventListener("pointerup", end);
-  wrap.addEventListener("pointercancel", end);
-  wrap.mapMoved = () => moved;
   /* Plain wheel or two-finger swipe pans; ctrl/⌘+wheel — which is also what a
      trackpad pinch sends — zooms about the cursor. One rate for both devices,
      because the clamp reconciles them: a trackpad pinch sends ±1–10px and eases,
@@ -5588,9 +5678,9 @@ function plateApply(){
    under the finger. Capped at 5× the plate's own pixels: past that the scan is
    showing its grain rather than more map, and a control that keeps responding
    without revealing anything reads as broken. */
-function plateZoomBy(f, cx, cy){
+function plateZoomTo(z, cx, cy){
   const st = plateStage(); if (!st || !_pv) return;
-  const next = Math.max(_pv.fit, Math.min(5, _pv.scale * f));
+  const next = Math.max(_pv.fit, Math.min(5, z));
   if (next === _pv.scale) return;
   const r = st.getBoundingClientRect();
   const px = cx == null ? r.width / 2 : cx - r.left;
@@ -5600,6 +5690,12 @@ function plateZoomBy(f, cx, cy){
   _pv.scale = next;
   plateApply();
 }
+/* The relative form the buttons and the wheel use — they step from wherever the
+   plate currently is. A pinch does NOT come through here: it targets an absolute
+   scale taken from the scale the fingers went down at, so a pinch held at the 5×
+   cap and eased back off it lands where the fingers say rather than where a chain
+   of clamped steps left it. */
+function plateZoomBy(f, cx, cy){ if (_pv) plateZoomTo(_pv.scale * f, cx, cy); }
 // Same contract as the vector maps: a control that cannot do anything says so.
 function syncPlateTools(){
   if (!_pv) return;
@@ -5616,43 +5712,20 @@ function syncPlateTools(){
 function plateBindGestures(){
   const st = plateStage(); if (!st) return;
   const wrap = st.closest(".mapwrap");
-  const pts = new Map();
-  let last = null, moved = false, pinch = 0;
-
-  st.addEventListener("pointerdown", e => {
-    pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    if (pts.size === 1){ last = { x: e.clientX, y: e.clientY }; moved = false; wrap.classList.add("grabbing"); }
-    st.setPointerCapture(e.pointerId);
+  // Bound on the stage, but the flag hangs on the wrap: the zoom buttons live in
+  // the wrap's corner, and it is their click delegate that needs to read it.
+  // A drag ends in a click; swallow it so panning never counts as a tap.
+  wrap.plateMoved = bindGestures(st, {
+    onPanStart: () => _pv ? { x: _pv.x, y: _pv.y } : false,
+    onPan: (dx, dy, s) => { _pv.x = s.x + dx; _pv.y = s.y + dy; plateApply(); },
+    onPinchStart: () => _pv ? _pv.scale : false,
+    onPinch: (scale, mid, z0) => plateZoomTo(z0 * scale, mid.x, mid.y),
   });
-  st.addEventListener("pointermove", e => {
-    if (!pts.has(e.pointerId)) return;
-    pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    const all = [...pts.values()];
-    if (all.length >= 2){
-      const d = Math.hypot(all[0].x - all[1].x, all[0].y - all[1].y);
-      if (pinch) plateZoomBy(d / pinch, (all[0].x + all[1].x) / 2, (all[0].y + all[1].y) / 2);
-      pinch = d; moved = true; return;
-    }
-    if (!last) return;
-    _pv.x += e.clientX - last.x; _pv.y += e.clientY - last.y;
-    if (Math.abs(e.clientX - last.x) + Math.abs(e.clientY - last.y) > 2) moved = true;
-    last = { x: e.clientX, y: e.clientY };
-    plateApply();
-  });
-  const up = e => {
-    pts.delete(e.pointerId);
-    if (pts.size < 2) pinch = 0;
-    if (!pts.size){ last = null; wrap.classList.remove("grabbing"); }
-  };
-  st.addEventListener("pointerup", up);
-  st.addEventListener("pointercancel", up);
   st.addEventListener("wheel", e => {
     if (!e.ctrlKey && !e.metaKey) return;      // a plain wheel still scrolls the page
     e.preventDefault();
     plateZoomBy(e.deltaY < 0 ? 1.12 : 1 / 1.12, e.clientX, e.clientY);
   }, { passive: false });
-  // A drag ends in a click; swallow it so panning never counts as a tap.
-  wrap.plateMoved = () => moved;
 }
 
 /* The gallery, and the plate. One render function for both states, because the
@@ -6681,8 +6754,8 @@ document.addEventListener("fullscreenchange", () => {
 /* Pan/zoom for the chart pane. The canvas is a fixed W×H layout; zoom scales it via
    CSS transform, and the .chd-zoom sizer carries the scaled dimensions so the pane's
    scrollbars track the zoom. Pan is single-pointer drag (mouse + touch); a drag that
-   moves past a few px sets chPanned so the click it ends on doesn't tap a branch. */
-let chZ = 1, chPanned = false, chApplyZoom = null;
+   moves past a few px sets chMoved so the click it ends on doesn't tap a branch. */
+let chZ = 1, chMoved = null, chApplyZoom = null;
 /* Level of detail for one zoom level. --lodk counter-scales the type so a name holds
    roughly CH_LOD_TARGET px ON SCREEN however far out you are; the cap stops it from
    growing so large inside a shrinking box that it clips more than it reveals. The
@@ -6769,103 +6842,26 @@ function chWirePanZoom(){
     chLod(z);
   };
   chLod(chZ);
-  /* Drag-to-pan (one pointer) and pinch-to-zoom (two). Both ride pointer events
-     rather than touch events, because .chd-wrap sets touch-action:none — the browser
-     hands us every gesture and does none of its own, so a phone gets no pinch at all
-     unless we implement it. Live pointers are tracked in a Map: the moment a second
-     one lands the pan is abandoned mid-drag and the gesture becomes a pinch, which
-     is what stops the second finger from being read as a wild pan jump. */
-  let down = false, sx = 0, sy = 0, sl = 0, st = 0;
-  const pts = new Map();
-  let pinch = null;             // {dist, z, pt} captured when the second finger lands
-  // newest pending pinch state + its rAF handle — see the pointermove pinch branch
-  let pinchNext = null, pinchRaf = null;
-  const flushPinch = () => {
-    pinchRaf = null;
-    if (!pinchNext) return;
-    const a = pinchNext; pinchNext = null;
-    chApplyZoom(a[0], a[1], a[2], a[3], a[4]);
-  };
-  const twoPts = () => { const a = [...pts.values()]; return [a[0], a[1]]; };
-  // Anchor a pinch on the content point under the fingers' midpoint, in wrap coords.
-  const startPinch = () => {
-    const [p, q] = twoPts();
-    const r = wrap.getBoundingClientRect();
-    const mx = (p.x + q.x) / 2 - r.left, my = (p.y + q.y) / 2 - r.top;
-    pinch = { dist: Math.max(1, Math.hypot(p.x - q.x, p.y - q.y)), z: chZ,
-              pt: { x: (wrap.scrollLeft + mx) / chZ, y: (wrap.scrollTop + my) / chZ } };
-    // Capture BOTH pointers, so a finger that slides off the chart mid-pinch keeps
-    // reporting. Safe here — a pinch is not meant to tap the branch underneath, and
-    // capture retargeting the click to the wrap is the behaviour we want.
-    for (const id of pts.keys()){ try { wrap.setPointerCapture(id); } catch (_) {} }
-    // A pinch must never end up tapping the branch under it, and it is not a pan.
-    down = false; chPanned = true; wrap.classList.remove("grabbing");
-  };
-  wrap.addEventListener("pointerdown", e => {
-    if (e.target.closest(".chd-toolbar")) return;
-    if (e.pointerType === "mouse" && e.button !== 0) return;   // left button only
-    /* Do NOT capture the pointer here. A captured pointer retargets the resulting
-       CLICK to the capturing element, so capturing on every press sent every tap to
-       .chd-wrap instead of the branch button — `.closest(".chd-node")` then found
-       nothing and no branch popup ever opened. Capture is taken only once a gesture
-       is really a gesture: below, when a drag passes the 4px threshold, and in
-       startPinch. A plain tap is never captured, so its click reaches the node. */
-    pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    if (pts.size === 2){ startPinch(); return; }
-    if (pts.size > 2) return;
-    down = true; chPanned = false;
-    sx = e.clientX; sy = e.clientY; sl = wrap.scrollLeft; st = wrap.scrollTop;
+  /* Drag-to-pan (one pointer) and pinch-to-zoom (two), on the shared recogniser.
+     Both ride pointer events rather than touch events, because .chd-wrap sets
+     touch-action:none — the browser hands us every gesture and does none of its
+     own, so a phone gets no pinch at all unless we implement it. */
+  chMoved = bindGestures(wrap, {
+    ignore: ".chd-toolbar",
+    // The scroll offsets the drag started from. Pan is scroll here, not transform:
+    // .chd-zoom already carries the scaled dimensions, so the pane's own scrollbars
+    // are the pan, and they track the zoom for free.
+    onPanStart: () => ({ l: wrap.scrollLeft, t: wrap.scrollTop }),
+    onPan: (dx, dy, s) => { wrap.scrollLeft = s.l - dx; wrap.scrollTop = s.t - dy; },
+    // Anchor a pinch on the content point under the fingers' midpoint at the moment
+    // they went down, together with the zoom they went down at. The midpoint MOVES
+    // during a pinch, and re-deriving the anchor from the moving midpoint would keep
+    // re-pinning the poster under the fingers instead of letting it travel with them.
+    onPinchStart: (mx, my) => ({ z: chZ,
+      pt: { x: (wrap.scrollLeft + mx) / chZ, y: (wrap.scrollTop + my) / chZ } }),
+    onPinch: (scale, mid, a, r) =>
+      chApplyZoom(a.z * scale, mid.x - r.left, mid.y - r.top, a.pt, r),
   });
-  wrap.addEventListener("pointermove", e => {
-    if (!pts.has(e.pointerId)) return;
-    pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    if (pinch && pts.size >= 2){
-      /* Coalesced to one apply per FRAME. A pinch fires pointermove at the device's
-         input rate — 120 Hz on a recent iPhone — and each apply writes a transform,
-         resizes the sizer, rewrites both scroll offsets and (via chLod) invalidates
-         style for every node on the poster. Doing that two or three times between
-         paints is work no one ever sees. Only the newest pinch state matters, so it
-         overwrites rather than queues, and the rect is measured once here and handed
-         down rather than taken again inside chApplyZoom. */
-      const [p, q] = twoPts();
-      const r = wrap.getBoundingClientRect();
-      const dist = Math.max(1, Math.hypot(p.x - q.x, p.y - q.y));
-      pinchNext = [pinch.z * (dist / pinch.dist),
-                   (p.x + q.x) / 2 - r.left, (p.y + q.y) / 2 - r.top, pinch.pt, r];
-      if (pinchRaf == null) pinchRaf = requestAnimationFrame(flushPinch);
-      return;
-    }
-    if (!down) return;
-    const dx = e.clientX - sx, dy = e.clientY - sy;
-    if (!chPanned && Math.hypot(dx, dy) > 4){
-      chPanned = true; wrap.classList.add("grabbing");
-      // now it IS a drag — capture so it survives leaving the chart, and let the
-      // retargeted click be swallowed by the chPanned guard rather than tap a branch
-      try { wrap.setPointerCapture(e.pointerId); } catch (_) {}
-    }
-    if (chPanned){ wrap.scrollLeft = sl - dx; wrap.scrollTop = st - dy; }
-  });
-  const end = e => {
-    // Land the last coalesced pinch frame before the gesture is torn down, so the
-    // poster ends where the fingers left it rather than one frame behind — and so a
-    // queued frame can never apply itself into the NEXT gesture.
-    if (pinchRaf != null){ cancelAnimationFrame(pinchRaf); flushPinch(); }
-    const had = pts.delete(e.pointerId);
-    try { wrap.releasePointerCapture(e.pointerId); } catch (_) {}
-    if (!had) return;
-    // Lifting one finger out of a pinch does NOT resume a pan with the other — the
-    // remaining finger is wherever the pinch left it, and panning from there jumps.
-    // The gesture is over; a fresh press starts the next one.
-    if (pinch){ if (pts.size < 2){ pinch = null; down = false; } else startPinch(); }
-    else if (down) down = false;
-    wrap.classList.remove("grabbing");
-    // A drag may or may not be followed by a synthetic click. If it is, the click
-    // handler consumes it (chPanned true) and clears the flag; if it isn't, clear
-    // it on the next tick so it can never swallow a later, unrelated click.
-    if (chPanned && !pts.size) setTimeout(() => { chPanned = false; }, 0);
-  };
-  wrap.addEventListener("pointerup", end);
-  wrap.addEventListener("pointercancel", end);
   /* The map convention: a plain wheel or two-finger swipe MOVES the poster, and zoom
      is the deliberate gesture — pinch, ctrl/⌘+wheel, or the −/+ buttons. It reads the
      way Figma and Maps do, and it needs no guessing about what kind of device sent the
@@ -7874,7 +7870,7 @@ $res.addEventListener("click", e => {
 // legend chips toggle the family spotlight, the toolbar zooms.
 $res.addEventListener("click", e => {
   // a pan drag ends in a click — swallow it so panning never taps a branch
-  if (chPanned){ chPanned = false; return; }
+  if (chMoved && chMoved()){ chMoved.clear(); return; }
   if (e.target.closest("[data-pclose]")){ e.preventDefault(); chClosePop(); return; }
   const zb = e.target.closest("[data-z]");
   if (zb){
