@@ -4370,7 +4370,16 @@ function mapAnimate(id, target, then){
   }
   const t0 = performance.now(), DUR = 260;
   const step = (now) => {
-    const t = Math.min((now - t0) / DUR, 1);
+    /* Read the clock rather than trust the frame's. `now` is whatever the frame
+       callback was handed, and not every caller of a frame callback is the browser:
+       a shim built on setTimeout passes NO argument, which makes `now` undefined,
+       `t` NaN, and every number below NaN — so the attribute set two lines down
+       writes viewBox="NaN NaN NaN NaN", which the engine rejects and logs. The
+       clamp to 0 is the same defence from the other side: a timestamp from before
+       the animation started would run the easing backwards and fly the map away
+       from where it was asked to go. Neither costs anything per frame. */
+    const ms = typeof now === "number" && isFinite(now) ? now : performance.now();
+    const t = Math.max(0, Math.min((ms - t0) / DUR, 1));
     const e = t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2;   // easeInOutQuad
     const cur = from.map((v, i) => v + (target[i] - v) * e);
     svg.setAttribute("viewBox", cur.map(n => Math.round(n * 10) / 10).join(" "));
