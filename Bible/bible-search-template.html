@@ -146,6 +146,23 @@
     font-family:var(--sans);font-size:12px;font-weight:400;font-style:italic;
     color:var(--muted-2);background:none;border:1px solid var(--line);border-radius:999px;
     cursor:pointer;position:relative;top:-4px}
+  /* WCAG 2.2 SC 2.5.8 asks 24×24 of a standalone control. This one is standalone
+     — a button sitting in the h1, not a link inline in a sentence, and with
+     nothing adjacent to lend it the spacing exception — so the 22px circle was
+     two px short on every axis. Growing the button itself would push the title
+     around, so the HIT AREA grows instead and the visual circle is untouched.
+
+     -2px, not -1px, and the reason is the one thing about `inset` that is easy
+     to get wrong: it resolves against the PADDING box, not the border box. The
+     button is border-box 22px with a 1px border, so its padding box is 20px and
+     the border already spends 1px of any offset. -1px lands the overlay exactly
+     on the border box — 22px, extending nothing at all, which measures as if
+     the rule were not there. -2px gives 20 + 2 + 2 = 24.
+
+     Deliberately not inside a media query: a mouse pointer needs the 24px just
+     as much, and it was the fine-pointer case the audit measured. The
+     pointer:coarse block far below widens this same overlay for touch. */
+  h1 .ledeinfo::after{content:"";position:absolute;inset:-2px}
   h1 .ledeinfo:hover,h1 .ledeinfo[aria-expanded="true"]{color:var(--accent);border-color:var(--accent)}
   h1 .ledeinfo:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
   header.hero{position:relative}
@@ -309,10 +326,10 @@
     padding-bottom:14px;border-bottom:1px solid var(--line)}
   #status strong{color:var(--accent);font-weight:400}
   .card{background:none;border:none;border-bottom:1px solid var(--line);border-radius:0;padding:22px 0;margin:0}
-  .card h2{font-size:16px;font-weight:300;letter-spacing:.04em;margin:0 0 14px;
+  .card h3{font-size:16px;font-weight:300;letter-spacing:.04em;margin:0 0 14px;
     display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;border:none;padding:0}
-  .card h2 a.openlink{font-size:12.5px;font-weight:300;text-decoration:none;color:var(--accent-2)}
-  .card h2 a.openlink:hover{text-decoration:underline}
+  .card h3 a.openlink{font-size:12.5px;font-weight:300;text-decoration:none;color:var(--accent-2)}
+  .card h3 a.openlink:hover{text-decoration:underline}
   .tbadge{font-size:10px;font-weight:500;letter-spacing:.14em;color:var(--accent);background:transparent;
     border:1px solid var(--accent-line);border-radius:4px;padding:2px 8px;text-transform:uppercase}
   /* reference-view verses are clickable → open the reader (the reader itself uses .rv, not .verse) */
@@ -327,7 +344,13 @@
   .hit-verse{cursor:pointer;margin:0 -12px;padding:18px 12px;border-radius:8px;transition:background .12s}
   .hit-verse:hover{background:var(--panel-2)}
   .hit-verse:hover p{color:var(--ink)}
-  .hit .ref{font-size:13px;margin-bottom:4px;letter-spacing:.02em}
+  /* An h3, not a div: this line is the result's title, and it was already a
+     heading in everything but tag name. A search view is a long flat run of
+     these, and heading navigation is how a screen reader skips a result set it
+     does not want — without them the only way past 28 word entries is to arrow
+     through all 28. font-weight and the top margin are pinned because h3 brings
+     its own: the line must look exactly as it did as a div. */
+  .hit .ref{font-size:13px;font-weight:400;margin:0 0 4px;letter-spacing:.02em}
   .hit .ref a{font-weight:400;color:var(--accent-2);text-decoration:none}
   .hit .ref a:hover{text-decoration:underline}
   .hit p{margin:3px 0;color:var(--ink);font-weight:300;line-height:1.8}
@@ -531,7 +554,7 @@
      and no vh units, because in the Obsidian plugin this page is inside an iframe and
      both resolve against the frame instead of the pane. */
   .ch-persp{margin:18px 0 4px;max-width:76ch}
-  .ch-persp h2{font-family:var(--sans);font-size:13px;font-weight:400;text-transform:uppercase;
+  .ch-persp h3{font-family:var(--sans);font-size:13px;font-weight:400;text-transform:uppercase;
     letter-spacing:.08em;color:var(--ink);margin:0 0 5px}
   .ch-perspintro{font-size:13px;font-weight:300;color:var(--muted);line-height:1.6;margin:0 0 9px}
   .ch-perspitem{border-top:1px solid var(--line);padding:0}
@@ -1502,7 +1525,7 @@
     /* Let long book names wrap inside the button rather than overflow the panel. */
     button.rnav{white-space:normal;min-width:0;flex:0 1 auto;padding:8px 12px;text-align:center}
 
-    .card h2{gap:8px 12px}
+    .card h3{gap:8px 12px}
     .searchbar{padding:10px 0}
 
     /* Command bar as two clean rows: [🔍 input] then the chips. Left-aligned,
@@ -1536,10 +1559,16 @@
     /* …but the three page-tool chips carry a single glyph each (? / ▯ / ☾), so they
        compute to ~30–33px wide. min-height alone leaves them a tall thin sliver. */
     #chipHelp,#chipWidth,#chipTheme{min-width:44px}
-    /* The (i) sits inside the h1's line box, so growing the button itself would
-       push the title around. Expand the hit area with a transparent overlay
-       instead — 22px + 11px each side = the 44px minimum, layout untouched. */
-    h1 .ledeinfo::after{content:"";position:absolute;inset:-11px}
+    /* Widens the (i)'s overlay from the 24px baseline set up beside the button
+       itself, layout untouched for the same reason it is an overlay there:
+       growing the button would push the title around.
+
+       -12px, and the arithmetic is the padding-box one explained at that base
+       rule: 20px padding box + 12 each side = 44. This read -11px for a long
+       time on the stated reasoning "22 + 11 each side = 44", which quietly
+       measured 42 — the button's 1px border had already eaten one px per side
+       before the offset was applied. */
+    h1 .ledeinfo::after{inset:-12px}
     .browsegrid select{min-height:44px;padding:10px 12px}
     button.go{min-height:46px}
     .pop button[role="menuitemradio"]{padding:10px}
@@ -1579,9 +1608,9 @@
        negative index still paints above the parent's background — the overlay keeps
        working for its own link — but now loses to any positioned sibling above it,
        which is why .reader-close is given position:relative;z-index:1 above. */
-    .card h2 a.openlink,.reader-head a.obs,.hit .ref a,
+    .card h3 a.openlink,.reader-head a.obs,.hit .ref a,
     .tl-open,.hit.article .ameta a,.chd-pop .ch-from button.lnk{position:relative}
-    .card h2 a.openlink::after,.reader-head a.obs::after,.hit .ref a::after,
+    .card h3 a.openlink::after,.reader-head a.obs::after,.hit .ref a::after,
     .tl-open::after,.hit.article .ameta a::after,.chd-pop .ch-from button.lnk::after{
       content:"";position:absolute;left:0;right:0;top:50%;
       height:44px;transform:translateY(-50%);z-index:-1}
@@ -2407,16 +2436,16 @@ function renderRef(ref){
       (ref.v1 == null || (r[2] >= ref.v1 && r[2] <= ref.v2)));
     const label = ref.book + " " + ref.ch + (ref.v1 != null ? ":" + ref.v1 + (ref.v2 > ref.v1 ? "–" + ref.v2 : "") : "");
     if (!rows.length){
-      html += '<div class="card"><h2><span class="tbadge ' + t + '">' + t + '</span> ' + esc(label) +
-        ' <span class="muted" style="font-size:13px;color:var(--muted-2)">not in this translation</span></h2></div>';
+      html += '<div class="card"><h3><span class="tbadge ' + t + '">' + t + '</span> ' + esc(label) +
+        ' <span class="muted" style="font-size:13px;color:var(--muted-2)">not in this translation</span></h3></div>';
       continue;
     }
     found += rows.length;
-    html += '<div class="card"><h2><span class="tbadge ' + t + '">' + t + '</span> ' + esc(label) +
+    html += '<div class="card"><h3><span class="tbadge ' + t + '">' + t + '</span> ' + esc(label) +
       ' <a class="openlink" href="' + obsUrl(t, ref.book, ref.ch, ref.v1) + '"' +
       ' data-open="verse" data-t="' + t + '" data-bi="' + ref.bi + '" data-ch="' + ref.ch +
       '" data-v="' + (ref.v1 != null ? ref.v1 : "") + '">Read ↗</a>' +
-      ' <a class="openlink" href="' + obsUrl(t, ref.book, ref.ch, ref.v1) + '">Open in Obsidian ↗</a></h2>' +
+      ' <a class="openlink" href="' + obsUrl(t, ref.book, ref.ch, ref.v1) + '">Open in Obsidian ↗</a></h3>' +
       rows.map(r => verseLine(t, ref.book, ref.ch, r)).join("") + '</div>';
   }
   $status.innerHTML = found
@@ -2521,9 +2550,9 @@ function renderSearch(input){
       const book = BOOKS[r[0]];
       // data-open on the whole card, so clicking the verse text (not just the
       // reference link) opens the reader scrolled to and highlighting this verse.
-      frag.push('<div class="hit hit-verse"' + vAttrs(t, r) + '><div class="ref"><span class="tbadge ' + t + '">' + t + '</span> ' +
+      frag.push('<div class="hit hit-verse"' + vAttrs(t, r) + '><h3 class="ref"><span class="tbadge ' + t + '">' + t + '</span> ' +
         '<a href="' + obsUrl(t, book, r[1], r[2]) + '"' + vAttrs(t, r) + ' title="Open chapter">' +
-        book + " " + r[1] + ":" + r[2] + ' ↗</a></div><p>' + highlight(esc(r[3]), terms) + '</p></div>');
+        book + " " + r[1] + ":" + r[2] + ' ↗</a></h3><p>' + highlight(esc(r[3]), terms) + '</p></div>');
     }
     const wrap = document.getElementById("morewrap");
     if (wrap) wrap.remove();
@@ -2606,9 +2635,9 @@ function renderNotes(coll, input){
     // author / date / topics are all optional — drop the blanks, don't strand separators
     const meta = [a[1], a[2], a[3]].filter(Boolean).map(esc);
     if (safeUrl(a[6])) meta.push('<a href="' + esc(safeUrl(a[6])) + '" target="_blank" rel="noopener">web ↗</a>');
-    return '<div class="hit article"><div class="ref"><span class="sbadge">' + esc(a[8]) + '</span>' +
+    return '<div class="hit article"><h3 class="ref"><span class="sbadge">' + esc(a[8]) + '</span>' +
       '<a href="' + noteUrl(a) + '" data-open="note" data-coll="' + coll + '" data-i="' + s[0] + '" title="Open">' +
-      esc(a[0]) + ' ↗</a></div>' +
+      esc(a[0]) + ' ↗</a></h3>' +
       (meta.length ? '<div class="ameta">' + meta.join(' · ') + '</div>' : '') +
       '<p class="snip">' + noteSnippet(a, terms) + '</p></div>';
   }).join("");
@@ -2636,9 +2665,9 @@ function lexCard(i, r, terms){
   const study = studyFor(r[LEX_ID]) >= 0;
   // A dictionary entry has no vault note of its own, so the card's link is the
   // in-page reader only — href="#" with data-open, never a dead obsidian:// URL.
-  return '<div class="hit article word"><div class="ref"><span class="sbadge">' + lexScript(r[LEX_ID]) + '</span>' +
+  return '<div class="hit article word"><h3 class="ref"><span class="sbadge">' + lexScript(r[LEX_ID]) + '</span>' +
     '<a href="#" data-open="word" data-i="' + i + '" title="Open">' + lexName(r, terms) + '</a>' +
-    (study ? '<span class="studytag">Study</span>' : '') + '</div>' +
+    (study ? '<span class="studytag">Study</span>' : '') + '</h3>' +
     '<p class="snip">' + highlight(esc(r[LEX_DEF] || r[LEX_SENSES] || r[LEX_KJV]), terms) + '</p></div>';
 }
 /* Empty box → the written studies, not 14,197 dictionary entries. They are the
@@ -2658,9 +2687,9 @@ function renderWordStudies(){
   $status.innerHTML = '<strong>' + ART.length + '</strong> written word stud' + (ART.length === 1 ? 'y' : 'ies') +
     (count ? ' — or search all ' + esc(count) + ' Hebrew and Greek words' : '');
   $res.innerHTML = ART.map((a, i) =>
-    '<div class="hit article word"><div class="ref"><span class="sbadge">' + esc(a[8]) + '</span>' +
+    '<div class="hit article word"><h3 class="ref"><span class="sbadge">' + esc(a[8]) + '</span>' +
     '<a href="' + noteUrl(a) + '" data-open="note" data-coll="words" data-i="' + i + '" title="Open">' +
-    '<span class="lemma" dir="auto">' + esc(a[0]) + '</span> ↗</a></div>' +
+    '<span class="lemma" dir="auto">' + esc(a[0]) + '</span> ↗</a></h3>' +
     '<p class="snip">' + esc(a[4]) + '</p></div>').join("");
 }
 function renderWords(input){
@@ -2856,8 +2885,8 @@ function renderCommentaryIntro(){
         c.books + ' book' + (c.books === 1 ? '' : 's')
       : "";
     return '<div class="hit article cm-about">' +
-      '<div class="ref"><span class="sbadge">Source</span>' +
-      '<strong class="cm-name">' + esc(name) + '</strong></div>' +
+      '<h3 class="ref"><span class="sbadge">Source</span>' +
+      '<strong class="cm-name">' + esc(name) + '</strong></h3>' +
       (size ? '<div class="ameta">' + esc(size) + '</div>' : "") +
       (a ? row("Who", a.who) + row("When", a.when) + row("Why", a.why)
          : '<p class="muted">Searchable here; nothing written down yet about where it came from.</p>') +
@@ -2929,9 +2958,9 @@ function renderCommentarySearch(input){
       // The reader opens through openVerse(), which needs a real verse — a chapter
       // introduction has none, so it opens at verse 1.
       return '<div class="hit article" id="cmx-' + b + '" data-open="cm" data-b="' + b + '">' +
-        '<div class="ref"><span class="sbadge">' + esc(_cmx.who[r[3]]) + '</span>' +
+        '<h3 class="ref"><span class="sbadge">' + esc(_cmx.who[r[3]]) + '</span>' +
         '<a href="' + obsUrl(chosenTrans(), book, r[1], r[2] || 1) + '" data-open="cm" data-b="' + b + '"' +
-        ' title="Read this commentary">' + esc(where) + ' ↗</a></div>' +
+        ' title="Read this commentary">' + esc(where) + ' ↗</a></h3>' +
         '<p class="snip">' + highlight(esc(r[4]), terms) + '</p></div>';
     }).join("");
     const wrap = document.getElementById("morewrap");
@@ -6519,7 +6548,7 @@ function chMatch(n, terms){
 function chPerspectivesHtml(){
   const ps = (_ch && _ch.perspectives) || [];
   if (!ps.length) return "";
-  return '<section class="ch-persp"><h2>Seven ways to read the same history</h2>' +
+  return '<section class="ch-persp"><h3>Seven ways to read the same history</h3>' +
     '<p class="ch-perspintro">Every branch above agrees on the dates. What they mean is exactly what ' +
     'the branches disagree about — whether 1054 was a departure or a demotion, whether 1517 rescued ' +
     'the church or broke it. Six of these are insider readings, each held by people working from the ' +
@@ -7131,7 +7160,7 @@ function renderOnThisDay(filter){
   if (!inner) inner = '<div class="otd-empty">No entries recorded for this day yet.</div>';
   $res.innerHTML = '<div class="otd-card"><div class="otd-head">' +
     '<div><div class="otd-eyebrow">On This Day' + (isToday ? ' · Today' : '') + '</div>' +
-    '<h2 class="otd-date">' + esc(day.label) + '</h2></div>' +
+    '<h3 class="otd-date">' + esc(day.label) + '</h3></div>' +
     '<div class="otd-nav"><button data-otd="-1" aria-label="Previous day">‹</button>' +
     '<button data-otd="1" aria-label="Next day">›</button></div></div>' +
     '<div class="otd-body">' + inner + '</div>' +
