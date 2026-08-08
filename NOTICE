@@ -8,25 +8,32 @@ Copyright (c) 2026 RuanPienaarCode
 CURRENT LICENCE
 ---------------
 
-As of 8 August 2026 this project is licensed under the GNU General Public
-License, version 3. The full terms are in LICENSE.
+This project is licensed under the PolyForm Noncommercial License 1.0.0.
+The full terms are in LICENSE.
 
-You may use, study, modify and redistribute it, including commercially.
-The condition is reciprocity: if you distribute it, modified or not, you
-must pass on the same freedoms and make the corresponding source
-available under the GPL.
+Personal use, hobby use, and use by charitable, educational, research,
+public safety, health, environmental and government organisations are all
+permitted, free of charge. Commercial use is not granted by those terms —
+contact the copyright holder to arrange a commercial licence.
 
 These terms cover this project's own code. Bible text, the vendored
 datasets under sources/, and any content you import keep their own
 licences — see README.md and sources/README.md.
+
+GitHub reports this repository as having "no recognized license". That is
+expected. GitHub only detects open-source licences, and a licence that
+bars commercial use is by definition not one of them. The warning is the
+accepted cost of the licence, not a defect.
 
 
 LICENCE HISTORY
 ---------------
 
   MIT                            up to 7 August 2026
-  PolyForm Noncommercial 1.0.0   7 to 8 August 2026
-  GNU GPL v3                     from 8 August 2026
+  PolyForm Noncommercial 1.0.0   from 7 August 2026 (current)
+
+GNU GPL v3 was briefly published on 8 August 2026 and withdrawn the same
+day. A copy taken during that short window is GPL v3 and stays so.
 
 Copies obtained under an earlier licence remain under that licence
 permanently. A licence grant cannot be withdrawn from someone who has

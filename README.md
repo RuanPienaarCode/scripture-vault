@@ -81,8 +81,8 @@ the rights to one? `Bible/README.md` shows the exact file format to feed it in.
 **Datasets.** The parked enrichment kit vendors open data under `sources/` at the
 `v1.1.0` tag — attribution details are in `sources/README.md` there.
 
-**Code.** [GNU GPL v3](LICENSE) — use, change and share it; redistribute it and
-you must pass on the same freedoms under the GPL.
+**Code.** [PolyForm Noncommercial 1.0.0](LICENSE) — free for personal and other
+noncommercial use; commercial use needs a separate licence.
 
 ## Support
 
