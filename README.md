@@ -1,7 +1,8 @@
 # Scripture Vault
 
 A complete Bible study vault for [Obsidian](https://obsidian.md) — the whole Bible as
-notes, fast full-text search in a pane, and an enrichment layer built from open datasets.
+notes, full-text search and reading in a pane, and an enrichment layer built from open
+datasets.
 
 **Start:** clone or download this repo → open the folder as a vault in Obsidian → allow
 community plugins → follow the setup wizard. No terminal needed.
@@ -12,25 +13,29 @@ community plugins → follow the setup wizard. No terminal needed.
 
 | | |
 | --- | --- |
-| 📖 **The Bible as notes** | Every chapter a note, every verse linkable. Downloaded on first run. |
-| 🔍 **Search + reader** | A self-contained page hosted in an Obsidian view. Desktop and mobile. |
-| 🧙 **Bible Search plugin** | Ships with the vault. Runs the wizard, downloads text, builds the index. |
-| ✍️ **Teaching layout** | Drop article folders in `Teaching/` and they join the search index. |
-| 🗺️ **Layer packs** | Dictionary, prayers, On This Day, Church History and maps, fetched on demand. |
+| **The Bible as notes** | Every chapter a note, every verse linkable. Downloaded on first run. |
+| **Search and reader** | A self-contained page hosted in an Obsidian view. Desktop and mobile. |
+| **Highlights and notes** | Highlight, bookmark and annotate any verse. Stored per verse, so they survive a rebuild or a change of translation. |
+| **Timeline and Translations** | Bible and church history on a single timeline, and two dozen English translations compared. |
+| **Bible Search plugin** | Ships with the vault. Runs the wizard, downloads text, builds the index. |
+| **Teaching layout** | Drop article folders in `Teaching/` and they join the search index. |
+| **Layer packs** | Dictionary, prayers, On This Day, Church History and maps, fetched on demand. |
 
 ## Setup
 
 The wizard asks two questions:
 
 - **Where does the search page live?** Default: `Bible Search.html` at the vault root.
-- **Which translations?** KJV ✓ · BSB ✓ · WEB (optional). All public domain, from
+- **Which translations?** KJV and BSB by default, WEB optional. All public domain, from
   [bible.helloao.org](https://bible.helloao.org).
 
 A few minutes per translation, then it builds and opens. Click the book icon in the
 ribbon any time.
 
-Re-run from the command palette: **Set up Bible Search**. After editing content:
-**Rebuild search index** (or the button in Settings → Bible Search).
+Re-run from the command palette: **Bible Search: Run setup wizard** — that's also where
+you add the optional extras (dictionary, maps, church history, on this day, prayers).
+After editing content: **Bible Search: Rebuild search index** (or the button in
+Settings → Bible Search).
 
 ### Adding it to a vault you already have
 
@@ -74,7 +79,7 @@ which remains in the tree.
 not whole-Bible storage, so they aren't offered and their text isn't in this repo. Hold
 the rights to one? `Bible/README.md` shows the exact file format to feed it in.
 
-> ⚠️ **Never share a built `Bible Search.html`** from a vault containing copyrighted
+> **Note: never share a built `Bible Search.html`** from a vault containing copyrighted
 > translations or articles — the page embeds the full text. Each person builds their
 > own; the wizard makes that painless.
 
@@ -86,8 +91,8 @@ noncommercial use; commercial use needs a separate licence.
 
 ## Support
 
-Free, and staying that way. If it's earned it:
-[PayPal](https://www.paypal.com/paypalme/ruanpienaar86) ☕
+Free, and staying that way. If you would like to say thanks:
+[PayPal](https://www.paypal.com/paypalme/ruanpienaar86)
 
 ## Credits
 
