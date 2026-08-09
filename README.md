@@ -86,8 +86,9 @@ the rights to one? `Bible/README.md` shows the exact file format to feed it in.
 **Datasets.** The parked enrichment kit vendors open data under `sources/` at the
 `v1.1.0` tag — attribution details are in `sources/README.md` there.
 
-**Code.** [MIT](LICENSE) — use it, change it, share it, personally or
-commercially; just keep the copyright and permission notice with it.
+**Code.** [AGPL-3.0](LICENSE) — use it, change it, share it, personally or
+commercially; anything you distribute or run as a network service on top of it
+has to be AGPL-3.0 with its source available too.
 
 ## Support
 
