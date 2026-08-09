@@ -201,6 +201,43 @@
      one line from group to tabs to search box rather than jumping the width of the
      page. Only the chosen group's tabs show below. Bible is not in any group: it is
      always in the strip, always first. */
+  /* ── .pill — the third-tier strip control ────────────────────────────────────
+     One component for every strip BELOW the source tabs: the study card's sub-tabs,
+     the five in-panel pickers (maps mode, journeys, tribes, translations sort,
+     commentator), the chapter-map scope toggle and the two Notes-tab rows.
+
+     It exists because the same object had been written out ten times — five font
+     sizes and eight padding pairs for controls meant to read as one thing. Every new
+     panel had started by copying its nearest neighbour, so the spread widened each
+     time the page grew.
+
+     The component owns SHAPE: family, weight, tracking, radius, border box, cursor,
+     and the centring the 44px touch minimum needs. A strip still sets its own SIZE
+     and COLOUR — a study tab is 11px where a picker is 11.5px — because those are
+     real tier differences. What a strip may not do is restate what is here, which is
+     the restating that drifted; a test enforces that.
+
+     Deliberately NOT applied to .srcgroups or .srctabs. Those two are the underlined
+     uppercase group row and the filled segmented control, and their difference in
+     look is what tells the three tiers apart on sight. Nor to button.chip (the bar
+     tools, larger), .tl-chip (a link, not a control), .mc-go or .otd-map (one-offs) —
+     same pill shape, different components.
+
+     Plain class selector: nothing here can be dropped by an engine on the floor. */
+  .pill{display:inline-flex;align-items:center;font-family:var(--sans);font-weight:300;
+    letter-spacing:.02em;border-radius:999px;border:1px solid var(--line);
+    cursor:pointer;white-space:nowrap;background:var(--panel);color:var(--muted)}
+  .pill:hover{color:var(--ink);border-color:var(--accent)}
+  /* ONE selected treatment for the whole tier. It used to be four: three flavours of
+     accent and, on the Notes rows alone, --ink — the only "selected" on the page that
+     was not gold, which read as a different kind of state rather than the same one.
+     Both attributes, because a sub-TAB swaps a panel (aria-selected) while a picker
+     filters one (aria-pressed), and they look identical either way. Separate rules
+     rather than one list only because they are separate concerns; both are plain
+     attribute selectors and neither can poison the other. */
+  .pill[aria-pressed="true"]{color:var(--accent);border-color:var(--accent-line);background:var(--code-bg)}
+  .pill[aria-selected="true"]{color:var(--accent);border-color:var(--accent-line);background:var(--code-bg)}
+
   .srcgroups{display:flex;flex-wrap:wrap;justify-content:flex-start;gap:14px;margin:0 4px 7px}
   .srcgroups button{background:none;border:none;cursor:pointer;padding:2px 1px 4px;
     color:var(--muted-2);font-family:var(--sans);font-size:12px;font-weight:300;
@@ -980,11 +1017,14 @@
      take two, which is what wrap has always been here for: a narrower pane or a
      larger base font would have done the same. */
   .study-tabs{display:flex;flex-wrap:wrap;gap:5px;padding:9px 12px;border-bottom:1px solid var(--line)}
-  .study-tabs button{font-family:var(--sans);font-size:11px;font-weight:300;letter-spacing:.02em;
-    color:var(--muted);background:none;border:1px solid transparent;border-radius:999px;
-    padding:4px 9px;cursor:pointer;white-space:nowrap}
-  .study-tabs button:hover{color:var(--ink)}
-  .study-tabs button[aria-selected="true"]{color:var(--accent);border-color:var(--line);background:var(--panel)}
+  /* Shape from .pill; size, and the quiet resting state the rail wants, from here.
+     Transparent border rather than --line: six of these sit in a 380px rail and a
+     visible outline on every one of them reads as a grid of boxes. */
+  .study-tabs button{font-size:11px;padding:4px 9px;background:none;border-color:transparent}
+  /* :not(), because a bare .study-tabs button:hover is (0,2,1) and would outrank
+     .pill[aria-selected="true"] at (0,2,0) — hovering the CHOSEN tab would have taken
+     its accent border off, which is not what the quiet resting state is for. */
+  .study-tabs button:hover:not([aria-selected="true"]){border-color:transparent}
   .study-tabs .spacer{flex:1}
   .study-close{font-size:15px;line-height:1;color:var(--muted-2);background:none;border:none;
     cursor:pointer;padding:4px 6px;font-family:var(--sans)}
@@ -1004,21 +1044,16 @@
     color:var(--muted-2);margin:0 0 6px;display:block}
   .mk-lab:not(:first-child){margin-top:13px}
   .mk-row{display:flex;flex-wrap:wrap;gap:5px;margin:0}
-  .mk-sw{display:inline-flex;align-items:center;gap:6px;font-family:var(--sans);font-size:11.5px;
-    font-weight:300;letter-spacing:.02em;color:var(--muted);background:none;
-    border:1px solid var(--line);border-radius:999px;padding:4px 10px 4px 7px;cursor:pointer}
+  /* Shape and the selected treatment from .pill — these two rows used to be the only
+     "selected" on the page that wasn't gold. The swatch, the gap it needs and the
+     asymmetric padding that makes room for it stay here. */
+  .mk-sw{gap:6px;font-size:11.5px;padding:4px 10px 4px 7px;background:none}
   .mk-sw i{width:11px;height:11px;border-radius:50%;background:var(--sw);flex:none;
     border:1px solid rgba(128,128,128,.4)}
-  .mk-sw:hover{color:var(--ink)}
-  .mk-sw[aria-pressed="true"]{color:var(--ink);border-color:var(--accent);background:var(--panel)}
   /* "None" is a set-shaped button with no colour, so clearing a highlight is the
      same gesture as choosing one rather than a differently-shaped exception. */
   .mk-none i{background:none;border-style:dashed}
-  .mk-plain{font-family:var(--sans);font-size:11.5px;font-weight:300;letter-spacing:.02em;
-    color:var(--muted);background:none;border:1px solid var(--line);border-radius:999px;
-    padding:4px 11px;cursor:pointer}
-  .mk-plain:hover{color:var(--ink);border-color:var(--accent)}
-  .mk-plain[aria-pressed="true"]{color:var(--ink);border-color:var(--accent);background:var(--panel)}
+  .mk-plain{font-size:11.5px;padding:4px 11px;background:none}
   /* Only ever seen when the clipboard was refused: the verse, ready to be copied
      by hand. The display:block here loses to the global [hidden] rule's
      !important, so hiding it needs nothing extra. */
@@ -1182,12 +1217,7 @@
 
   /* commentator picker — only rendered when the chapter has more than one voice */
   .cm-pick{display:flex;flex-wrap:wrap;gap:5px;margin:0 0 12px}
-  .cm-pick button{font-family:var(--sans);font-size:11px;font-weight:300;letter-spacing:.02em;
-    color:var(--muted);background:var(--panel);border:1px solid var(--line);border-radius:999px;
-    padding:4px 10px;cursor:pointer;white-space:nowrap}
-  .cm-pick button:hover{color:var(--ink);border-color:var(--accent)}
-  .cm-pick button[aria-pressed="true"]{color:var(--accent);border-color:var(--accent-line);
-    background:var(--code-bg)}
+  .cm-pick button{font-size:11px;padding:4px 10px}
 
   /* the chapter map, collapsed under the chapter heading in the reader. Closed by
      default and absent entirely where a chapter names nowhere, so it costs the
@@ -1201,12 +1231,9 @@
   .chmap .chmap-sub{color:var(--muted-2);font-size:11px;margin-left:8px}
   .chmap-body{padding:0 11px 11px}
   .chmap-scope{display:flex;gap:5px;margin:0 0 9px}
-  .chmap-scope button{font-family:var(--sans);font-size:11px;font-weight:300;letter-spacing:.02em;
-    color:var(--muted);background:var(--panel-2);border:1px solid var(--line);border-radius:999px;
-    padding:3px 10px;cursor:pointer}
-  .chmap-scope button:hover{color:var(--ink);border-color:var(--accent)}
-  .chmap-scope button[aria-pressed="true"]{color:var(--accent);border-color:var(--accent-line);
-    background:var(--code-bg)}
+  /* --panel-2, not --panel: this strip sits INSIDE the .chmap panel, which is --panel
+     already, and a control the same colour as the box under it disappears. */
+  .chmap-scope button{font-size:11px;padding:3px 10px;background:var(--panel-2)}
   .mc-go{display:inline-block;margin-top:7px;font-family:var(--sans);font-size:11.5px;
     color:var(--accent-2);background:none;border:1px solid var(--line);border-radius:999px;
     padding:3px 9px;cursor:pointer}
@@ -1328,13 +1355,11 @@
     stroke:var(--map-sea);stroke-width:2.5px;stroke-linejoin:round;vector-effect:non-scaling-stroke}
 
   /* the Maps tab's mode picker, and the journey tabs under it */
-  .mm-pick,.jr-pick,.tx-pick{display:flex;flex-wrap:wrap;gap:5px;margin:0 0 12px}
-  .mm-pick button,.jr-pick button,.tx-pick button{font-family:var(--sans);font-size:11.5px;font-weight:300;
-    letter-spacing:.02em;color:var(--muted);background:var(--panel);border:1px solid var(--line);
-    border-radius:999px;padding:4px 11px;cursor:pointer;white-space:nowrap}
-  .mm-pick button:hover,.jr-pick button:hover,.tx-pick button:hover{color:var(--ink);border-color:var(--accent)}
-  .mm-pick button[aria-pressed="true"],.jr-pick button[aria-pressed="true"],.tx-pick button[aria-pressed="true"]{
-    color:var(--accent);border-color:var(--accent-line);background:var(--code-bg)}
+  /* .al-pick is the tribes strip. It rendered as .jr-pick for a long time, which meant
+     the journeys margin below reached it by accident and a search for one strip found
+     the other; it has its own class now and joins these lists explicitly. */
+  .mm-pick,.jr-pick,.al-pick,.tx-pick{display:flex;flex-wrap:wrap;gap:5px;margin:0 0 12px}
+  .mm-pick button,.jr-pick button,.al-pick button,.tx-pick button{font-size:11.5px;padding:4px 11px}
   .jr-pick{margin-bottom:10px}
   .jr-head{margin:0 0 14px}
   .jr-note{margin:3px 0 0;color:var(--ink);font-weight:300}
@@ -1605,6 +1630,20 @@
        block, which trims it to fit five chips on one row) — only the vertical
        target grows, and that comes from min-height above. */
     .srctabs button{padding:8px 14px}
+    /* The SECOND tier of strip, and everything below it. The list above was written
+       when .srctabs and .srcgroups were the only strips on the page; the study card's
+       sub-tabs and the five in-panel pickers all arrived later, each copying a nearby
+       pill rule rather than this block, and so none of them ever got a touch target —
+       they compute to 21–24px, on a page whose main reader is a phone. Same failure
+       the .ch-chip comment below records for Church History, five more times over.
+       Plain class selectors, so the floor guard is satisfied: nothing here can be
+       dropped by an engine that doesn't know a pseudo-class. */
+    .study-tabs button,.mm-pick button,.jr-pick button,.al-pick button,.tx-pick button,
+    .cm-pick button,.chmap-scope button,.mk-sw,.mk-plain{min-height:44px}
+    /* The pickers centre their label once they are taller than their text. .mk-sw is
+       already inline-flex for its colour swatch and needs nothing. */
+    .study-tabs button,.mm-pick button,.jr-pick button,.al-pick button,.tx-pick button,
+    .cm-pick button,.chmap-scope button,.mk-plain{display:inline-flex;align-items:center}
     /* …but the three page-tool chips carry a single glyph each (? / ▯ / ☾), so they
        compute to ~30–33px wide. min-height alone leaves them a tall thin sliver. */
     #chipHelp,#chipWidth,#chipTheme{min-width:44px}
@@ -3450,9 +3489,9 @@ function readerMapBlock(mp, t, bi, ch, scope){
      smaller one: Joshua 15 names 162 places, more than the whole-book map shows,
      because the book map keeps only the most-named. */
   const toggle = chapter.length && book.length && book.length !== chapter.length
-    ? '<div class="chmap-scope">' +
-      '<button data-mscope="chapter" aria-pressed="' + (!wide) + '">This chapter</button>' +
-      '<button data-mscope="book" aria-pressed="' + wide + '">Whole book</button></div>'
+    ? '<div class="chmap-scope" role="toolbar" aria-label="Map scope">' +
+      '<button class="pill" data-mscope="chapter" aria-pressed="' + (!wide) + '">This chapter</button>' +
+      '<button class="pill" data-mscope="book" aria-pressed="' + wide + '">Whole book</button></div>'
     : "";
   const n = all.length;
   // Say when the map is showing a selection rather than everything, so a reader is
@@ -3984,8 +4023,8 @@ function renderCommentary(box, data, ch, v){
   for (const s of starts){ if (s <= v) start = s; else break; }
 
   const picker = names.length > 1
-    ? '<div class="cm-pick">' + names.map(n =>
-        '<button data-cm="' + esc(n) + '" aria-pressed="' + (n === studyCommentator) + '">' +
+    ? '<div class="cm-pick" role="toolbar" aria-label="Commentator">' + names.map(n =>
+        '<button class="pill" data-cm="' + esc(n) + '" aria-pressed="' + (n === studyCommentator) + '">' +
         esc(n) + '</button>').join("") + '</div>'
     : "";
   const para = s => s.split("\n").map(p => esc(p)).join("<br><br>");
@@ -5092,19 +5131,19 @@ function mountNotesTab(box, t, bi, ch, v){
 
   const swatchRow = () =>
     MARKS.sets.map(s =>
-      '<button class="mk-sw" data-set="' + esc(s.id) + '" style="--sw:' + esc(s.color) + '"' +
+      '<button class="pill mk-sw" data-set="' + esc(s.id) + '" style="--sw:' + esc(s.color) + '"' +
       ' aria-pressed="' + (MARKS.hl[key] === s.id) + '"><i aria-hidden="true"></i>' + esc(s.name) + '</button>'
     ).join("") +
-    '<button class="mk-sw mk-none" data-set="" aria-pressed="' + !MARKS.hl[key] + '">' +
+    '<button class="pill mk-sw mk-none" data-set="" aria-pressed="' + !MARKS.hl[key] + '">' +
     '<i aria-hidden="true"></i>None</button>';
 
   const editorHtml = () => {
     if (!editing) return "";
     const picks = MARKS.sets.map(s =>
-      '<button class="mk-sw" data-ed="' + esc(s.id) + '" style="--sw:' + esc(s.color) + '"' +
+      '<button class="pill mk-sw" data-ed="' + esc(s.id) + '" style="--sw:' + esc(s.color) + '"' +
       ' aria-pressed="' + (editing.id === s.id) + '"><i aria-hidden="true"></i>' + esc(s.name) + '</button>'
     ).join("") +
-      '<button class="mk-plain" data-ed="" aria-pressed="' + (editing.id === null) + '">＋ New</button>';
+      '<button class="pill mk-plain" data-ed="" aria-pressed="' + (editing.id === null) + '">＋ New</button>';
     const pal = HL_PALETTE.map(([name, color]) =>
       '<button data-col="' + color + '" style="--sw:' + color + '" title="' + esc(name) + '"' +
       ' aria-label="' + esc(name) + '" aria-pressed="' + (editing.color === color) + '"></button>').join("");
@@ -5114,9 +5153,9 @@ function mountNotesTab(box, t, bi, ch, v){
       '<input type="text" class="mk-name" maxlength="40" placeholder="Promises · Commands · To memorise…" value="' + esc(editing.name) + '">' +
       '<span class="mk-lab">Colour</span>' +
       '<div class="mk-pal">' + pal + '</div>' +
-      '<div class="mk-btns"><button class="mk-plain mk-save">' + (editing.id ? "Save" : "Create") + '</button>' +
-      (editing.id ? '<button class="mk-plain mk-del warn">' + (confirmDel ? "Delete — sure?" : "Delete") + '</button>' : "") +
-      '<button class="mk-plain mk-close">Close</button></div></div>';
+      '<div class="mk-btns"><button class="pill mk-plain mk-save">' + (editing.id ? "Save" : "Create") + '</button>' +
+      (editing.id ? '<button class="pill mk-plain mk-del warn">' + (confirmDel ? "Delete — sure?" : "Delete") + '</button>' : "") +
+      '<button class="pill mk-plain mk-close">Close</button></div></div>';
   };
 
   function draw(){
@@ -5125,9 +5164,9 @@ function mountNotesTab(box, t, bi, ch, v){
       '<span class="mk-lab">Highlight</span>' +
       '<div class="mk-row" role="group" aria-label="Highlight this verse">' + swatchRow() + '</div>' +
       '<div class="mk-row" style="margin-top:8px">' +
-        '<button class="mk-plain mk-bm" aria-pressed="' + !!MARKS.bm[key] + '">🔖 Bookmark</button>' +
-        '<button class="mk-plain mk-copy">⧉ Copy verse</button>' +
-        '<button class="mk-plain mk-colours" aria-pressed="' + !!editing + '">✎ Colours</button>' +
+        '<button class="pill mk-plain mk-bm" aria-pressed="' + !!MARKS.bm[key] + '">🔖 Bookmark</button>' +
+        '<button class="pill mk-plain mk-copy">⧉ Copy verse</button>' +
+        '<button class="pill mk-plain mk-colours" aria-pressed="' + !!editing + '">✎ Colours</button>' +
       '</div>' +
       // Shown only when the clipboard refuses — see copyToClipboard()'s third tier.
       '<textarea class="mk-share" readonly aria-label="Verse to copy" hidden></textarea>' +
@@ -5347,7 +5386,7 @@ function openStudy(t, bi, ch, v, verseEl){
        so exactly one study panel is ever in the document. */
     '<div class="study-tabs" role="tablist" aria-label="Study">' +
     tabs.map(([k, label]) =>
-      '<button role="tab" id="studytab-' + k + '" data-tab="' + k +
+      '<button class="pill" role="tab" id="studytab-' + k + '" data-tab="' + k +
       '" aria-controls="study-body" aria-selected="' + (k === studyTab) +
       '" tabindex="' + (k === studyTab ? 0 : -1) + '">' +
       esc(label) + '</button>').join("") +
@@ -5382,19 +5421,11 @@ function openStudy(t, bi, ch, v, verseEl){
     renderStudyBody(box, studyTab, t, bi, ch, v);
   }
   studyBtns.forEach(b => b.addEventListener("click", () => pickStudyTab(b)));
-  /* The arrow keys are not a nicety here — they are the ONLY way in. A roving
-     tabindex puts tabindex="-1" on every unselected tab, so without this handler
-     five of the six study tabs are unreachable by keyboard entirely. The two
-     strips at the top of the page have carried their own copy of this since they
-     were written; this one was added when the roving tabindex was. */
-  panel.querySelector(".study-tabs").addEventListener("keydown", e => {
-    if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
-    e.preventDefault();
-    const i = studyBtns.findIndex(b => b.dataset.tab === studyTab);
-    const next = studyBtns[(i + (e.key === "ArrowRight" ? 1 : studyBtns.length - 1)) % studyBtns.length];
-    pickStudyTab(next);
-    next.focus();
-  });
+  /* The arrow keys are not a nicety here — they are the ONLY way in. See
+     wireRovingStrip(), which all three strips on the page now share. */
+  wireRovingStrip(panel.querySelector(".study-tabs"), () => studyBtns,
+    strip => strip.findIndex(b => b.dataset.tab === studyTab),
+    pickStudyTab);
   panel.querySelector(".study-close").addEventListener("click", closeStudy);
   renderStudyBody(box, studyTab, t, bi, ch, v);
 }
@@ -5673,8 +5704,12 @@ const mapsModeOn = (m) =>
 function mapsPicker(){
   const on = MAPS_MODES.filter(([k]) => mapsModeOn(k));
   if (on.length < 2) return "";
-  return '<div class="mm-pick">' + on.map(([k, label]) =>
-    '<button data-mmode="' + k + '" aria-pressed="' + (k === mapsMode) + '">' + label + '</button>').join("") + '</div>';
+  /* A toolbar, not a tablist — same reasoning as .srcgroups one tier up: these filter
+     what the Maps panel draws, they control no panel of their own, and calling them
+     tabs promises a screen reader a panel that does not exist. Without the role the
+     strip was announced as loose unnamed toggles with no group boundary at all. */
+  return '<div class="mm-pick" role="toolbar" aria-label="Map mode">' + on.map(([k, label]) =>
+    '<button class="pill" data-mmode="' + k + '" aria-pressed="' + (k === mapsMode) + '">' + label + '</button>').join("") + '</div>';
 }
 
 /* Which basemap a mode needs, and the load for it. Church history and the calendar
@@ -6036,8 +6071,8 @@ function renderJourneys(filter, data){
   $status.innerHTML = terms.length
     ? '<strong>' + hits.length + '</strong> journey' + (hits.length === 1 ? '' : 's') + ' matching “' + esc(filter) + '”'
     : 'Where the story went — <strong>' + list.length + '</strong> journeys, Ur to Rome';
-  const tabs = '<div class="jr-pick">' + hits.map((x, i) =>
-    '<button data-jr="' + i + '" aria-pressed="' + (i === mapsJourney) + '">' + esc(x.name) + '</button>').join("") + '</div>';
+  const tabs = '<div class="jr-pick" role="toolbar" aria-label="Journey">' + hits.map((x, i) =>
+    '<button class="pill" data-jr="' + i + '" aria-pressed="' + (i === mapsJourney) + '">' + esc(x.name) + '</button>').join("") + '</div>';
   const rows = j.stops.map((st, i) =>
     '<div class="mh-row" id="jr-' + i + '" data-si="' + i + '">' +
     '<div class="mh-n">' + (i + 1) + '</div>' +
@@ -6132,8 +6167,8 @@ function renderAllotments(filter, data){
   $status.innerHTML = terms.length
     ? '<strong>' + hits.length + '</strong> allotment' + (hits.length === 1 ? '' : 's') + ' matching “' + esc(filter) + '”'
     : 'What each tribe was given — the places Joshua names, where they can be located';
-  const tabs = '<div class="jr-pick">' + hits.map((x, i) =>
-    '<button data-al="' + i + '" aria-pressed="' + (i === mapsTribe) + '">' + esc(x.tribe) + '</button>').join("") + '</div>';
+  const tabs = '<div class="al-pick" role="toolbar" aria-label="Tribe">' + hits.map((x, i) =>
+    '<button class="pill" data-al="' + i + '" aria-pressed="' + (i === mapsTribe) + '">' + esc(x.tribe) + '</button>').join("") + '</div>';
   const rows = a.points.map((pt, i) =>
     '<div class="mh-row" id="al-' + i + '" data-si="' + i + '">' +
     '<div class="mh-n">' + (i + 1) + '</div>' +
@@ -7497,8 +7532,8 @@ function renderTranslations(filter){
   const sort = TX_SORTS.find(s => s[0] === txSort) || TX_SORTS[0];
   rows = rows.slice().sort(sort[2]);
 
-  const pick = '<div class="tx-pick">' + TX_SORTS.map(s =>
-    '<button data-txsort="' + s[0] + '" aria-pressed="' + (s[0] === txSort) + '">' +
+  const pick = '<div class="tx-pick" role="toolbar" aria-label="Sort translations">' + TX_SORTS.map(s =>
+    '<button class="pill" data-txsort="' + s[0] + '" aria-pressed="' + (s[0] === txSort) + '">' +
     esc(s[1]) + '</button>').join("") + '</div>';
   const legend = '<div class="tx-legend">' + TX_BANDS.map(b =>
     '<div><b>' + esc(b[2]) + '</b><span>' + esc(b[3]) + '</span></div>').join("") + '</div>';
@@ -7821,6 +7856,33 @@ function layoutTabs(){
   });
   $groupTabs.forEach(b => b.classList.toggle("tab-off", b.dataset.g !== group));
 }
+/* Arrow-key navigation for a strip with a roving tabindex — the second half of a
+   pattern whose first half is a trap on its own. A roving tabindex puts
+   tabindex="-1" on every unselected control, so these keys are not a nicety: they
+   are the ONLY way to reach the rest of the strip. Ship one without the other and
+   every control but the selected one is unreachable by keyboard, which is exactly
+   what happened when the study card first got its roving tabindex.
+
+   Written once, here, because it WAS written three times — .srctabs, .srcgroups and
+   .study-tabs each carried an identical copy, and the fourth strip would have copied
+   whichever was nearest. `items` is a thunk rather than an array because the source
+   strip is filtered live by the open group: the array it should wrap around is the
+   one on screen at keypress time, not the one that existed at wiring time.
+
+   Hoisted, so the study card 2,500 lines above can call it. */
+function wireRovingStrip(el, items, indexOf, pick){
+  if (!el) return;
+  el.addEventListener("keydown", e => {
+    if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+    e.preventDefault();
+    const strip = items();
+    if (!strip.length) return;
+    const i = indexOf(strip);
+    const next = strip[(i + (e.key === "ArrowRight" ? 1 : strip.length - 1)) % strip.length];
+    pick(next);
+    next.focus();
+  });
+}
 // The tabs currently in the strip: Bible plus the open group's, in DOM order.
 const stripTabs = () => $visTabs.filter(b => !b.dataset.g || b.dataset.g === group);
 // Picking a group reveals its tabs AND moves to the first of them, so the strip
@@ -7890,23 +7952,12 @@ $tabs.forEach(btn => btn.addEventListener("click", () => selectSource(btn.datase
 // ← / → cycle tabs while the tablist has focus, per the WAI-ARIA tabs pattern.
 // Within the strip that means Bible plus the open group; on the group row it steps
 // between groups, which drags the strip along with it.
-document.querySelector(".srctabs").addEventListener("keydown", e => {
-  if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
-  e.preventDefault();
-  const strip = stripTabs();
-  const i = strip.findIndex(b => b.dataset.s === source);
-  const next = strip[(i + (e.key === "ArrowRight" ? 1 : strip.length - 1)) % strip.length];
-  selectSource(next.dataset.s, false);
-  next.focus();
-});
-document.querySelector(".srcgroups").addEventListener("keydown", e => {
-  if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
-  e.preventDefault();
-  const i = $visGroups.findIndex(g => g.dataset.g === group);
-  const next = $visGroups[(i + (e.key === "ArrowRight" ? 1 : $visGroups.length - 1)) % $visGroups.length];
-  selectGroup(next.dataset.g, false);
-  next.focus();
-});
+wireRovingStrip(document.querySelector(".srctabs"), stripTabs,
+  strip => strip.findIndex(b => b.dataset.s === source),
+  next => selectSource(next.dataset.s, false));
+wireRovingStrip(document.querySelector(".srcgroups"), () => $visGroups,
+  strip => strip.findIndex(g => g.dataset.g === group),
+  next => selectGroup(next.dataset.g, false));
 
 // result clicks → open the in-page reader (links keep their href for right-click / fallback)
 function openFrom(el){
