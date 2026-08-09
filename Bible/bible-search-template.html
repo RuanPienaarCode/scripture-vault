@@ -338,7 +338,14 @@
   .verse a.vnum{font-family:var(--mono);font-size:12px;color:var(--accent);text-decoration:none;
     font-weight:500;margin-right:10px}
   .verse a.vnum:hover{text-decoration:underline}
-  mark{background:var(--mk-bg);color:var(--mk-ink);border-radius:2px;padding:0 3px}
+  /* The tint must not take up inline width. highlight() matches at word START and has no
+     closing \b — that is deliberate, so "shepherd" still hits "shepherds" — which means a
+     mark routinely ends INSIDE a word. Any horizontal padding then lands between "love"
+     and the "d" of "loved" and reads as a space, breaking the word in half; between whole
+     words it widened the gap the same way. So the padding is 1px and an equal negative
+     margin gives it back: the tint clears the glyph edges without moving a single
+     character, and a mark at the start of a line still sits on the text column. */
+  mark{background:var(--mk-bg);color:var(--mk-ink);border-radius:2px;padding:0 1px;margin:0 -1px}
   .hit{border-bottom:1px solid var(--line);padding:18px 0}
   /* verse hits open the reader on click anywhere in the card */
   .hit-verse{cursor:pointer;margin:0 -12px;padding:18px 12px;border-radius:8px;transition:background .12s}
