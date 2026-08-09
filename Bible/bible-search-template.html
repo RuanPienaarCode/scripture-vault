@@ -186,7 +186,14 @@
     border-bottom:1px solid var(--line);margin-bottom:6px}
   .cmd{display:flex;align-items:center;gap:8px;border:1px solid var(--line);
     border-radius:var(--radius);background:var(--panel);padding:6px 8px 6px 14px;position:relative;flex-wrap:wrap}
-  .cmd:focus-within{border-color:var(--accent)}
+  /* The command bar is the search box's focus indicator, and has been since the
+     first commit. It is the shape the eye actually reads as "the search bar" —
+     rounded, full-width, holding the glyph, the input and the chips — so lighting
+     its edge says "you are typing here" far better than a rectangle drawn round
+     the bare input inside it. The box-shadow takes the lit edge to 2px without
+     moving anything: it sits just outside the 1px border and inherits the same
+     border-radius, so the ring hugs the bar rather than boxing it. */
+  .cmd:focus-within{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
   .cmd .glyph{color:var(--muted-2);font-size:15px}
   /* group tabs — the source tabs are too many for one strip, so they sit in five
      named groups (Study / History / Devotion / Reading / Notes) picked from this row.
@@ -246,18 +253,53 @@
   /* appearance:none — type="search" otherwise gets the engine's own chrome: Chromium
      and WebKit paint a native cancel ✕ that draws in the platform's grey and ignores
      the palette entirely (a light glyph on the dark theme, and vice versa). We have
-     no use for it — the bar clears on Esc — so reset the widget and drop the button. */
-  /* No outline:none here, deliberately. It used to sit in this block, and at ID
-     specificity (1,0,0) it beat the input:focus ring below (0,1,1) — so the focus
-     rule the stylesheet carried for the search box had in fact never painted, and
-     a keyboard user tabbing back into #q got nothing. The UA outline only appears
-     on focus anyway, which is exactly the state the :focus pair below governs, so
-     dropping the reset costs nothing in the resting state and restores the ring. */
+     no use for THEIRS — .clearq below is the same control in our own palette — so reset
+     the widget and drop the button. (This comment used to end "the bar clears on Esc",
+     which was the whole argument for having no button at all. Esc does clear a search
+     input, natively, on a desktop engine; a phone has no Esc key, and that was the gap.) */
+  /* No outline:none in the RESTING block, deliberately. It used to sit here, and at
+     id specificity (1,0,0) it beat the input:focus ring below (0,1,1) in every state
+     including focus — which is how the search box came to have no ring of its own at
+     all. Killing an outline unconditionally from an id rule is the one thing
+     no_id_rule_outranks_the_focus_ring_it_is_supposed_to_obey forbids outright. */
   #q{flex:1;min-width:150px;font-size:18px;font-family:var(--sans);font-weight:200;letter-spacing:.01em;
     color:var(--ink);background:transparent;border:none;padding:12px 6px;
     appearance:none;-webkit-appearance:none}
+  /* #q is the one input that opts out of the global ring, and it opts out in the
+     focused state only — which is the escape hatch that preflight leaves open, since
+     a focus-aware id rule cannot outrank a ring in any state the ring still owns.
+
+     Why it opts out: #q is not a lone control on a page, it is the text run inside a
+     bordered bar. The global rule draws 2px at 2px offset around the INPUT box, so
+     the ring landed inside the bar, square-cornered against the bar's radius, hard up
+     against the 🔍 and the chips — two rings for one focus, and the inner one traced a
+     shape the design never draws anywhere else. .cmd:focus-within already lights the
+     bar, and #q is the only child of .cmd that :focus-within can be responding to and
+     still leave the user without an indicator, so the delegation is total: everything
+     else in there (the three chips) keeps its own ring. Autofocus makes this the very
+     first thing on the page, which is why it reads as loudly as it does. */
+  #q:focus{outline:none}
   #q::-webkit-search-cancel-button{display:none}
   #q::placeholder{color:var(--muted-2);font-weight:300}
+  /* The bar had no clear control of its own. The block above resets the widget and
+     drops the engine's native ✕, and the comment that stood in for it said "the bar
+     clears on Esc" — which is true, natively, on a desktop engine, for someone who
+     thinks to try it. A phone has no Esc key at all, so a touch user who mistyped a
+     reference had one way out of it: hold backspace. This is that control, drawn in
+     the page's own palette rather than the platform's grey.
+
+     Sized and coloured as a companion to the 🔍 at the other end of the input — muted
+     until pointed at — so the bar reads as one object with a mark at each end, not as
+     a text field wearing a widget. It sits between #q and the chips, which is both
+     where the eye looks for it and where Tab reaches it: straight after the box whose
+     contents it throws away.
+
+     hidden rather than a faded state, because an empty box has nothing to clear and a
+     control that is present but inert is worse than one that is absent. [hidden] is
+     display:none!important further up, so nothing here can leak it back. */
+  .clearq{flex:none;background:none;border:none;cursor:pointer;padding:6px 8px;
+    font-family:var(--sans);font-size:13px;font-weight:300;line-height:1;color:var(--muted-2)}
+  .clearq:hover{color:var(--ink)}
   .chips{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
   button.chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;
     padding:7px 13px;font-size:12px;font-weight:300;letter-spacing:.02em;color:var(--muted);
@@ -1602,8 +1644,11 @@
     /* .map-btn joins them: the map controls were 26px squares and had never been
        given a touch target at all. Now that they sit in the same corner and the
        same shell as .chd-zbtn they get the same 44px minimum too. */
-    .ch-chip,.ch-clear,.chd-zbtn,.map-btn,.otd-nav button,.chd-pop .pclose{min-height:44px}
-    .chd-zbtn,.map-btn,.otd-nav button,.chd-pop .pclose{min-width:44px}
+    /* .clearq joins them for the same reason: it is a 13px glyph, and it is the one
+       control on this page that ONLY a touch user is forced to use — a desktop
+       keyboard clears the box with Esc, a phone has nothing else. */
+    .ch-chip,.ch-clear,.chd-zbtn,.map-btn,.otd-nav button,.chd-pop .pclose,.clearq{min-height:44px}
+    .chd-zbtn,.map-btn,.otd-nav button,.chd-pop .pclose,.clearq{min-width:44px}
     /* the close button grew from 32px to 44px — give the title back its clearance */
     .chd-pop h3{margin-right:46px}
     /* inline links — expand the hit box, not the type. The timeline "open", the
@@ -1692,6 +1737,7 @@
       <span class="glyph" aria-hidden="true">🔍</span>
       <input id="q" type="search" autocomplete="off" spellcheck="false" autofocus
         placeholder="John 3:16-18 · Psalm 23 · born again · shepherd…" aria-label="Search">
+      <button class="clearq" id="clearQ" type="button" aria-label="Clear search" hidden>✕</button>
       <div class="chips">
         <button class="chip" id="chipTrans" aria-haspopup="true" aria-expanded="false"__TRANS_HIDDEN__><b>__DEFAULT_TRANS_LABEL__</b> <span class="chev" aria-hidden="true">▾</span></button>
         <button class="chip" id="chipTest" aria-haspopup="true" aria-expanded="false"><b>All 66</b> <span class="chev" aria-hidden="true">▾</span></button>
@@ -6463,6 +6509,31 @@ function chData(){
        lutheranstate. `seen` is set BEFORE recursing, so a cycle in the data can't hang
        the page — it just stops pulling. */
     const inThisEra = new Set(inEra.map(n => n.id));
+    /* Effective year — a node's own year, but never earlier than any same-era ANCESTOR's.
+       This is the fix for the band's worst chronological inversions, and the reason is
+       the interaction of the two rules below. `emit` hoists a same-era parent chain
+       ahead of the child that pulled it, so sorting on the RAW year put late ancestors
+       near the front of the placement order: asking for St Thomas Christians (AD 52)
+       dragged Church of the East (432), Ephesus (431) and Nicaea (325) up with it, and
+       the "never above an earlier year" floor then followed those 5th-century rows down
+       and pinned everything genuinely earlier — Rabbinic Judaism (70), Gnosticism (130),
+       Marcion (144), Montanism (170) — BELOW them. The schism band was worse: reaching
+       for the Georgian church (326) hoisted the whole 1054 cluster into row 0, so the
+       Great Schism rendered above Chalcedonian churches four centuries its senior.
+       Sorting on the effective year instead means a parent is always at or before its
+       child in the order, so `emit` never has anything to hoist and the floor advances
+       in true chronological step. Memoised, and `busy` guards a cycle in the data. */
+    const effYear = {}, busy = new Set();
+    const effOf = n => {
+      if (effYear[n.id] != null) return effYear[n.id];
+      if (busy.has(n.id)) return n.year || 0;   // cycle — stop pulling, take our own year
+      busy.add(n.id);
+      let v = n.year || 0;
+      for (const p of (n.parents || [])) if (inThisEra.has(p)) v = Math.max(v, effOf(_ch.byId[p]));
+      busy.delete(n.id);
+      return (effYear[n.id] = v);
+    };
+    inEra.forEach(effOf);
     const order = [], seen = new Set();
     const emit = n => {
       if (!n || seen.has(n.id)) return;
@@ -6474,17 +6545,18 @@ function chData(){
        band's rows were packed in left-to-right order and time inside a band was close
        to arbitrary — 1517 could sit below 1596, and reading downward told you nothing.
        Sorting by year and refusing to place a node above one already put down from an
-       earlier year takes the chart from 365 chronological inversions to 31, and the
-       poster comes out slightly SHORTER (5589px → 5488px), because year order happens
-       to pack better than x order. */
-    inEra.slice().sort((a, b) => (a.year || 0) - (b.year || 0) || want[a.id] - want[b.id]).forEach(emit);
+       earlier year took the chart from 365 chronological inversions to 57; sorting by
+       the EFFECTIVE year above takes it to 39, and every one of those 39 is forced by
+       the data rather than by the packing. The poster grows ~500px (6291 → 6796 to the
+       last box), which is the honest cost of a band that actually reads downward. */
+    inEra.slice().sort((a, b) => effYear[a.id] - effYear[b.id] || want[a.id] - want[b.id]).forEach(emit);
     // place; anything that would overlap — or sit at/above a same-era parent, or above
     // an earlier year — drops a row
     const rows = [];
     let maxRow = 0, floor = 0, floorYear = -Infinity;
     for (const n of order){
       const x = want[n.id];
-      const yr = n.year || 0;
+      const yr = effYear[n.id];
       let r = 0;
       for (const p of (n.parents || [])){
         const pp = inThisEra.has(p) ? _ch.pos[p] : null;
@@ -6493,10 +6565,15 @@ function chData(){
       /* Moving to a later year drops the floor to the deepest row used so far, so time
          can only ever run downward. Equal rows are allowed — the rule is "never ABOVE
          an earlier year", not "always strictly below", which would explode a 23-year
-         band into 23 rows. The 31 residual inversions are ones the DATA forces, where
-         lineage and chronology genuinely disagree: St Thomas Christians is dated AD 52
-         but descends from the Church of the East (432), and a child must sit under its
-         parent — in a genealogy lineage outranks the calendar. */
+         band into 23 rows. It runs on the EFFECTIVE year, which is the same value the
+         order was sorted on, so the floor advances monotonically with the sweep instead
+         of jumping ahead of it. The 39 residual inversions are ones the DATA forces,
+         where lineage and chronology genuinely disagree: St Thomas Christians is dated
+         AD 52 but descends from the Church of the East (432), and the Georgian (326),
+         Antiochian (518), Bulgarian (927) and Russian (988) churches all hang off nodes
+         dated 1054. A child must sit under its parent — in a genealogy lineage outranks
+         the calendar, so those are answered by re-parenting in denominations.js, not
+         here. */
       if (yr > floorYear){
         floor = 0;
         rows.forEach((row, i) => { if (row && row.length) floor = i; });
@@ -7610,8 +7687,32 @@ async function run(){
   const ref = parseRef(input);
   if (ref) renderRef(ref); else renderSearch(input);
 }
-$q.addEventListener("input", () => { clearTimeout(pending); pending = setTimeout(run, 180); });
+$q.addEventListener("input", () => { syncClearQ(); clearTimeout(pending); pending = setTimeout(run, 180); });
 $q.addEventListener("keydown", e => { if (e.key === "Enter"){ clearTimeout(pending); run(); } });
+
+/* ── the clear ✕ ──────────────────────────────────────────────
+   Called from every place the box's contents change, which is the only reason this
+   is a function and not two lines inside the input listener: a programmatic
+   `$q.value = ""` fires no input event, so the button would otherwise be left
+   showing over an empty box by the one path that clears it from code (the Maps jump
+   below). One helper, called at each site, and the two can't drift.
+
+   The click does NOT go through the 180ms debounce. That delay exists to stop a
+   render firing on every keystroke of a word being typed; clearing is a single
+   deliberate act with nothing following it, and 180ms of the old results sitting
+   under an empty box reads as a bar that didn't take. Focus goes back to the input
+   because clearing is nearly always the first half of retyping — and on a phone,
+   keeping focus is what keeps the keyboard up. */
+const $clearQ = document.getElementById("clearQ");
+function syncClearQ(){ $clearQ.hidden = $q.value === ""; }
+$clearQ.addEventListener("click", () => {
+  $q.value = "";
+  syncClearQ();
+  clearTimeout(pending);
+  run();
+  $q.focus();
+});
+syncClearQ();
 
 /* ── command-bar chips + popovers ────────────────────────────── */
 const CHIP_POP = { chipTrans: "popTrans", chipTest: "popTest", chipBrowse: "popBrowse", chipHelp: "popHelp" };
@@ -7854,6 +7955,7 @@ $res.addEventListener("click", e => {
   // Clear the filter box: a term that narrowed the list it was clicked from may
   // filter the very pin we are jumping to straight off the map.
   $q.value = "";
+  syncClearQ();   // assigning .value fires no input event, so the ✕ won't hide itself
   selectSource("maps", false);
 });
 /* Called at the end of every Maps render. The key is a title (or a node id), which
