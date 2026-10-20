@@ -94,13 +94,16 @@
      These used to be a hex table in the page JS (CH_COLOR), which meant the whole
      poster ignored the theme: 13 of the 16 measured under 3:1 on the light
      --panel-2 (#f0ece1) that the family pills and node boxes sit on. chColor()
-     now hands back var(--fam-*), so the chart flips with everything else. Dark
-     keeps the original poster hues; light darkens each to ≥4.6:1 on --panel-2. */
+     now hands back var(--fam-*), so the chart flips with everything else. Light
+     darkens each to ≥4.6:1 on --panel-2. Dark keeps the original poster hues
+     except two lifted to the same bar — methodist (was #c0574f, 3.83:1) and
+     anglican (was #9b6fc4, 4.43:1) — since a pill prints its label in the hue at
+     8.5px. page-js.test.js holds every hue, both themes, at 4.5:1. */
   :root{
     --fam-roots:#c9a227;       --fam-cote:#3a9d9d;        --fam-oriental:#6a9a4f;
     --fam-orthodox:#c96f6f;    --fam-catholic:#cf9d24;    --fam-forerunner:#9a8a52;
-    --fam-lutheran:#5b86d6;    --fam-reformed:#e08a2e;    --fam-anglican:#9b6fc4;
-    --fam-radical:#7d9b6f;     --fam-baptist:#4f8fc0;     --fam-methodist:#c0574f;
+    --fam-lutheran:#5b86d6;    --fam-reformed:#e08a2e;    --fam-anglican:#9e73c6;
+    --fam-radical:#7d9b6f;     --fam-baptist:#4f8fc0;     --fam-methodist:#c86b64;
     --fam-restoration:#8a9a3c; --fam-pentecostal:#d46a9f; --fam-african:#3f9d6f;
     --fam-nonnicene:#8a8f98;   --fam-earlysplit:#b5825e;
   }
@@ -1032,6 +1035,12 @@
     cursor:pointer;padding:4px 6px;font-family:var(--sans)}
   .study-close:hover{color:var(--ink)}
   .study-body{padding:13px 15px;font-size:13.5px;font-weight:300;line-height:1.65}
+  /* The panel is a tab stop of its own (tabindex="0", see openStudy): in the side-by-
+     side layout it scrolls, and a tab with nothing focusable in it — the Original
+     word table — could otherwise not be scrolled from the keyboard at all. Ring drawn
+     inside the card, and split in two for the iOS 15 floor like the global ring. */
+  .study-body:focus{outline:2px solid var(--accent);outline-offset:-2px}
+  .study-body:focus:not(:focus-visible){outline:none}
   .study-body p{margin:0 0 10px}
   .study-body .muted{color:var(--muted-2)}
   .study-src{margin:10px 0 0;padding-top:9px;border-top:1px solid var(--line);
@@ -5586,7 +5595,7 @@ function openStudy(t, bi, ch, v, verseEl){
       '" aria-controls="study-body" aria-selected="' + (k === studyTab) +
       '" tabindex="' + (k === studyTab ? 0 : -1) + '">' +
       esc(label) + '</button>').join("") +
-    '</div><div class="study-body" id="study-body" role="tabpanel" aria-labelledby="studytab-' +
+    '</div><div class="study-body" id="study-body" role="tabpanel" tabindex="0" aria-labelledby="studytab-' +
       studyTab + '"></div>';
   /* Appended to .reader, so the card is a SIBLING of .reader-panel rather than a
      child of the reading column. openReader() replaces .reader's innerHTML on every
