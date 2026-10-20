@@ -590,6 +590,11 @@ const escHtml = s => String(s)
    shows nothing — and the same omission is what a disabled layer will produce once
    the wizard can turn layers off. The footer/lede prose is built from the same set,
    so the page never advertises a layer it didn't ship. */
+/* Article bodies were 58% of the page, and only the Articles tab and the article reader
+   read them. A split build keeps each row here with its body null and writes the
+   bodies, in row order, to the "ab" sidecar (see where the sidecars are written); the
+   page reads it on first use. --inline keeps the bodies in the rows. */
+const ARTICLE_ROWS = INLINE ? ARTICLES : ARTICLES.map(a => { const r = a.slice(); r[7] = null; return r; });
 const LAYERS = [
   /* Words ships as two payloads. "lx" is the dictionary's counts — tiny, and its
      presence is what shows the tab, since the dictionary itself is the lex.json
@@ -609,7 +614,7 @@ const LAYERS = [
   { id: "cd", data: CHURCHHISTORY, n: CH_NODES,    foot: n => `a Church History family tree (${n} branches)`, noun: "a Church History family tree" },
   { id: "od", data: ONTHISDAY, n: OTD_DAYS,        foot: n => `an On This Day calendar (${n} days)`, noun: "an On This Day calendar" },
   { id: "pd", data: PRAYERS,   n: PRAYERS.length,  foot: n => `${n} prayers`,                        noun: "prayers" },
-  { id: "ad", data: ARTICLES,  n: ARTICLES.length, foot: n => `${n} teaching articles`,             noun: "teaching articles" },
+  { id: "ad", data: ARTICLE_ROWS, n: ARTICLES.length, foot: n => `${n} teaching articles`,             noun: "teaching articles" },
 ];
 const presentLayers = LAYERS.filter(l => l.n > 0);
 const andJoin = arr => arr.length <= 1 ? (arr[0] || "")
@@ -643,6 +648,13 @@ if (!INLINE) {
     const m = f.match(/^bd-([A-Za-z0-9]+)\.json$/);
     if (m && !TRANS.includes(m[1])) { fs.unlinkSync(path.join(DATA_DIR, f)); console.log(`removed stale ${f}`); }
   }
+  // The article bodies, in the order of the "ad" rows the page carries.
+  const abPath = path.join(DATA_DIR, "ab.json");
+  if (ARTICLES.length) {
+    const json = JSON.stringify(ARTICLES.map(a => a[7]));
+    if (fs.existsSync(abPath) && fs.readFileSync(abPath, "utf8") === json) kept++;
+    else { fs.writeFileSync(abPath, json); wrote++; }
+  } else if (fs.existsSync(abPath)) { fs.unlinkSync(abPath); console.log("removed stale ab.json"); }
   console.log(`search-data: ${wrote} sidecar${wrote === 1 ? "" : "s"} written, ${kept} unchanged`);
 }
 

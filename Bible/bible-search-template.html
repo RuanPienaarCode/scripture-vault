@@ -2267,6 +2267,35 @@ const NOTE_ID   = { articles: "ad", topics: "td", faq: "fd", prayers: "pd", hist
 const NOTE_NOUN = { articles: "article", topics: "topic", faq: "answer", prayers: "prayer", history: "note", words: "word study" };
 const NOTE_ICON = { articles: "📄", topics: "🏷️", faq: "❓", prayers: "🙏", history: "📜", words: "🔤" };
 const _noteCache = {}, _noteLC = {};
+/* Article bodies are the one note collection a split build keeps OUT of the page:
+   they were 58% of it, and only the Articles tab and the article reader read them.
+   Each "ad" row stays in the page — title, path, excerpt, so links into an article
+   and the counts need nothing loaded — with its body null, and the bodies, in row
+   order, are the "ab" sidecar. An --inline build keeps them in the rows. */
+const NOTE_BODY_ID = { articles: "ab" };
+const _bodiesLoading = {};
+function noteBodiesReady(coll){
+  if (!NOTE_BODY_ID[coll] || !document.getElementById(NOTE_ID[coll])) return true;
+  const rows = notes(coll);
+  return !rows.length || rows[0][7] != null;
+}
+function ensureNoteBodies(coll){
+  if (noteBodiesReady(coll)) return Promise.resolve();
+  if (!_bodiesLoading[coll]){
+    const id = NOTE_BODY_ID[coll];
+    _bodiesLoading[coll] = loadPayload(id).then(bodies => {
+      const rows = notes(coll);
+      // A sidecar from a different build would put every body under the wrong title.
+      if (!Array.isArray(bodies) || bodies.length !== rows.length)
+        throw new Error("The article text doesn’t match the article list — it may still be syncing. Rebuild the search index if it persists.");
+      rows.forEach((a, i) => { a[7] = String(bodies[i] == null ? "" : bodies[i]); });
+      delete _noteLC[coll];       // an index built before the bodies arrived would search none of them
+      delete _pcache[id];         // the bodies live in the rows now; don't hold the array as well
+    });
+    _bodiesLoading[coll].then(() => { delete _bodiesLoading[coll]; }, () => { delete _bodiesLoading[coll]; });
+  }
+  return _bodiesLoading[coll];
+}
 function notes(coll){ /* [ title, author, date, topics, excerpt, path, url, body, source ] */
   const id = NOTE_ID[coll];
   if (!_noteCache[id]) _noteCache[id] = payload(id);
@@ -3783,6 +3812,13 @@ async function openVerse(t, bi, ch, v, dir){
   if (snap) pageTurn(snap, dir);
 }
 function openNote(coll, i){
+  // A link into an article can be followed before the Articles tab was ever opened,
+  // so its body may still be in the sidecar: read it, then open.
+  if (!noteBodiesReady(coll)){
+    ensureNoteBodies(coll).then(() => openNote(coll, i), e =>
+      openReader('<h2>Couldn’t open this article</h2>', '<p class="muted">' + esc(String((e && e.message) || e)) + '</p>'));
+    return;
+  }
   curNav = null;
   const a = notes(coll)[i];
   const head = '<h2>' + esc(a[0]) + '</h2><span class="spacer"></span>' +
@@ -7895,7 +7931,22 @@ async function run(){
     return;
   }
   if (!input){ $status.textContent = ""; $res.innerHTML = ""; return; }
-  if (source !== "bible"){ renderNotes(source, input); return; }
+  if (source !== "bible"){
+    // A split build's article bodies are a sidecar; the search reads them, so they
+    // load first, under the same staleness token as the Bible tab's verse text.
+    if (!noteBodiesReady(source)){
+      const ngen = ++runGen;
+      $status.textContent = "Loading the articles…";
+      try { await ensureNoteBodies(source); }
+      catch (e){
+        if (ngen === runGen){ $status.textContent = String((e && e.message) || e); $res.innerHTML = ""; }
+        return;
+      }
+      if (ngen !== runGen) return;
+    }
+    renderNotes(source, input);
+    return;
+  }
   // Split builds keep verse text on disk until first use — load what the scope
   // needs before rendering. The token guards the await: if the query or scope
   // moved on while a slow read was in flight, this render is stale and bails.
