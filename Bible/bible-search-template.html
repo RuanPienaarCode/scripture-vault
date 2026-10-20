@@ -1500,7 +1500,7 @@
   .pl-stage{position:relative;overflow:hidden;border:1px solid var(--line);border-radius:10px;
     background:var(--panel);height:520px;touch-action:none;cursor:grab}
   .mapwrap.grabbing .pl-stage{cursor:grabbing}
-  .pl-img{position:absolute;left:0;top:0;transform-origin:0 0;user-select:none;
+  .pl-img{position:absolute;left:0;top:0;transform-origin:0 0;-webkit-user-select:none;user-select:none;
     -webkit-user-drag:none;max-width:none;image-rendering:auto}
   .mapwrap.full .pl-stage{height:auto;flex:1 1 auto;min-height:0}
   /* Attribution rides with the plate rather than sitting in a footer. It is a
@@ -1658,6 +1658,10 @@
        before the offset was applied. */
     h1 .ledeinfo::after{inset:-12px}
     .browsegrid select{min-height:44px;padding:10px 12px}
+    /* iOS zooms the page when a focused text control is under 16px and leaves it
+       zoomed; inside the plugin's pane that strands the reader in a magnified page.
+       The note box is the most-typed field on a phone. */
+    .browsegrid select,.mk-note,.mk-share,.mk-edit input[type="text"]{font-size:16px}
     button.go{min-height:46px}
     .pop button[role="menuitemradio"]{padding:10px}
     /* min-height, NOT width/height: this was a 44px square when the control was a
@@ -1977,7 +1981,8 @@ const BOOKS = __BOOKS__;
    verse text awaits ensureData() first. Never touch the DOM nodes directly —
    always go through D()/notes(). */
 const _dcache = {};
-const _dloading = {};  // trans → in-flight Promise, so parallel callers share one read
+// trans → in-flight Promise, so parallel callers share one read
+const _dloading = {};
 /* One place to turn a payload — inline <script> or sidecar string — into data.
    Every failure here is a build or a sync fault rather than anything the reader
    did, so the message names WHICH payload: a bare "Unexpected token < in JSON"
@@ -2007,18 +2012,25 @@ function D(t){ /* trans -> [ [bookIdx, chapter, verse, text], ... ] canonical or
    inline in the page (--inline builds), or fetched through the host hook.
    A failed fetch clears its slot so the next attempt retries (e.g. a sidecar
    that was still syncing from iCloud). */
+function ensureOne(t){
+  if (_dcache[t] || document.getElementById("bd-" + t)) return null;  // D(t) can already serve it
+  if (!_dloading[t]){
+    const host = window.bibleSearchLoadData;
+    _dloading[t] = host
+      ? host("bd-" + t).then(txt => { _dcache[t] = payload("bd-" + t, txt); })
+      : Promise.reject(new Error("This page loads its verse text through the Bible Search plugin — open it inside Obsidian, or rebuild with --inline for a standalone file."));
+    // Settled either way, the slot is cleared: on success _dcache serves it, and on
+    // failure the next attempt retries (a sidecar still syncing from iCloud).
+    _dloading[t].then(() => { delete _dloading[t]; }, () => { delete _dloading[t]; });
+  }
+  return _dloading[t];
+}
+/* One translation at a time, never all at once. "All translations" is five 4–5 MB
+   sidecars, and reading, decoding and parsing them together peaked ~50 MB above
+   where it settled — inside Obsidian on iOS the page shares the app's WebView
+   process, and that spike is the kind that gets the whole app killed. */
 function ensureData(list){
-  return Promise.all(list.map(t => {
-    if (_dcache[t] || document.getElementById("bd-" + t)) return null;  // D(t) can already serve it
-    if (!_dloading[t]){
-      const host = window.bibleSearchLoadData;
-      _dloading[t] = host
-        ? host("bd-" + t).then(txt => { _dcache[t] = payload("bd-" + t, txt); })
-        : Promise.reject(new Error("This page loads its verse text through the Bible Search plugin — open it inside Obsidian, or rebuild with --inline for a standalone file."));
-      _dloading[t].catch(() => { delete _dloading[t]; });
-    }
-    return _dloading[t];
-  }));
+  return list.reduce((done, t) => done.then(() => ensureOne(t)), Promise.resolve());
 }
 /* Study-panel payloads — cross-references (xr), book context (bx), and the
    per-book interlinear (il-<bookIdx>) and commentary (cm-<bookIdx>) sidecars.
@@ -2028,14 +2040,30 @@ function ensureData(list){
    than translation, and because a study layer failing to load must degrade to
    "that tab says why" — never block the chapter text the reader came for. */
 const _pcache = {}, _ploading = {};
+/* The per-book and per-plate sidecars (the interlinear and commentary for one book,
+   one plate's image) are the big ones, and a reader working through the Bible would
+   otherwise keep every book they ever opened parsed at once — ~150 MB measured, in
+   a WebView iOS will kill for less. Only the most recent few are held; one reopened
+   later is simply read again. Payloads every book shares (xr, lex, maps) stay. */
+const PER_PART_RE = /^(il|cm|pl)-\d+$/;
+const PER_PART_KEEP = 8;
+const _precent = [];
+function touchPayload(id){
+  if (!PER_PART_RE.test(id)) return;
+  const i = _precent.indexOf(id);
+  if (i >= 0) _precent.splice(i, 1);
+  _precent.push(id);
+  while (_precent.length > PER_PART_KEEP) delete _pcache[_precent.shift()];
+}
 function loadPayload(id){
+  touchPayload(id);
   if (_pcache[id]) return Promise.resolve(_pcache[id]);
   const el = document.getElementById(id);
   if (el) return Promise.resolve(_pcache[id] = payload(id, el.textContent));
   if (!_ploading[id]){
     const host = window.bibleSearchLoadData;
     _ploading[id] = host
-      ? host(id).then(txt => (_pcache[id] = payload(id, txt)))
+      ? host(id).then(txt => { delete _ploading[id]; return (_pcache[id] = payload(id, txt)); })
       : Promise.reject(new Error("This layer loads from the vault through the Bible Search plugin — open this page inside Obsidian."));
     // Clear the slot on failure so the next open retries: the usual cause is a
     // sidecar that hasn't finished syncing from iCloud yet, which fixes itself.
@@ -2494,6 +2522,15 @@ function lc(t){
   return lcCache[t];
 }
 function chosen(){ return scope === "ALL" ? TRANS : [scope]; }
+/* Leaving "All" lets go of the translations the new scope does not use — parsed
+   rows plus their lowercase search copies are ~11 MB each, held for nothing. The
+   open chapter's translation stays: the reader and its study card read it
+   synchronously. Anything dropped is read again by ensureData() on next use. */
+function releaseUnusedTranslations(){
+  const keep = new Set(chosen());
+  if (curNav && curNav.t) keep.add(curNav.t);
+  for (const t of Object.keys(_dcache)) if (!keep.has(t)){ delete _dcache[t]; delete lcCache[t]; }
+}
 
 /* ── reference parsing ───────────────────────────────────────── */
 // resolve a name fragment ("gen", "1 jn", "psalm") to a canonical book name, or null
@@ -2685,12 +2722,15 @@ function noteIndex(coll){
       title:   a[0].toLowerCase(),
       meta:    (a[1] + " " + a[3] + " " + a[8]).toLowerCase(),   // author + topics + source
       excerpt: a[4].toLowerCase(),
-      body:    body,
-      blob:    (a[0] + " " + a[1] + " " + a[3] + " " + a[4] + " " + body).toLowerCase()
+      body:    body
+      // No pre-joined "blob" of every field: it held each body a second time (~4 MB
+      // for the articles alone). proximity() is only asked for multi-word queries,
+      // and only about notes that already matched — blobOf() joins those on demand.
     };
   });
   return _noteLC[coll];
 }
+const blobOf = (a, x) => (a[0] + " " + a[1] + " " + a[3] + " " + a[4]).toLowerCase() + " " + x.body;
 function noteSnippet(a, terms){
   // snippets are plain text on a result card — markers must never reach one
   const body = stripLinks(a[7]), low = body.toLowerCase();
@@ -2710,6 +2750,10 @@ function countIn(text, w){
   let n = 0; while (re.exec(text) !== null) n++;
   return n;
 }
+/* Matches are ranked across the whole collection, then drawn a page at a time like
+   the Bible tab: a one-letter query matched every article, and each card builds a
+   regex-searched snippet, so drawing them all ran on every keystroke. */
+const NOTE_PAGE = 50;
 function renderNotes(coll, input){
   const ART = notes(coll);
   const terms = parseTerms(input);
@@ -2726,7 +2770,7 @@ function renderNotes(coll, input){
       if (tC + mC + eC + bC === 0){ ok = false; break; }   // every term must appear somewhere
       score += 12 * tC + 6 * mC + 3 * eC + bC;
     }
-    if (ok) scored.push([i, score, terms.length > 1 ? proximity(x.blob, terms) : 0]);
+    if (ok) scored.push([i, score, terms.length > 1 ? proximity(blobOf(ART[i], x), terms) : 0]);
   }
   const noun = NOTE_NOUN[coll], label = terms.map(w => '“' + esc(w) + '”').join(" + ");
   $status.innerHTML = scored.length
@@ -2738,7 +2782,7 @@ function renderNotes(coll, input){
   }
   // rank: field score desc, then proximity asc, then newest first
   scored.sort((a, b) => b[1] - a[1] || a[2] - b[2] || (ART[a[0]][2] < ART[b[0]][2] ? 1 : -1));
-  $res.innerHTML = scored.map(s => {
+  const card = s => {
     const a = ART[s[0]];
     // author / date / topics are all optional — drop the blanks, don't strand separators
     const meta = [a[1], a[2], a[3]].filter(Boolean).map(esc);
@@ -2748,7 +2792,24 @@ function renderNotes(coll, input){
       esc(a[0]) + ' ↗</a></h3>' +
       (meta.length ? '<div class="ameta">' + meta.join(' · ') + '</div>' : '') +
       '<p class="snip">' + noteSnippet(a, terms) + '</p></div>';
-  }).join("");
+  };
+  $res.innerHTML = "";
+  let shown = 0;
+  const showMore = () => {
+    const end = Math.min(shown + NOTE_PAGE, scored.length);
+    const html = scored.slice(shown, end).map(card).join("");
+    shown = end;
+    const wrap = document.getElementById("morewrap");
+    if (wrap) wrap.remove();
+    $res.insertAdjacentHTML("beforeend", html);
+    if (shown < scored.length){
+      $res.insertAdjacentHTML("beforeend",
+        '<div class="morewrap" id="morewrap"><button class="more">Show ' +
+        Math.min(NOTE_PAGE, scored.length - shown) + ' more (' + (scored.length - shown).toLocaleString() + ' left)</button></div>');
+      document.querySelector("#morewrap .more").addEventListener("click", showMore);
+    }
+  };
+  showMore();
 }
 
 /* ── words tab (the Strong's dictionary) ──────────────────────────
@@ -4746,15 +4807,17 @@ function bindGestures(el, o){
   let down = false, sx = 0, sy = 0, start = null;
   let pinch = null;            // {dist, anchor} captured when the second finger lands
   let moved = false;
-  let next = null, raf = null; // newest pending pinch frame + its rAF handle
+  // The newest pending pinch and pan frames, and the one rAF handle that draws them.
+  // Pan goes through the frame queue like pinch: a map pan moves a viewBox over tens
+  // of thousands of vertices, and a 120 Hz screen sends two or more moves per frame.
+  let next = null, nextPan = null, raf = null;
 
   const two = () => { const a = [...pts.values()]; return [a[0], a[1]]; };
   const capture = id => { try { el.setPointerCapture(id); } catch (_) {} };
   const flush = () => {
     raf = null;
-    if (!next) return;
-    const a = next; next = null;
-    opt.onPinch(a[0], a[1], a[2], a[3]);
+    if (next){ const a = next; next = null; opt.onPinch(a[0], a[1], a[2], a[3]); }
+    if (nextPan){ const a = nextPan; nextPan = null; opt.onPan(a[0], a[1], a[2]); }
   };
 
   const beginPinch = () => {
@@ -4770,6 +4833,7 @@ function bindGestures(el, o){
     // keeps reporting. Safe here — a pinch is not meant to tap what is under it,
     // so capture retargeting the click to `el` is the behaviour we want.
     for (const id of pts.keys()) capture(id);
+    nextPan = null;                       // a one-finger frame still queued belongs to no gesture now
     down = false; moved = true;
     el.classList.remove("grabbing");
     if (opt.onGestureStart) opt.onGestureStart();
@@ -4809,7 +4873,10 @@ function bindGestures(el, o){
       capture(e.pointerId);
       if (opt.onGestureStart) opt.onGestureStart();
     }
-    if (moved) opt.onPan(dx, dy, start);
+    if (moved){
+      nextPan = [dx, dy, start];          // dx/dy are totals from the press, so a skipped event loses nothing
+      if (raf == null) raf = requestAnimationFrame(flush);
+    }
   });
 
   const end = e => {
@@ -4851,6 +4918,7 @@ function mapBindGestures(wrap){
     const svg = wrap.querySelector("svg");
     return svg ? svg.getBoundingClientRect() : null;
   };
+  let panRect = null;
   wrap.mapMoved = bindGestures(wrap, {
     // .map-tools is inside the wrap now (it floats over the map's corner), so it
     // needs the same exemption .map-bar had — a press on a zoom button must not
@@ -4859,9 +4927,11 @@ function mapBindGestures(wrap){
     onGestureStart: () => mapClose(id),
     // The box the gesture started from. Every frame is measured against THIS, not
     // against the previous frame, so neither pan nor pinch accumulates drift.
-    onPanStart: () => { const m = _maps[id]; return m ? m.box.slice() : false; },
+    // The svg's box on screen does not change during a drag (only its viewBox does),
+    // so it is measured once at the press rather than forcing a layout every frame.
+    onPanStart: () => { const m = _maps[id]; panRect = svgRect(); return m ? m.box.slice() : false; },
     onPan: (dx, dy, box) => {
-      const r = svgRect();
+      const r = panRect;
       if (!r || !r.width) return;
       // Screen pixels → map units, so the map keeps pace with the finger exactly.
       mapSetBox(id, mapClamp(_maps[id], [
@@ -4888,6 +4958,19 @@ function mapBindGestures(wrap){
      one re-cull instead of forty. */
   let settle = null;
   const later = () => { clearTimeout(settle); settle = setTimeout(() => mapRedraw(id), 140); };
+  let wheelDx = 0, wheelDy = 0, wheelRaf = null;
+  const wheelFlush = () => {
+    wheelRaf = null;
+    const m = _maps[id], r = svgRect();
+    const dx = wheelDx, dy = wheelDy;
+    wheelDx = wheelDy = 0;
+    if (!m || !r || !r.width) return;
+    mapSetBox(id, mapClamp(m, [
+      m.box[0] + (dx / r.width) * m.box[2],
+      m.box[1] + (dy / r.height) * m.box[3], m.box[2], m.box[3],
+    ]));
+    later();
+  };
   wrap.addEventListener("wheel", e => {
     const m = _maps[id];
     if (!m) return;
@@ -4903,13 +4986,10 @@ function mapBindGestures(wrap){
       later();
       return;
     }
-    const r = svgRect();
-    if (!r || !r.width) return;
-    mapSetBox(id, mapClamp(m, [
-      m.box[0] + (dx / r.width) * m.box[2],
-      m.box[1] + (dy / r.height) * m.box[3], m.box[2], m.box[3],
-    ]));
-    later();
+    // Summed until the next frame and drawn once: a trackpad sends wheel events
+    // faster than the screen redraws, and each draw moves the whole map's viewBox.
+    wheelDx += dx; wheelDy += dy;
+    if (wheelRaf == null) wheelRaf = requestAnimationFrame(wheelFlush);
   }, { passive: false });
 }
 
@@ -7795,6 +7875,7 @@ function checkRadio(pop, btn){
 document.querySelectorAll("#popTrans [data-t]").forEach(btn => btn.addEventListener("click", () => {
   checkRadio(document.getElementById("popTrans"), btn);
   scope = btn.dataset.t;
+  releaseUnusedTranslations();
   document.getElementById("chipTrans").innerHTML =
     "<b>" + (scope === "ALL" ? "All " + TRANS.length : scope) + '</b> <span class="chev" aria-hidden="true">▾</span>';
   closePops(); run();
