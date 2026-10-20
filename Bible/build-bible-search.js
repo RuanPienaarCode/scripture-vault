@@ -418,12 +418,30 @@ console.log(`Commentary search: ${CM_N.toLocaleString()} passages` +
    tools/gen-history-calendar.js. Emits { "MM-DD": { label, entries[] } }. */
 const MONTHS = ["January","February","March","April","May","June","July",
   "August","September","October","November","December"];
+/* The assembled, shareable packs in data/ — what a vault WITHOUT the curated
+   tools/data/*.js sources builds from, exactly as the plugin's in-app rebuild does.
+   This vault has both and the source wins (it is the fresher of the two); every
+   other vault, the public kit included, has only the pack. null when absent. */
+function readPack(rel) {
+  const p = path.join(VAULT, rel);
+  if (!fs.existsSync(p)) return null;
+  try { return JSON.parse(fs.readFileSync(p, "utf8")); }
+  catch { problems.push(`${rel} is not valid JSON — ignored`); return null; }
+}
+const otdPackOk = d => !!d && typeof d === "object" && !Array.isArray(d) && Object.keys(d).length > 0 &&
+  Object.keys(d).every(k => /^\d{2}-\d{2}$/.test(k) && d[k] && Array.isArray(d[k].entries));
 function buildOnThisDay() {
   const out = {};
   let byDay = {};
   // require() needs an absolute path — a relative one is read as a module name, not a file.
   try { byDay = require(path.resolve(VAULT, "tools", "data", "on-this-day.js")); }
-  catch { problems.push("on-this-day.js not found — On This Day layer empty"); return out; }
+  catch {
+    // The pack is already the { "MM-DD": { label, entries } } this function emits.
+    const pack = readPack("data/on-this-day.json");
+    if (otdPackOk(pack)) return pack;
+    problems.push("neither tools/data/on-this-day.js nor data/on-this-day.json found — On This Day layer empty");
+    return out;
+  }
   // Blurbs may carry [[wikilinks]] meant for the day-notes; the calendar shows them
   // as plain text, so reduce [[Target|Alias]] → Alias, [[Target]] → Target.
   const deWiki = s => (s || "").replace(/\[\[([^\]|]*\|)?([^\]]*)\]\]/g, "$2");
@@ -458,7 +476,13 @@ function buildChurchHistory() {
   // require() needs an absolute path — a relative one is read as a module name.
   let tree = null;
   try { tree = require(path.resolve(VAULT, "tools", "data", "denominations.js")); }
-  catch { problems.push("denominations.js not found — Church History layer empty"); return null; }
+  catch {
+    // The pack is the same { eras, families, nodes } tree (see readPack above).
+    const pack = readPack("data/church-history.json");
+    if (chShapeOk(pack)) return pack;
+    problems.push("neither tools/data/denominations.js nor data/church-history.json found — Church History layer empty");
+    return null;
+  }
   // A malformed source must degrade the layer, not crash the whole build (the
   // plugin twin does the same) — so CH_NODES's .nodes.length read stays safe.
   if (!chShapeOk(tree)) { problems.push("denominations.js has an unexpected shape — Church History layer empty"); return null; }
