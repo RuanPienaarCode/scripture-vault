@@ -598,18 +598,18 @@ const LAYERS = [
      carries the footer prose, so the page never claims studies it didn't ship. */
   { id: "lx", data: LEXICON,   n: LEX_N,           foot: n => `a Hebrew and Greek dictionary (${n.toLocaleString()} words)`, noun: "a Hebrew and Greek dictionary" },
   { id: "wd", data: WORDS,     n: WORDS.length,    foot: () => "",                                   noun: "" },
+  { id: "td", data: TOPICS,    n: TOPICS.length,   foot: n => `${n} topics`,                         noun: "topics" },
+  { id: "fd", data: FAQ,       n: FAQ.length,      foot: n => `${n} FAQ answers`,                    noun: "FAQ answers" },
   /* "cx" is the commentary index's counts — the index itself is the cmx.json
      sidecar, exactly like the dictionary. It reports passages rather than books
      because that is what the tab searches. */
   { id: "cx", data: CMINDEX,   n: CM_N,            foot: n => `searchable commentary (${n.toLocaleString()} passages)`, noun: "searchable commentary" },
-  { id: "ad", data: ARTICLES,  n: ARTICLES.length, foot: n => `${n} teaching articles`,             noun: "teaching articles" },
-  { id: "td", data: TOPICS,    n: TOPICS.length,   foot: n => `${n} topics`,                         noun: "topics" },
-  { id: "fd", data: FAQ,       n: FAQ.length,      foot: n => `${n} FAQ answers`,                    noun: "FAQ answers" },
   { id: "hd", data: HISTORY,   n: HISTORY.length,  foot: n => `${n} Bible-history notes`,            noun: "Bible history" },
-  // Ordered to match the template's tab strip: Church History, then On This Day, then Prayers.
+  // Same order as the template's tab strip (tools/check-drift.js holds it there).
   { id: "cd", data: CHURCHHISTORY, n: CH_NODES,    foot: n => `a Church History family tree (${n} branches)`, noun: "a Church History family tree" },
   { id: "od", data: ONTHISDAY, n: OTD_DAYS,        foot: n => `an On This Day calendar (${n} days)`, noun: "an On This Day calendar" },
   { id: "pd", data: PRAYERS,   n: PRAYERS.length,  foot: n => `${n} prayers`,                        noun: "prayers" },
+  { id: "ad", data: ARTICLES,  n: ARTICLES.length, foot: n => `${n} teaching articles`,             noun: "teaching articles" },
 ];
 const presentLayers = LAYERS.filter(l => l.n > 0);
 const andJoin = arr => arr.length <= 1 ? (arr[0] || "")

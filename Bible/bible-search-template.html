@@ -935,7 +935,9 @@
   /* --muted-2 is pitched to be quiet against the page's own ground, and a colour
      washed over that ground takes it under. One step up, so a highlighted verse
      keeps its number — the same lift .target gives its number in accent. */
-  .reader-body .rv.hl .rvn{color:var(--muted)}
+  /* --ink, not --muted: over the lighter highlight tints an 11px --muted numeral
+     measured 4.28–4.48:1 in the light theme, just under the 4.5:1 text needs. */
+  .reader-body .rv.hl .rvn{color:var(--ink)}
   /* Hover paints --code-bg across the whole verse, which would wipe the highlight
      in exactly the layout that advertises the tap. Restate it at hover's weight. */
   .reader-body.has-study .rv.hl:hover{background:var(--hl-tint)}
@@ -1736,13 +1738,13 @@
 <main>
   <header class="hero">
     <div class="eyebrow">Bible Study Tool</div>
-    <h1>Bible <span class="accent">Search</span><button class="ledeinfo" id="ledeInfo"
+    <h1 aria-labelledby="pageTitle"><span id="pageTitle">Bible <span class="accent">Search</span></span><button class="ledeinfo" id="ledeInfo"
       aria-expanded="false" aria-controls="lede" aria-label="What you can search here">i</button></h1>
     <p class="lede" id="lede" role="note">Search __TRANS_LIST____LEDE_LAYERS__ Every result links straight into Obsidian.</p>
   </header>
 
   <div class="pagetools">
-    <button class="chip" id="chipHelp" aria-haspopup="true" aria-expanded="false" aria-label="How to search">?</button>
+    <button class="chip" id="chipHelp" aria-haspopup="dialog" aria-expanded="false" aria-label="How to search">?</button>
     <button class="chip" id="chipWidth" aria-label="Full width"></button>
     <button class="chip" id="chipTheme" aria-label="Switch theme"></button>
   </div>
@@ -1771,7 +1773,7 @@
       <button role="tab" id="tab-onthisday" data-s="onthisday" data-g="history" aria-controls="results" aria-selected="false" tabindex="-1">On This Day</button>
       <button role="tab" id="tab-maps" data-s="maps" data-g="history" aria-controls="results" aria-selected="false" tabindex="-1">Maps</button>
       <button role="tab" id="tab-prayers" data-s="prayers" data-g="devotion" aria-controls="results" aria-selected="false" tabindex="-1">Prayers</button>
-      <button data-g="devotion" disabled>Reading Plan <span class="soon">soon</span></button>
+      <button role="tab" data-g="devotion" aria-controls="results" aria-selected="false" aria-disabled="true" tabindex="-1" disabled>Reading Plan <span class="soon">soon</span></button>
       <button role="tab" id="tab-articles" data-s="articles" data-g="reading" aria-controls="results" aria-selected="false" tabindex="-1">Articles</button>
       <button role="tab" id="tab-marks" data-s="marks" data-g="notes" aria-controls="results" aria-selected="false" tabindex="-1">My Highlights</button>
       <button role="tab" id="tab-bookmarks" data-s="bookmarks" data-g="notes" aria-controls="results" aria-selected="false" tabindex="-1">Bookmarks</button>
@@ -1784,7 +1786,7 @@
       <div class="chips">
         <button class="chip" id="chipTrans" aria-haspopup="true" aria-expanded="false"__TRANS_HIDDEN__><b>__DEFAULT_TRANS_LABEL__</b> <span class="chev" aria-hidden="true">▾</span></button>
         <button class="chip" id="chipTest" aria-haspopup="true" aria-expanded="false"><b>All 66</b> <span class="chev" aria-hidden="true">▾</span></button>
-        <button class="chip" id="chipBrowse" aria-haspopup="true" aria-expanded="false">Browse <span class="chev" aria-hidden="true">▾</span></button>
+        <button class="chip" id="chipBrowse" aria-haspopup="dialog" aria-expanded="false">Browse <span class="chev" aria-hidden="true">▾</span></button>
       </div>
 
       <div class="pop" id="popTrans" role="menu" aria-label="Translation" hidden>
@@ -2825,9 +2827,19 @@ const STRONGS_RE = /^[gh]\d{1,4}$/;
 // A one-letter query can match thousands of entries; rendering them all locks the
 // page up for nothing, since nobody reads past the first screen of a lookup.
 const WORD_LIMIT = 200;
+/* The lang (and, for Hebrew, dir) attributes a run of original-language text needs,
+   read from its script. Without lang a screen reader reads אֱלֹהִים and ἀγάπη in the
+   page's English voice (WCAG 3.1.2). "el" rather than "grc": koine is Ancient Greek,
+   but the screen readers that ship a Greek voice key it to "el" and fall back to
+   English for "grc". A transliteration in Latin letters stays in the page's language. */
+function langAttr(s){
+  if (/[\u0590-\u05FF\uFB1D-\uFB4F]/.test(s)) return ' lang="he" dir="rtl"';
+  if (/[\u0370-\u03FF\u1F00-\u1FFF]/.test(s)) return ' lang="el"';
+  return "";
+}
 // lemma + transliteration, the way the word is named everywhere in this tab
 function lexName(r, terms){
-  return '<span class="lemma" dir="auto">' + highlight(esc(r[LEX_LEMMA]), terms) + '</span> · ' +
+  return '<span class="lemma" dir="auto"' + langAttr(r[LEX_LEMMA]) + '>' + highlight(esc(r[LEX_LEMMA]), terms) + '</span> · ' +
     highlight(esc(r[LEX_TRANSLIT]), terms) + ' <span class="lexid">' + esc(r[LEX_ID]) + '</span>';
 }
 function lexCard(i, r, terms){
@@ -2858,7 +2870,7 @@ function renderWordStudies(){
   $res.innerHTML = ART.map((a, i) =>
     '<div class="hit article word"><h3 class="ref"><span class="sbadge">' + esc(a[8]) + '</span>' +
     '<a href="' + noteUrl(a) + '" data-open="note" data-coll="words" data-i="' + i + '" title="Open">' +
-    '<span class="lemma" dir="auto">' + esc(a[0]) + '</span> ↗</a></h3>' +
+    '<span class="lemma" dir="auto"' + langAttr(a[0]) + '>' + esc(a[0]) + '</span> ↗</a></h3>' +
     '<p class="snip">' + esc(a[4]) + '</p></div>').join("");
 }
 function renderWords(input){
@@ -2921,7 +2933,7 @@ function openWord(i){
     // paragraph direction too and right-align the whole headword against the
     // panel edge. Isolated inline, the glyphs order right-to-left inside a
     // left-aligned line, which is what a dictionary entry should look like.
-    '<p class="lexlemma"><span dir="auto">' + esc(r[LEX_LEMMA]) + '</span></p>' +
+    '<p class="lexlemma"><span dir="auto"' + langAttr(r[LEX_LEMMA]) + '>' + esc(r[LEX_LEMMA]) + '</span></p>' +
     '<p class="lexline">' + [r[LEX_TRANSLIT], r[LEX_PRON], lexScript(r[LEX_ID]) + " · Strong's " + r[LEX_ID]]
       .filter(Boolean).map(esc).join(" · ") + '</p>' +
     '<dl>' + rows.map(x => '<dt>' + x[0] + '</dt><dd>' +
@@ -3394,6 +3406,9 @@ function renderNoteBody(body, terms){
 const $reader = document.getElementById("reader");
 let curNav = null;     // { t, prev:[bi,ch]|null, next:[bi,ch]|null } while a chapter is open
 let backScroll = 0;    // where the results were scrolled to when the reader took over
+// What had focus when the reader took over — a result link opened from the
+// keyboard — so leaving the chapter puts focus back there, not on <body>.
+let readerOpener = null;
 function closeReader(){
   $reader.hidden = true;
   $reader.innerHTML = "";
@@ -3403,10 +3418,17 @@ function closeReader(){
   // back to the top of a 200-hit list is worse than the overlay ever was.
   // "instant" beats html{scroll-behavior:smooth}: a page swap should land, not glide.
   window.scrollTo({ top: backScroll, behavior: "instant" });
+  const back = readerOpener;
+  readerOpener = null;
+  if (back && document.contains(back)) back.focus({ preventScroll: true });
 }
 function openReader(headHtml, bodyHtml, bodyClass, footHtml){
   const fresh = $reader.hidden;
-  if (fresh) backScroll = window.scrollY || document.documentElement.scrollTop || 0;
+  if (fresh){
+    backScroll = window.scrollY || document.documentElement.scrollTop || 0;
+    const a = document.activeElement;
+    readerOpener = a && a !== document.body && !$reader.contains(a) ? a : null;
+  }
   $reader.innerHTML =
     '<div class="reader-panel"><div class="reader-head">' + headHtml +
     '<button class="reader-close">‹ Back</button></div>' +
@@ -4034,12 +4056,12 @@ function renderInterlinear(box, data, ch, v){
     const lex = data.lex[strongs];
     const parsed = parseMorph(morph, data.lang);
     return '<div class="il-w' + (rtl ? " rtl" : "") + '">' +
-      '<div class="il-orig">' + esc(orig) + '</div>' +
+      '<div class="il-orig"' + langAttr(orig) + '>' + esc(orig) + '</div>' +
       (translit ? '<div class="il-tr">' + esc(translit) + '</div>' : "") +
       '<div class="il-gloss">' + esc(gloss) +
         (strongs ? '<span class="il-str">' + esc(strongs) + '</span>' : "") + '</div>' +
       (parsed ? '<div class="il-parse">' + esc(parsed) + '</div>' : "") +
-      (lex ? '<div class="il-lem">' + esc(lex[0]) + (lex[1] ? " — " + esc(lex[1]) : "") + '</div>' : "") +
+      (lex ? '<div class="il-lem"><span' + langAttr(lex[0]) + '>' + esc(lex[0]) + '</span>' + (lex[1] ? " — " + esc(lex[1]) : "") + '</div>' : "") +
       '</div>';
   }).join("");
   return sup + rows +
@@ -4242,6 +4264,14 @@ const pinLeader = (from, to) =>
    The path data is generated, not user input, but it still reaches innerHTML: the
    filter keeps it to the alphabet an SVG path can be made of, so a corrupted or
    hand-edited sidecar cannot close the attribute and open a tag. */
+/* A pin's accessible name starts with what the pin shows — its number or its place
+   name — so it can be found by saying what is on screen (WCAG 2.5.3). Most callers'
+   aria text already leads with the label; one that doesn't gets the label in front. */
+function pinName(p){
+  const label = String(p.label == null ? "" : p.label), aria = p.aria ? String(p.aria) : "";
+  if (!aria) return label;
+  return aria.toLowerCase().indexOf(label.toLowerCase()) === 0 ? aria : label + ". " + aria;
+}
 function basemapSvg(box, extra, label, bm){
   const B = bm || _basemap;
   const [bx, by, bw, bh] = box;
@@ -4252,8 +4282,10 @@ function basemapSvg(box, extra, label, bm){
         inside.map(s => '<path d="' + s[0].replace(/[^0-9MLZ .,-]/g, "") + '"/>').join("") + '</g>'
       : "";
   };
+  // An svg announced as an image cannot hold buttons (axe: nested-interactive), so a
+  // map with pins to press is a group; one with nothing to press stays an image.
   return '<svg class="mp-svg" viewBox="' + box.map(n => Math.round(n * 10) / 10).join(" ") +
-    '" role="img" aria-label="' + esc(label) + '">' +
+    '" role="' + (/role="button"/.test(extra) ? "group" : "img") + '" aria-label="' + esc(label) + '">' +
     g("bm-land", B.land) + g("bm-lake", B.lakes) + g("bm-river", B.rivers) +
     g("bm-border", B.borders || []) +
     extra + '</svg>';
@@ -4530,6 +4562,9 @@ function mapSvg(id){
         esc(l.kind === "region" ? l.name.toUpperCase() : l.name) + '</text>').join("") +
       '</g>';
   }
+  // One pin holds the Tab stop — the one last used, else the first with a card — and
+  // the arrow keys walk the others (bindMaps), so a map is one stop, not dozens.
+  if (m.rove == null || !m.points[m.rove] || !m.points[m.rove].card) m.rove = m.points.findIndex(p => p.card);
   const pins = pts.map(([x, y], i) => {
     const p = m.points[i];
     const inner = m.dotted ? ""
@@ -4539,8 +4574,8 @@ function mapSvg(id){
       : '<text x="' + labels[i].x.toFixed(1) + '" y="' + labels[i].y.toFixed(1) +
         '" style="font-size:' + fs.toFixed(2) + 'px">' + esc(p.label) + '</text>';
     return '<g class="' + (m.numbered ? "mh-pin" : m.dotted ? "mp-pin mp-dotted" : "mp-pin") + '" data-mi="' + i + '"' +
-      (p.card ? ' tabindex="0" role="button"' : '') +
-      ' aria-label="' + esc(p.aria || p.label) + '">' + pinLeader([x, y], m.truth[i]) +
+      (p.card ? ' tabindex="' + (i === m.rove ? 0 : -1) + '" role="button"' : '') +
+      ' aria-label="' + esc(pinName(p)) + '">' + pinLeader([x, y], m.truth[i]) +
       '<circle cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="' + r.toFixed(2) + '"/>' +
       inner + '</g>';
   }).join("");
@@ -4622,7 +4657,19 @@ function mapZoomTo(id, i){
    rather than from mapView(), because mapView() returns a STRING — the wrapper does
    not exist until a caller has put it in the document. */
 function bindMaps(){
-  document.querySelectorAll("[data-map]").forEach(mapBindGestures);
+  document.querySelectorAll("[data-map]").forEach(wrap => {
+    mapBindGestures(wrap);
+    if (wrap.dataset.keys) return;
+    wrap.dataset.keys = "1";
+    const id = wrap.dataset.map;
+    // ← / → walk the pins that have something to say, carrying the one Tab stop.
+    wireRovingStrip(wrap, () => Array.from(wrap.querySelectorAll('[data-mi][role="button"]')),
+      list => list.indexOf(document.activeElement),
+      next => {
+        wrap.querySelectorAll('[data-mi][role="button"]').forEach(p => p.setAttribute("tabindex", p === next ? "0" : "-1"));
+        if (_maps[id]) _maps[id].rove = +next.dataset.mi;
+      });
+  });
 }
 
 function mapPopup(id, i){
@@ -4649,15 +4696,29 @@ function mapPopup(id, i){
   const pin = wrap.querySelector('[data-mi="' + i + '"]');
   if (pin) pin.classList.add("on");
   m.open = i;
+  // Opened from the keyboard: the zoom that led here redrew the svg, so the pin that
+  // had focus is gone — focus goes into the card, and Esc or ✕ brings it back.
+  if (_mapKeyed === id){
+    _mapKeyed = null;
+    const x = pop.querySelector(".map-pop-x");
+    if (x) x.focus({ preventScroll: true });
+  }
 }
 
 function mapClose(id){
   const wrap = document.querySelector('[data-map="' + id + '"]');
   if (!wrap) return;
   const pop = wrap.querySelector(".map-pop");
+  // Closed from inside the card (✕, Esc): focus goes back to the pin it belongs to.
+  const was = _maps[id] ? _maps[id].open : null;
+  const fromCard = !!(pop && pop.contains(document.activeElement));
   if (pop){ pop.hidden = true; pop.innerHTML = ""; }
   wrap.querySelectorAll(".mp-pin.on, .mh-pin.on").forEach(el => el.classList.remove("on"));
   if (_maps[id]) _maps[id].open = null;
+  if (fromCard && was != null){
+    const pin = wrap.querySelector('[data-mi="' + was + '"]');
+    if (pin) pin.focus({ preventScroll: true });
+  }
 }
 
 // Back to the window the map opened at.
@@ -5076,6 +5137,7 @@ document.addEventListener("click", e => {
 });
 // Enter/Space activates a focused pin. Esc is NOT handled here — see the single
 // unified Escape handler at the foot of this file.
+let _mapKeyed = null;   // the map whose card is being opened from the keyboard
 document.addEventListener("keydown", e => {
   if (e.key !== "Enter" && e.key !== " ") return;
   const pin = e.target.closest && e.target.closest("[data-mi]");
@@ -5083,6 +5145,8 @@ document.addEventListener("keydown", e => {
   const wrap = pin.closest("[data-map]");
   if (!wrap) return;
   e.preventDefault();
+  _mapKeyed = wrap.dataset.map;
+  if (_maps[_mapKeyed]) _maps[_mapKeyed].rove = +pin.dataset.mi;
   pin.dispatchEvent(new MouseEvent("click", { bubbles: true }));
 });
 
@@ -5558,7 +5622,8 @@ fillBooks();
 $book.addEventListener("change", fillChapters);
 $chap.addEventListener("change", fillVerses);
 $go.addEventListener("click", () => {
-  closePops();
+  // Focus back on the Browse chip first, so the reader opened below returns to it.
+  closePops(true);
   openVerse(scope === "ALL" ? TRANS[0] : scope, +$book.value, +$chap.value, +$verse.value || null);
 });
 
@@ -6182,6 +6247,10 @@ function renderJourneys(filter, data){
     '<div class="mh">' + map + '<div class="mh-list">' + rows + '</div></div>' +
     '<p class="study-src">Stops resolved against openbible.info · CC-BY · ' +
     'coastlines from Natural Earth (public domain)</p>';
+  // Every other map renderer binds what it drew; this one never did, so the Journeys
+  // map took taps (delegated) but no drag, pinch, wheel or arrow key.
+  bindMaps();
+  applyMapsFocus();
 }
 /* Which book a set of references mostly belongs to. Used to give a journey the same
    passage-aware furniture a chapter gets — Paul's second journey is Acts, so its map
@@ -6866,9 +6935,12 @@ function chBuild(){
     // aria-label rather than letting the name text speak for itself: at the far zoom
     // tier the name is display:none, which takes it out of the accessibility tree too,
     // and a poster of 132 unnamed buttons is worse than the blurry one. The label is
-    // set at every zoom so the accessible name never changes as you zoom.
+    // set at every zoom so the accessible name never changes as you zoom. It reads in
+    // the order the node shows it — year, then name — so a voice-control user who
+    // says what they see ("1517 Lutheran") reaches it (WCAG 2.5.3, label in name).
     return '<button class="chd-node' + (ev ? ' ev' : '') + '" id="ch-' + esc(n.id) + '" data-node="' + esc(n.id) + '"' +
-      ' aria-label="' + esc(n.name + (n.when ? ", " + n.when : "")) + '"' +
+      ' tabindex="-1" aria-controls="chdPop" aria-expanded="false"' +
+      ' aria-label="' + esc((n.when ? n.when + " " : "") + n.name) + '"' +
       ' style="left:' + p.x + 'px;top:' + p.y + 'px;width:' + CH_NW + 'px;height:' + CH_NH + 'px;' +
       '--fam:' + chColor(n.family) + ';border-top-color:' + chColor(n.family) + '">' +
       (ev ? '<span class="chd-tag chd-ev">✦</span>'
@@ -6879,7 +6951,7 @@ function chBuild(){
   const toolbar =
     '<div class="chd-toolbar">' +
       '<button class="chd-zbtn" data-z="out" aria-label="Zoom out" title="Zoom out">−</button>' +
-      '<button class="chd-zbtn chd-zpct" data-z="fit" aria-label="Fit width" title="Fit to width">100%</button>' +
+      '<button class="chd-zbtn chd-zpct" data-z="fit" aria-label="100%, fit to width" title="Fit to width">100%</button>' +
       '<button class="chd-zbtn" data-z="in" aria-label="Zoom in" title="Zoom in">+</button>' +
       '<button class="chd-zbtn" data-z="full" aria-pressed="false" aria-label="Expand the chart to full screen" ' +
         'title="Full screen (Esc to leave)">⛶</button>' +
@@ -6916,6 +6988,7 @@ function chBuild(){
     chLight(chSel);
     chShowPop(chSel);
   }
+  chRove(chSel);
 }
 /* Lineage lighting. Selecting a branch marks its full ancestry — every step back up
    to the apostles — plus its direct children, and boosts the lines that join them.
@@ -7091,7 +7164,11 @@ function chWirePanZoom(){
     zoomEl.style.height = (_ch.H * z) + "px";
     wrap.scrollLeft = contentX * z - cx;
     wrap.scrollTop = contentY * z - cy;
-    if (pct) pct.textContent = Math.round(z * 100) + "%";
+    if (pct){
+      // The name starts with what the button shows, and changes with it (WCAG 2.5.3).
+      pct.textContent = Math.round(z * 100) + "%";
+      pct.setAttribute("aria-label", pct.textContent + ", fit to width");
+    }
     chLod(z);
   };
   chLod(chZ);
@@ -7210,13 +7287,30 @@ function chShowPop(id){
     (n.members ? '<div class="ch-members">' + esc(n.members) + '</div>' : '') + from + into + deeper;
   pop.hidden = false;
   pop.scrollTop = 0;
+  // The node says its details are open, so the change is announced where focus is.
+  document.querySelectorAll('.chd-node[aria-expanded="true"]').forEach(x => x.setAttribute("aria-expanded", "false"));
+  const node = document.getElementById("ch-" + id);
+  if (node) node.setAttribute("aria-expanded", "true");
 }
 function chClosePop(){
   const pop = document.getElementById("chdPop");
+  // Closed from inside the details (✕, Esc): focus goes back to the branch.
+  const back = pop && pop.contains(document.activeElement) && chSel ? document.getElementById("ch-" + chSel) : null;
   if (pop) pop.hidden = true;
   document.querySelectorAll(".chd-node.sel").forEach(x => x.classList.remove("sel"));
+  document.querySelectorAll('.chd-node[aria-expanded="true"]').forEach(x => x.setAttribute("aria-expanded", "false"));
   chLight(null);
   chSel = null;
+  if (back) back.focus({ preventScroll: true });
+}
+/* 132 branches were 132 Tab stops — getting past the chart took 134 presses, and the
+   details it opened sat behind all of them. One node holds the stop (the selected
+   one, else the first); the arrow keys already walk the genealogy. */
+function chRove(id){
+  const el = id ? document.getElementById("ch-" + id) : document.querySelector(".chd-node");
+  if (!el) return;
+  document.querySelectorAll('.chd-node[tabindex="0"]').forEach(x => { if (x !== el) x.setAttribute("tabindex", "-1"); });
+  el.setAttribute("tabindex", "0");
 }
 function chApplyFilter(filter){
   const d = chData();
@@ -7257,6 +7351,7 @@ function chGoto(id){
   chSel = id;
   document.querySelectorAll(".chd-node.sel").forEach(x => x.classList.remove("sel"));
   el.classList.add("sel");
+  chRove(id);
   chLight(id);
   // Focus follows the selection — that is what makes the arrow keys work straight
   // after a tap or a lineage link, and it keeps the keyboard and the mouse on the
@@ -7847,9 +7942,15 @@ syncClearQ();
 
 /* ── command-bar chips + popovers ────────────────────────────── */
 const CHIP_POP = { chipTrans: "popTrans", chipTest: "popTest", chipBrowse: "popBrowse", chipHelp: "popHelp" };
-function closePops(){
+// The chip whose popover is open: where focus goes back to when the popover closes
+// from inside, so a keyboard user is not dropped onto <body> (WCAG 2.4.3).
+let popOpener = null;
+function closePops(restore){
+  const back = restore && anyPopOpen() ? popOpener : null;
   Object.values(CHIP_POP).forEach(id => { document.getElementById(id).hidden = true; });
   Object.keys(CHIP_POP).forEach(id => { document.getElementById(id).setAttribute("aria-expanded", "false"); });
+  popOpener = null;
+  if (back && document.contains(back)) back.focus({ preventScroll: true });
 }
 function anyPopOpen(){ return Object.values(CHIP_POP).some(id => !document.getElementById(id).hidden); }
 Object.entries(CHIP_POP).forEach(([chipId, popId]) => {
@@ -7858,8 +7959,20 @@ Object.entries(CHIP_POP).forEach(([chipId, popId]) => {
     e.stopPropagation();
     const wasOpen = !pop.hidden;
     closePops();
-    if (!wasOpen){ pop.hidden = false; chip.setAttribute("aria-expanded", "true"); }
+    if (!wasOpen){
+      pop.hidden = false;
+      chip.setAttribute("aria-expanded", "true");
+      popOpener = chip;
+      // A menu takes focus on its checked item, so ↑ / ↓ work at once.
+      const item = pop.querySelector('[role="menuitemradio"][aria-checked="true"]') || pop.querySelector('[role="menuitemradio"]');
+      if (item) item.focus({ preventScroll: true });
+    }
   });
+});
+// The two menus step with ↑ / ↓, as a menu should (WCAG 4.1.2).
+document.querySelectorAll('.pop[role="menu"]').forEach(pop => {
+  const items = () => Array.from(pop.querySelectorAll('[role="menuitemradio"]')).filter(b => !b.hidden);
+  wireRovingStrip(pop, items, list => list.indexOf(document.activeElement), () => {}, "vertical");
 });
 document.addEventListener("click", e => {
   if (!e.target.closest(".pop") && !e.target.closest("[aria-haspopup]")) closePops();
@@ -7878,7 +7991,7 @@ document.querySelectorAll("#popTrans [data-t]").forEach(btn => btn.addEventListe
   releaseUnusedTranslations();
   document.getElementById("chipTrans").innerHTML =
     "<b>" + (scope === "ALL" ? "All " + TRANS.length : scope) + '</b> <span class="chev" aria-hidden="true">▾</span>';
-  closePops(); run();
+  closePops(true); run();
 }));
 
 // testament popover → filter + chip label + book dropdown
@@ -7889,7 +8002,7 @@ document.querySelectorAll("#popTest [data-ot]").forEach(btn => btn.addEventListe
   document.getElementById("chipTest").innerHTML =
     "<b>" + TEST_LABEL[testament] + '</b> <span class="chev" aria-hidden="true">▾</span>';
   fillBooks();
-  closePops(); run();
+  closePops(true); run();
 }));
 
 // source tabs → mode + chip visibility + help swap
@@ -7967,15 +8080,17 @@ function layoutTabs(){
    one on screen at keypress time, not the one that existed at wiring time.
 
    Hoisted, so the study card 2,500 lines above can call it. */
-function wireRovingStrip(el, items, indexOf, pick){
+function wireRovingStrip(el, items, indexOf, pick, axis){
   if (!el) return;
+  // A row of tabs steps with ← / →; a menu or a column steps with ↑ / ↓.
+  const [back, fwd] = axis === "vertical" ? ["ArrowUp", "ArrowDown"] : ["ArrowLeft", "ArrowRight"];
   el.addEventListener("keydown", e => {
-    if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+    if (e.key !== back && e.key !== fwd) return;
     e.preventDefault();
     const strip = items();
     if (!strip.length) return;
     const i = indexOf(strip);
-    const next = strip[(i + (e.key === "ArrowRight" ? 1 : strip.length - 1)) % strip.length];
+    const next = strip[(i + (e.key === fwd ? 1 : strip.length - 1)) % strip.length];
     pick(next);
     next.focus();
   });
@@ -8285,7 +8400,7 @@ document.addEventListener("keydown", e => {
   if (chPop && !chPop.hidden){ chClosePop(); return; }
 
   // 3. a command-bar popover (only reachable when the reader is not covering it)
-  if ($reader.hidden && anyPopOpen()){ closePops(); return; }
+  if ($reader.hidden && anyPopOpen()){ closePops(true); return; }
 
   // 4. ONE open place popup, not all of them — a press closes a layer, not a mode
   const openMap = Object.keys(_maps).find(id => _maps[id] && _maps[id].open != null);
